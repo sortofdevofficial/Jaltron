@@ -3,49 +3,1610 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JALTRON // ULTRON-JARVIS HYBRID CORE</title>
-    <link rel="stylesheet" href="style.css">
+    <title>JALTRON // ULTRON-JARVIS HYBRID AI CORE</title>
+    <!-- Fonts for Sci-Fi Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #00f3ff;
+            --primary-glow: rgba(0, 243, 255, 0.6);
+            --primary-dark: rgba(0, 243, 255, 0.15);
+            --secondary: #0066ff;
+            --accent: #ff003c;
+            --accent-glow: rgba(255, 0, 60, 0.6);
+            --bg-dark: #020613;
+            --panel-bg: rgba(4, 16, 38, 0.85);
+            --panel-border: rgba(0, 243, 255, 0.3);
+            --text-main: #e0f7fc;
+            --text-dim: #5c8ca0;
+            --font-head: 'Orbitron', sans-serif;
+            --font-mono: 'Share Tech Mono', monospace;
+        }
+
+        /* Alternate Theme Classes */
+        body.theme-ultron {
+            --primary: #ff003c;
+            --primary-glow: rgba(255, 0, 60, 0.7);
+            --primary-dark: rgba(255, 0, 60, 0.15);
+            --secondary: #ff5500;
+            --panel-border: rgba(255, 0, 60, 0.4);
+            --panel-bg: rgba(25, 4, 10, 0.88);
+            --text-dim: #904050;
+        }
+
+        body.theme-matrix {
+            --primary: #00ff66;
+            --primary-glow: rgba(0, 255, 102, 0.7);
+            --primary-dark: rgba(0, 255, 102, 0.15);
+            --secondary: #00b33c;
+            --panel-border: rgba(0, 255, 102, 0.35);
+            --panel-bg: rgba(2, 20, 10, 0.88);
+            --text-dim: #3d8055;
+        }
+
+        body.theme-quantum {
+            --primary: #bd00ff;
+            --primary-glow: rgba(189, 0, 255, 0.7);
+            --primary-dark: rgba(189, 0, 255, 0.15);
+            --secondary: #7000ff;
+            --panel-border: rgba(189, 0, 255, 0.4);
+            --panel-bg: rgba(18, 4, 30, 0.88);
+            --text-dim: #784890;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .crt-scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+            background-size: 100% 4px;
+            z-index: 99;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .crt-vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle, transparent 60%, rgba(0,0,0,0.85) 100%);
+            z-index: 98;
+            pointer-events: none;
+        }
+
+        /* Main Container Layout */
+        .hud-wrapper {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 16px;
+            gap: 16px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 12px 20px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5), inset 0 0 15px var(--primary-dark);
+            position: relative;
+        }
+
+        .hud-header::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: 20px;
+            right: 20px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+        }
+
+        .brand-zone {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo-icon {
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 10px var(--primary-glow);
+            animation: pulse-border 3s infinite alternate;
+        }
+
+        .brand-logo-icon::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 2px;
+            transform: rotate(45deg);
+        }
+
+        .brand-title {
+            font-family: var(--font-head);
+            font-weight: 900;
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            color: #fff;
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .brand-title span {
+            color: var(--primary);
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--panel-border);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            transition: all 0.3s ease;
+        }
+
+        .status-pill.active .status-dot {
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        .header-metrics {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .metric-item span {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--panel-border);
+            color: var(--primary);
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            background: var(--primary);
+            color: var(--bg-dark);
+            box-shadow: 0 0 15px var(--primary-glow);
+            transform: translateY(-1px);
+        }
+
+        .hud-main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            flex: 1;
+        }
+
+        @media (max-width: 960px) {
+            .hud-main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Panel Wrapper Base */
+        .hud-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 0 20px var(--primary-dark);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hud-panel-title {
+            font-family: var(--font-head);
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+        }
+
+        .hud-panel-title span.tag {
+            color: var(--primary);
+            background: var(--primary-dark);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        /* ARC REACTOR SECTION */
+        .reactor-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 420px;
+        }
+
+        .reactor-stage {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        #visualizerCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .reactor-ring-outer {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border: 2px dashed var(--primary);
+            border-radius: 50%;
+            animation: spin 20s linear infinite;
+            opacity: 0.6;
+            box-shadow: 0 0 15px var(--primary-dark);
+        }
+
+        .reactor-ring-mid {
+            position: absolute;
+            width: 240px;
+            height: 240px;
+            border: 3px solid transparent;
+            border-top-color: var(--primary);
+            border-bottom-color: var(--primary);
+            border-radius: 50%;
+            animation: spin-reverse 12s linear infinite;
+            filter: drop-shadow(0 0 8px var(--primary));
+        }
+
+        .reactor-ring-inner {
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            border: 2px dotted var(--primary);
+            border-radius: 50%;
+            animation: spin 8s linear infinite;
+            opacity: 0.8;
+        }
+
+        .reactor-core-orb {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--primary) 0%, var(--primary-dark) 60%, transparent 80%);
+            box-shadow: 0 0 30px var(--primary-glow), inset 0 0 20px #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3;
+            transition: all 0.4s ease;
+        }
+
+        .reactor-core-orb::before {
+            content: '';
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 15px #fff;
+            animation: core-pulse 2s ease-in-out infinite;
+        }
+
+        .reactor-core-label {
+            position: absolute;
+            font-family: var(--font-head);
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            color: #fff;
+            text-shadow: 0 0 8px var(--primary);
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        .core-activate-btn {
+            position: relative;
+            background: linear-gradient(135deg, rgba(0,0,0,0.8), var(--primary-dark));
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            font-family: var(--font-head);
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            padding: 18px 48px;
+            border-radius: 50px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 0 25px var(--primary-dark), inset 0 0 15px var(--primary-dark);
+            text-transform: uppercase;
+        }
+
+        .core-activate-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .core-activate-btn:hover {
+            transform: scale(1.05);
+            background: var(--primary);
+            color: var(--bg-dark);
+            box-shadow: 0 0 40px var(--primary-glow);
+        }
+
+        .core-activate-btn:hover::before {
+            left: 100%;
+        }
+
+        .core-activate-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 40px var(--accent-glow);
+            animation: active-glow 1.5s infinite alternate;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .metric-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric-card-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .metric-card-val {
+            font-family: var(--font-head);
+            font-size: 1.3rem;
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .wave-canvas {
+            width: 100%;
+            height: 40px;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .terminal-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(1, 8, 20, 0.9);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 280px;
+        }
+
+        .terminal-header-bar {
+            background: rgba(0, 243, 255, 0.08);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 8px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        .terminal-feed {
+            flex: 1;
+            padding: 14px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.88rem;
+            max-height: 300px;
+            scroll-behavior: smooth;
+        }
+
+        .terminal-feed::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .terminal-feed::-webkit-scrollbar-thumb {
+            background: var(--panel-border);
+            border-radius: 3px;
+        }
+
+        .log-line {
+            display: flex;
+            gap: 8px;
+            line-height: 1.4;
+            word-break: break-word;
+            animation: fadeIn 0.2s ease-in;
+        }
+
+        .log-time {
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            min-width: 65px;
+        }
+
+        .log-tag {
+            font-weight: bold;
+            padding: 0 4px;
+            border-radius: 2px;
+            font-size: 0.75rem;
+        }
+
+        .tag-sys { color: var(--text-dim); background: rgba(255,255,255,0.05); }
+        .tag-usr { color: #fff; background: var(--secondary); }
+        .tag-jal { color: var(--bg-dark); background: var(--primary); font-weight: bold; }
+        .tag-err { color: #fff; background: var(--accent); }
+        .tag-warn { color: var(--bg-dark); background: #ffaa00; }
+
+        .log-text {
+            flex: 1;
+        }
+
+        .terminal-input-bar {
+            display: flex;
+            border-top: 1px solid var(--panel-border);
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        .terminal-prompt {
+            padding: 10px 14px;
+            color: var(--primary);
+            font-weight: bold;
+            font-family: var(--font-head);
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            padding: 10px 0;
+        }
+
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 5, 15, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 200;
+            display: flex;
+            justify-content: flex-end;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .drawer-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .settings-drawer {
+            width: 100%;
+            max-width: 520px;
+            height: 100%;
+            background: var(--panel-bg);
+            border-left: 2px solid var(--primary);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+        }
+
+        .drawer-overlay.open .settings-drawer {
+            transform: translateX(0);
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 12px;
+        }
+
+        .drawer-title {
+            font-family: var(--font-head);
+            font-size: 1.2rem;
+            color: var(--primary);
+            letter-spacing: 2px;
+        }
+
+        .setting-group {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .setting-label {
+            font-family: var(--font-head);
+            font-size: 0.85rem;
+            color: #fff;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .theme-options {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .theme-btn {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--panel-border);
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .theme-btn.active, .theme-btn:hover {
+            border-color: var(--primary);
+            background: var(--primary-dark);
+            box-shadow: 0 0 10px var(--primary-dark);
+        }
+
+        .range-slider {
+            width: 100%;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .select-input, .text-input {
+            width: 100%;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid var(--panel-border);
+            color: #fff;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            outline: none;
+        }
+
+        .cmd-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        .cmd-table th, .cmd-table td {
+            border: 1px solid var(--panel-border);
+            padding: 8px;
+            text-align: left;
+        }
+
+        .cmd-table th {
+            background: rgba(0, 243, 255, 0.1);
+            color: var(--primary);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes spin-reverse {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-360deg); }
+        }
+
+        @keyframes core-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 1; }
+        }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 5px var(--primary-glow); }
+            100% { box-shadow: 0 0 18px var(--primary-glow); }
+        }
+
+        @keyframes active-glow {
+            0% { box-shadow: 0 0 20px var(--accent-glow); }
+            100% { box-shadow: 0 0 50px var(--accent-glow); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
 <body>
-    <div class="scanline"></div>
-    <div class="grid-overlay"></div>
+    <canvas id="particleCanvas"></canvas>
+    <div class="crt-scanline"></div>
+    <div class="crt-vignette"></div>
 
-    <main class="hud-container">
-        <!-- HEADER STATUS -->
+    <!-- MAIN HUD WRAPPER -->
+    <div class="hud-wrapper">
+        <!-- HEADER BAR -->
         <header class="hud-header">
-            <div class="sys-id">CORE_ID: JALTRON-v9.0</div>
-            <div class="status-badge" id="statusBadge"><span class="dot"></span> STANDBY</div>
-            <div class="sys-clock" id="sysClock">00:00:00</div>
+            <div class="brand-zone">
+                <div class="brand-logo-icon"></div>
+                <div class="brand-title">JALTRON <span>CORE</span></div>
+                <div class="status-pill" id="statusPill">
+                    <div class="status-dot"></div>
+                    <span id="statusText">STANDBY</span>
+                </div>
+            </div>
+
+            <div class="header-metrics">
+                <div class="metric-item">TIME: <span id="clockDisplay">00:00:00</span></div>
+                <div class="metric-item">FPS: <span id="fpsDisplay">60</span></div>
+                <div class="metric-item">AUDIO: <span id="audioStatus">OFF</span></div>
+            </div>
+
+            <div class="header-actions">
+                <button class="icon-btn" id="muteSfxBtn" title="Toggle Sound Synthesizer">
+                    🔊 SFX
+                </button>
+                <button class="icon-btn" id="openSettingsBtn">
+                    ⚙️ CORE SETTINGS
+                </button>
+            </div>
         </header>
 
-        <!-- REACTOR & AUDIO VISUALIZER CANVAS -->
-        <section class="visualizer-wrapper">
-            <canvas id="audioCanvas" width="300" height="300"></canvas>
-            <div class="core-trigger" id="coreTrigger">
-                <div class="core-text">JALTRON</div>
-            </div>
-        </section>
+        <!-- MAIN DUAL-PANEL GRID -->
+        <main class="hud-main-grid">
+            <!-- LEFT PANEL: ARC REACTOR & PRIMARY ACTIVATE BUTTON -->
+            <section class="hud-panel reactor-section">
+                <div class="hud-panel-title">
+                    <span>ARC REACTOR // FREQUENCY SPECTRUM</span>
+                    <span class="tag">HYBRID ENGINE</span>
+                </div>
 
-        <!-- TERMINAL FEED -->
-        <section class="terminal-container">
-            <div class="terminal-bar">
-                <span>SYSTEM LOGS // REAL-TIME FEED</span>
-                <span id="fpsCounter">60 FPS</span>
-            </div>
-            <div class="terminal-body" id="logStream">
-                <p class="msg-sys">[SYSTEM]: JALTRON Core online. Click Reactor or press Space to initialize mic stream.</p>
-            </div>
-        </section>
+                <div class="reactor-stage">
+                    <canvas id="visualizerCanvas" width="320" height="320"></canvas>
+                    <div class="reactor-ring-outer"></div>
+                    <div class="reactor-ring-mid"></div>
+                    <div class="reactor-ring-inner"></div>
+                    <div class="reactor-core-orb" id="reactorOrb"></div>
+                    <div class="reactor-core-label" id="reactorLabel">JALTRON</div>
+                </div>
 
-        <!-- QUICK MACRO COMMAND PANELS -->
-        <footer class="hud-macros">
-            <button onclick="window.jaltron.exec('open youtube')">YOUTUBE</button>
-            <button onclick="window.jaltron.exec('open github')">GITHUB</button>
-            <button onclick="window.jaltron.exec('open discord')">DISCORD</button>
-            <button onclick="window.jaltron.exec('system status')">DIAGNOSTICS</button>
-        </footer>
-    </main>
+                <!-- SINGLE PRIMARY ACTIVATE BUTTON -->
+                <button class="core-activate-btn" id="activateBtn">
+                    ACTIVATE JALTRON
+                </button>
+            </section>
 
-    <script src="app.js"></script>
+            <!-- RIGHT PANEL: DIAGNOSTICS & TERMINAL -->
+            <section class="hud-panel">
+                <div class="hud-panel-title">
+                    <span>SYSTEM DIAGNOSTICS & TERMINAL</span>
+                    <span class="tag">LOG STREAM</span>
+                </div>
+
+                <!-- METRICS CARDS -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-card-header">
+                            <span>CPU LOAD</span>
+                            <span id="cpuVal">12%</span>
+                        </div>
+                        <canvas class="wave-canvas" id="cpuCanvas" width="200" height="40"></canvas>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-card-header">
+                            <span>MEMORY USE</span>
+                            <span id="ramVal">2.4 GB</span>
+                        </div>
+                        <canvas class="wave-canvas" id="ramCanvas" width="200" height="40"></canvas>
+                    </div>
+                </div>
+
+                <!-- TERMINAL FEED -->
+                <div class="terminal-wrapper">
+                    <div class="terminal-header-bar">
+                        <span>LIVE EXECUTION STREAM</span>
+                        <button class="icon-btn" id="clearLogBtn" style="padding:2px 8px; font-size:0.7rem;">CLEAR</button>
+                    </div>
+                    <div class="terminal-feed" id="terminalFeed">
+                        <!-- Terminal logs dynamically injected here -->
+                    </div>
+                    <div class="terminal-input-bar">
+                        <span class="terminal-prompt">SYS&gt;</span>
+                        <input type="text" class="terminal-input" id="terminalInput" placeholder="Type directive here (e.g., 'open youtube', 'status', 'help')..." />
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- SETTINGS DRAWER OVERLAY -->
+    <div class="drawer-overlay" id="drawerOverlay">
+        <aside class="settings-drawer">
+            <div class="drawer-header">
+                <div class="drawer-title">CORE SETTINGS // CONFIG</div>
+                <button class="icon-btn" id="closeSettingsBtn">✕ CLOSE</button>
+            </div>
+
+            <!-- Theme Picker -->
+            <div class="setting-group">
+                <div class="setting-label">CORE COLOR THEME</div>
+                <div class="theme-options">
+                    <button class="theme-btn active" data-theme="jarvis">JARVIS (Cyan)</button>
+                    <button class="theme-btn" data-theme="ultron">ULTRON (Red)</button>
+                    <button class="theme-btn" data-theme="matrix">MATRIX (Green)</button>
+                    <button class="theme-btn" data-theme="quantum">QUANTUM (Purple)</button>
+                </div>
+            </div>
+
+            <!-- Voice Synthesizer Controls -->
+            <div class="setting-group">
+                <div class="setting-label">VOICE SYNTHESIS (ULTRON-JARVIS MOD)</div>
+                <div>
+                    <label class="setting-label" style="font-size:0.75rem; margin-bottom:4px;">SYSTEM VOICE</label>
+                    <select class="select-input" id="voiceSelect"></select>
+                </div>
+                <div>
+                    <div class="setting-label" style="font-size:0.75rem;">PITCH MODULATION: <span id="pitchVal">0.75</span></div>
+                    <input type="range" class="range-slider" id="pitchSlider" min="0.1" max="1.5" step="0.05" value="0.75" />
+                </div>
+                <div>
+                    <div class="setting-label" style="font-size:0.75rem;">SPEECH RATE: <span id="rateVal">1.0</span></div>
+                    <input type="range" class="range-slider" id="rateSlider" min="0.5" max="1.8" step="0.1" value="1.0" />
+                </div>
+                <button class="icon-btn" id="testVoiceBtn" style="justify-content:center;">🔊 TEST VOICE SYNTHESIS</button>
+            </div>
+
+            <!-- Custom Command Registry -->
+            <div class="setting-group">
+                <div class="setting-label">CUSTOM TARGET REGISTRY</div>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" class="text-input" id="customKeyword" placeholder="Keyword (e.g. twitter)" />
+                    <input type="text" class="text-input" id="customUrl" placeholder="URL (e.g. x.com)" />
+                </div>
+                <button class="icon-btn" id="addCmdBtn" style="justify-content:center;">+ ADD TARGET RULE</button>
+            </div>
+
+            <!-- Command Cheat Sheet -->
+            <div class="setting-group">
+                <div class="setting-label">AVAILABLE VOICE / TYPE DIRECTIVES</div>
+                <table class="cmd-table">
+                    <thead>
+                        <tr><th>Directive Pattern</th><th>Action Executed</th></tr>
+                    </thead>
+                    <tbody id="cmdDirectoryBody">
+                        <tr><td>open [youtube/google/github/discord/whatsapp/spotify]</td><td>Launch Web Target</td></tr>
+                        <tr><td>search [query]</td><td>Execute Web Search</td></tr>
+                        <tr><td>status / diagnostics</td><td>Report Core Subsystems</td></tr>
+                        <tr><td>time / date</td><td>Vocalize Current Time/Date</td></tr>
+                        <tr><td>theme [cyan/red/green/purple]</td><td>Switch Visual Theme</td></tr>
+                        <tr><td>clear</td><td>Purge Terminal Feed</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </aside>
+    </div>
+
+    <!-- JAX ENGINE SCRIPT -->
+    <script>
+        class SoundSynthesizer {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playClick() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.05);
+            }
+
+            playActivate() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+
+            playDeactivate() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+
+            playSuccess() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                    gain.gain.setValueAtTime(0.12, now + idx * 0.06);
+                    gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.06 + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.06);
+                    osc.stop(now + idx * 0.06 + 0.15);
+                });
+            }
+
+            playError() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(120, now);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+        }
+
+        class ParticleBackground {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.particles = [];
+                this.count = 50;
+                this.resize();
+                this.init();
+                window.addEventListener('resize', () => this.resize());
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+
+            init() {
+                this.particles = [];
+                for (let i = 0; i < this.count; i++) {
+                    this.particles.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        vx: (Math.random() - 0.5) * 0.8,
+                        vy: (Math.random() - 0.5) * 0.8,
+                        size: Math.random() * 2 + 1
+                    });
+                }
+            }
+
+            render() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Read CSS primary color dynamically
+                const computedColor = getComputedStyle(document.body).getPropertyValue('--primary').trim() || '#00f3ff';
+
+                this.ctx.fillStyle = computedColor;
+                this.ctx.strokeStyle = computedColor;
+
+                for (let i = 0; i < this.particles.length; i++) {
+                    const p = this.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if (p.x < 0 || p.x > this.canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > this.canvas.height) p.vy *= -1;
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Connect nearby particles
+                    for (let j = i + 1; j < this.particles.length; j++) {
+                        const p2 = this.particles[j];
+                        const dx = p.x - p2.x;
+                        const dy = p.y - p2.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist < 120) {
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(p.x, p.y);
+                            this.ctx.lineTo(p2.x, p2.y);
+                            this.ctx.globalAlpha = (1 - dist / 120) * 0.25;
+                            this.ctx.stroke();
+                            this.ctx.globalAlpha = 1.0;
+                        }
+                    }
+                }
+            }
+        }
+
+        class ArcReactorVisualizer {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.audioCtx = null;
+                this.analyser = null;
+                this.dataArray = null;
+                this.isListening = false;
+            }
+
+            async startMicStream() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.analyser = this.audioCtx.createAnalyser();
+                    const source = this.audioCtx.createMediaStreamSource(stream);
+                    this.analyser.fftSize = 64;
+                    source.connect(this.analyser);
+                    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                    this.isListening = true;
+                    return true;
+                } catch (err) {
+                    console.warn("Microphone stream unavailable:", err);
+                    return false;
+                }
+            }
+
+            stopMicStream() {
+                this.isListening = false;
+                if (this.audioCtx) {
+                    this.audioCtx.close();
+                    this.audioCtx = null;
+                }
+            }
+
+            render() {
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+                const cx = w / 2;
+                const cy = h / 2;
+                const radius = 105;
+
+                this.ctx.clearRect(0, 0, w, h);
+
+                const primaryColor = getComputedStyle(document.body).getPropertyValue('--primary').trim() || '#00f3ff';
+                const accentColor = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#ff003c';
+
+                if (this.isListening && this.analyser && this.dataArray) {
+                    this.analyser.getByteFrequencyData(this.dataArray);
+                    const bars = this.dataArray.length;
+                    const step = (Math.PI * 2) / bars;
+
+                    for (let i = 0; i < bars; i++) {
+                        const val = this.dataArray[i];
+                        const barLen = (val / 255) * 35;
+                        const angle = i * step;
+
+                        const x1 = cx + Math.cos(angle) * radius;
+                        const y1 = cy + Math.sin(angle) * radius;
+                        const x2 = cx + Math.cos(angle) * (radius + barLen);
+                        const y2 = cy + Math.sin(angle) * (radius + barLen);
+
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(x1, y1);
+                        this.ctx.lineTo(x2, y2);
+                        this.ctx.strokeStyle = val > 180 ? accentColor : primaryColor;
+                        this.ctx.lineWidth = 3;
+                        this.ctx.lineCap = 'round';
+                        this.ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        class MetricsManager {
+            constructor() {
+                this.cpuCanvas = document.getElementById('cpuCanvas');
+                this.ramCanvas = document.getElementById('ramCanvas');
+                this.cpuCtx = this.cpuCanvas.getContext('2d');
+                this.ramCtx = this.ramCanvas.getContext('2d');
+                this.cpuHistory = new Array(30).fill(15);
+                this.ramHistory = new Array(30).fill(2.4);
+                
+                this.fpsDisplay = document.getElementById('fpsDisplay');
+                this.lastFrameTime = performance.now();
+                this.frameCount = 0;
+            }
+
+            update() {
+                // Update CPU/RAM fake metrics
+                if (Math.random() < 0.2) {
+                    const newCpu = Math.floor(Math.random() * 35 + 10);
+                    this.cpuHistory.push(newCpu);
+                    this.cpuHistory.shift();
+                    document.getElementById('cpuVal').textContent = `${newCpu}%`;
+
+                    const newRam = (Math.random() * 0.4 + 2.2).toFixed(1);
+                    this.ramHistory.push(newRam);
+                    this.ramHistory.shift();
+                    document.getElementById('ramVal').textContent = `${newRam} GB`;
+                }
+
+                this.renderWave(this.cpuCtx, this.cpuCanvas, this.cpuHistory, 100);
+                this.renderWave(this.ramCtx, this.ramCanvas, this.ramHistory, 4.0);
+
+                // FPS Counter
+                const now = performance.now();
+                this.frameCount++;
+                if (now - this.lastFrameTime >= 1000) {
+                    this.fpsDisplay.textContent = this.frameCount;
+                    this.frameCount = 0;
+                    this.lastFrameTime = now;
+                }
+            }
+
+            renderWave(ctx, canvas, history, maxVal) {
+                const w = canvas.width;
+                const h = canvas.height;
+                ctx.clearRect(0, 0, w, h);
+
+                const primaryColor = getComputedStyle(document.body).getPropertyValue('--primary').trim() || '#00f3ff';
+                ctx.strokeStyle = primaryColor;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                const step = w / (history.length - 1);
+                for (let i = 0; i < history.length; i++) {
+                    const y = h - (history[i] / maxVal) * h;
+                    const x = i * step;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        class JaltronCoreEngine {
+            constructor(soundSynth, visualizer) {
+                this.sfx = soundSynth;
+                this.visualizer = visualizer;
+                this.isActive = false;
+
+                this.terminalFeed = document.getElementById('terminalFeed');
+                this.terminalInput = document.getElementById('terminalInput');
+                this.activateBtn = document.getElementById('activateBtn');
+                this.statusPill = document.getElementById('statusPill');
+                this.statusText = document.getElementById('statusText');
+                this.audioStatus = document.getElementById('audioStatus');
+
+                // Custom Apps Registry
+                this.appRegistry = JSON.parse(localStorage.getItem('jaltron_registry') || '{}');
+                if (Object.keys(this.appRegistry).length === 0) {
+                    this.appRegistry = {
+                        "youtube": "https://youtube.com",
+                        "google": "https://google.com",
+                        "github": "https://github.com",
+                        "discord": "https://discord.com/app",
+                        "whatsapp": "https://web.whatsapp.com",
+                        "spotify": "https://open.spotify.com"
+                    };
+                }
+
+                this.pitch = 0.75;
+                this.rate = 1.0;
+                this.selectedVoice = null;
+
+                this.initSpeechRecognition();
+                this.initSpeechSynthesis();
+                this.attachEvents();
+
+                this.log("JALTRON Core v9.0 loaded. Awaiting activation directive.", "sys");
+            }
+
+            initSpeechSynthesis() {
+                if ('speechSynthesis' in window) {
+                    const populateVoices = () => {
+                        const voices = window.speechSynthesis.getVoices();
+                        const voiceSelect = document.getElementById('voiceSelect');
+                        voiceSelect.innerHTML = '';
+                        voices.forEach((v, idx) => {
+                            const opt = document.createElement('option');
+                            opt.value = idx;
+                            opt.textContent = `${v.name} (${v.lang})`;
+                            if (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("English")) {
+                                opt.selected = true;
+                                this.selectedVoice = v;
+                            }
+                            voiceSelect.appendChild(opt);
+                        });
+                    };
+
+                    populateVoices();
+                    if (speechSynthesis.onvoiceschanged !== undefined) {
+                        speechSynthesis.onvoiceschanged = populateVoices;
+                    }
+                }
+            }
+
+            initSpeechRecognition() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    this.log("Web Speech Recognition API unavailable on this browser.", "err");
+                    return;
+                }
+
+                this.recognition = new SpeechRecognition();
+                this.recognition.continuous = true;
+                this.recognition.interimResults = false;
+
+                this.recognition.onstart = () => {
+                    this.isActive = true;
+                    this.statusPill.classList.add('active');
+                    this.statusText.textContent = "LISTENING";
+                    this.audioStatus.textContent = "LIVE";
+                    this.activateBtn.classList.add('active');
+                    this.activateBtn.textContent = "DEACTIVATE CORE";
+                    this.sfx.playActivate();
+                    this.log("JALTRON Speech Engine active. Audio stream connected.", "sys");
+                    this.speak("Jaltron active. State your request.");
+                };
+
+                this.recognition.onresult = (e) => {
+                    const lastIdx = e.results.length - 1;
+                    const commandText = e.results[lastIdx][0].transcript.trim().toLowerCase();
+                    this.log(commandText, "usr");
+                    this.executeDirective(commandText);
+                };
+
+                this.recognition.onerror = (e) => {
+                    this.log(`Speech error: ${e.error}`, "warn");
+                };
+
+                this.recognition.onend = () => {
+                    if (this.isActive) {
+                        this.recognition.start();
+                    } else {
+                        this.statusPill.classList.remove('active');
+                        this.statusText.textContent = "STANDBY";
+                        this.audioStatus.textContent = "OFF";
+                        this.activateBtn.classList.remove('active');
+                        this.activateBtn.textContent = "ACTIVATE JALTRON";
+                    }
+                };
+            }
+
+            async toggleCore() {
+                this.sfx.playClick();
+                if (!this.isActive) {
+                    const micOk = await this.visualizer.startMicStream();
+                    if (this.recognition) {
+                        try {
+                            this.recognition.start();
+                        } catch (err) {
+                            console.log("Recognition start catch:", err);
+                        }
+                    } else if (micOk) {
+                        this.isActive = true;
+                        this.statusPill.classList.add('active');
+                        this.statusText.textContent = "ONLINE";
+                        this.activateBtn.classList.add('active');
+                        this.activateBtn.textContent = "DEACTIVATE CORE";
+                    }
+                } else {
+                    this.isActive = false;
+                    this.visualizer.stopMicStream();
+                    if (this.recognition) this.recognition.stop();
+                    this.sfx.playDeactivate();
+                    this.speak("Jaltron powering down.");
+                    this.log("Core placed on standby mode.", "sys");
+                }
+            }
+
+            executeDirective(text) {
+                const cmd = text.toLowerCase().trim();
+
+                // 1. APP OPEN DIRECTIVES
+                if (cmd.includes("open") || cmd.includes("launch")) {
+                    let matched = false;
+                    for (const [key, url] of Object.entries(this.appRegistry)) {
+                        if (cmd.includes(key)) {
+                            this.speak(`Executing protocol for ${key}`);
+                            this.log(`Launching target: ${key} -> ${url}`, "jal");
+                            this.sfx.playSuccess();
+                            window.open(url.startsWith("http") ? url : `https://${url}`, '_blank');
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        this.speak("Target not mapped in local registry.");
+                        this.log(`Target rule not found for: '${cmd}'`, "warn");
+                        this.sfx.playError();
+                    }
+                } 
+                // 2. WEB SEARCH
+                else if (cmd.includes("search")) {
+                    const query = cmd.replace("search", "").trim();
+                    if (query) {
+                        this.speak(`Searching web for ${query}`);
+                        this.log(`Redirecting search: ${query}`, "jal");
+                        this.sfx.playSuccess();
+                        window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+                    }
+                }
+                // 3. SYSTEM STATUS & DIAGNOSTICS
+                else if (cmd.includes("status") || cmd.includes("diagnostics") || cmd.includes("system")) {
+                    this.speak("All core systems operating nominally.");
+                    this.log("Subsystems nominal. VRAM: Safe. Latency: 0ms.", "jal");
+                    this.sfx.playSuccess();
+                }
+                // 4. TIME / DATE
+                else if (cmd.includes("time") || cmd.includes("clock")) {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString();
+                    this.speak(`The current time is ${timeStr}`);
+                    this.log(`Current Time: ${timeStr}`, "jal");
+                }
+                else if (cmd.includes("date")) {
+                    const now = new Date();
+                    const dateStr = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    this.speak(`Today is ${dateStr}`);
+                    this.log(`Current Date: ${dateStr}`, "jal");
+                }
+                // 5. THEME SWITCHING
+                else if (cmd.includes("theme")) {
+                    if (cmd.includes("red") || cmd.includes("ultron")) setCoreTheme("ultron");
+                    else if (cmd.includes("green") || cmd.includes("matrix")) setCoreTheme("matrix");
+                    else if (cmd.includes("purple") || cmd.includes("quantum")) setCoreTheme("quantum");
+                    else setCoreTheme("jarvis");
+                    
+                    this.speak("Visual core theme reconfigured.");
+                    this.log(`Visual Theme updated to match directive.`, "jal");
+                    this.sfx.playSuccess();
+                }
+                // 6. TERMINAL PURGE
+                else if (cmd.includes("clear")) {
+                    this.terminalFeed.innerHTML = "";
+                    this.log("Terminal log buffer purged.", "sys");
+                }
+                // 7. HELP / IDENT
+                else if (cmd.includes("who are you") || cmd.includes("identify")) {
+                    this.speak("I am Jaltron. A hybrid intelligence combining JARVIS protocol with Ultron efficiency.");
+                    this.log("Identity: JALTRON Hybrid Autonomous Intelligence Core.", "jal");
+                }
+                else {
+                    this.speak("Directive unrecognized.");
+                    this.log(`Unmatched directive rule: '${cmd}'`, "warn");
+                    this.sfx.playError();
+                }
+            }
+
+            speak(text) {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const synth = new SpeechSynthesisUtterance(text);
+                    const voiceIdx = document.getElementById('voiceSelect').value;
+                    const voices = window.speechSynthesis.getVoices();
+                    if (voices[voiceIdx]) synth.voice = voices[voiceIdx];
+                    synth.pitch = parseFloat(document.getElementById('pitchSlider').value);
+                    synth.rate = parseFloat(document.getElementById('rateSlider').value);
+                    window.speechSynthesis.speak(synth);
+                }
+            }
+
+            log(msg, type = "sys") {
+                const line = document.createElement('div');
+                line.className = 'log-line';
+                const now = new Date().toTimeString().split(' ')[0];
+                
+                let tagLabel = "SYS";
+                let tagClass = "tag-sys";
+
+                if (type === "usr") { tagLabel = "USER"; tagClass = "tag-usr"; }
+                if (type === "jal") { tagLabel = "JALTRON"; tagClass = "tag-jal"; }
+                if (type === "err") { tagLabel = "ERR"; tagClass = "tag-err"; }
+                if (type === "warn") { tagLabel = "WARN"; tagClass = "tag-warn"; }
+
+                line.innerHTML = `
+                    <span class="log-time">[${now}]</span>
+                    <span class="log-tag ${tagClass}">${tagLabel}</span>
+                    <span class="log-text">${msg}</span>
+                `;
+
+                this.terminalFeed.appendChild(line);
+                this.terminalFeed.scrollTop = this.terminalFeed.scrollHeight;
+            }
+
+            attachEvents() {
+                this.activateBtn.addEventListener('click', () => this.toggleCore());
+
+                this.terminalInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && this.terminalInput.value.trim() !== '') {
+                        const val = this.terminalInput.value.trim();
+                        this.terminalInput.value = '';
+                        this.log(val, "usr");
+                        this.executeDirective(val);
+                    }
+                });
+
+                document.getElementById('clearLogBtn').addEventListener('click', () => {
+                    this.sfx.playClick();
+                    this.terminalFeed.innerHTML = '';
+                    this.log("Terminal cleared.", "sys");
+                });
+            }
+        }
+
+        let particleBg, arcVisualizer, metricsMgr, soundSynth, jaltronCore;
+
+        function setCoreTheme(themeName) {
+            document.body.className = '';
+            if (themeName !== 'jarvis') {
+                document.body.classList.add(`theme-${themeName}`);
+            }
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === themeName);
+            });
+        }
+
+        function updateCmdTable() {
+            const tbody = document.getElementById('cmdDirectoryBody');
+            tbody.innerHTML = `
+                <tr><td>open [youtube/google/github/discord/whatsapp/spotify]</td><td>Launch Web Target</td></tr>
+                <tr><td>search [query]</td><td>Execute Google Search</td></tr>
+                <tr><td>status / diagnostics</td><td>Report Core Subsystems</td></tr>
+                <tr><td>time / date</td><td>Vocalize Time/Date</td></tr>
+                <tr><td>theme [cyan/red/green/purple]</td><td>Switch Theme</td></tr>
+                <tr><td>clear</td><td>Purge Feed</td></tr>
+            `;
+            for (const [key, url] of Object.entries(jaltronCore.appRegistry)) {
+                if (!["youtube","google","github","discord","whatsapp","spotify"].includes(key)) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>open ${key}</td><td>${url}</td>`;
+                    tbody.appendChild(tr);
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            soundSynth = new SoundSynthesizer();
+            particleBg = new ParticleBackground('particleCanvas');
+            arcVisualizer = new ArcReactorVisualizer('visualizerCanvas');
+            metricsMgr = new MetricsManager();
+            jaltronCore = new JaltronCoreEngine(soundSynth, arcVisualizer);
+
+            updateCmdTable();
+
+            // Clock update
+            setInterval(() => {
+                document.getElementById('clockDisplay').textContent = new Date().toTimeString().split(' ')[0];
+            }, 1000);
+
+            // Core Drawer Settings Events
+            const drawerOverlay = document.getElementById('drawerOverlay');
+            document.getElementById('openSettingsBtn').addEventListener('click', () => {
+                soundSynth.playClick();
+                drawerOverlay.classList.add('open');
+            });
+            document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+                soundSynth.playClick();
+                drawerOverlay.classList.remove('open');
+            });
+
+            // Mute SFX
+            const muteBtn = document.getElementById('muteSfxBtn');
+            muteBtn.addEventListener('click', () => {
+                soundSynth.muted = !soundSynth.muted;
+                muteBtn.style.opacity = soundSynth.muted ? '0.4' : '1.0';
+                muteBtn.textContent = soundSynth.muted ? '🔇 SFX OFF' : '🔊 SFX';
+            });
+
+            // Theme Buttons
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    soundSynth.playClick();
+                    setCoreTheme(btn.dataset.theme);
+                });
+            });
+
+            // Voice Pitch/Rate Sliders
+            const pitchSlider = document.getElementById('pitchSlider');
+            const rateSlider = document.getElementById('rateSlider');
+            pitchSlider.addEventListener('input', () => {
+                document.getElementById('pitchVal').textContent = pitchSlider.value;
+            });
+            rateSlider.addEventListener('input', () => {
+                document.getElementById('rateVal').textContent = rateSlider.value;
+            });
+
+            document.getElementById('testVoiceBtn').addEventListener('click', () => {
+                soundSynth.playClick();
+                jaltronCore.speak("Voice synthesizer test sequence initiated. Jaltron core online.");
+            });
+
+            // Add Custom Target Rule
+            document.getElementById('addCmdBtn').addEventListener('click', () => {
+                const kw = document.getElementById('customKeyword').value.trim().toLowerCase();
+                const url = document.getElementById('customUrl').value.trim();
+                if (kw && url) {
+                    jaltronCore.appRegistry[kw] = url;
+                    localStorage.setItem('jaltron_registry', JSON.stringify(jaltronCore.appRegistry));
+                    soundSynth.playSuccess();
+                    updateCmdTable();
+                    document.getElementById('customKeyword').value = '';
+                    document.getElementById('customUrl').value = '';
+                    jaltronCore.log(`Added custom registry target: '${kw}' -> ${url}`, "sys");
+                }
+            });
+
+            // Animation Render Loop
+            function mainLoop() {
+                particleBg.render();
+                arcVisualizer.render();
+                metricsMgr.update();
+                requestAnimationFrame(mainLoop);
+            }
+            mainLoop();
+        });
+    </script>
 </body>
 </html>
