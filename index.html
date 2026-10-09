@@ -1,630 +1,152 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950 text-slate-100 antialiased selection:bg-cyan-500 selection:text-black">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JALTRON - Cyberpunk AI Voice HUD</title>
-
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        cyber: '#00f3ff',
-                        ultron: '#ff0055',
-                        hudbg: '#030712',
-                    },
-                    fontFamily: {
-                        mono: ['JetBrains Mono', 'Courier New', 'monospace'],
-                        sans: ['Orbitron', 'Inter', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- Google Fonts & FontAwesome -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;800&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <style>
-        :root {
-            --primary: #00f3ff;
-            --primary-rgb: 0, 243, 255;
-            --primary-glow: rgba(0, 243, 255, 0.25);
-            --border-glow: rgba(0, 243, 255, 0.4);
-            --bg-color: #030712;
-            --panel-bg: rgba(8, 15, 30, 0.85);
-        }
-
-        [data-theme="ultron"] {
-            --primary: #ff0055;
-            --primary-rgb: 255, 0, 85;
-            --primary-glow: rgba(255, 0, 85, 0.25);
-            --border-glow: rgba(255, 0, 85, 0.4);
-        }
-
-        body {
-            background-color: var(--bg-color);
-            font-family: 'JetBrains Mono', monospace;
-            overflow-x: hidden;
-            user-select: none;
-        }
-
-        /* Pure CSS HUD Panel - High Performance */
-        .hud-card {
-            background: var(--panel-bg);
-            border: 1px solid var(--border-glow);
-            box-shadow: 0 0 20px var(--primary-glow);
-            backdrop-filter: blur(6px);
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .hud-corner {
-            position: relative;
-        }
-        .hud-corner::before {
-            content: '';
-            position: absolute;
-            top: -2px; left: -2px;
-            width: 8px; height: 8px;
-            border-top: 2px solid var(--primary);
-            border-left: 2px solid var(--primary);
-        }
-        .hud-corner::after {
-            content: '';
-            position: absolute;
-            bottom: -2px; right: -2px;
-            width: 8px; height: 8px;
-            border-bottom: 2px solid var(--primary);
-            border-right: 2px solid var(--primary);
-        }
-
-        /* Lightweight CSS Animations */
-        .spin-cw {
-            animation: spin 18s linear infinite;
-        }
-        .spin-ccw {
-            animation: spin-reverse 14s linear infinite;
-        }
-        .core-pulse {
-            animation: core-glow 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        @keyframes spin-reverse {
-            from { transform: rotate(360deg); }
-            to { transform: rotate(0deg); }
-        }
-        @keyframes core-glow {
-            0% { box-shadow: 0 0 15px var(--primary-glow); border-color: rgba(var(--primary-rgb), 0.5); }
-            100% { box-shadow: 0 0 40px var(--primary), 0 0 60px var(--primary-glow); border-color: var(--primary); }
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(3, 7, 18, 0.9);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 2px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JALTRON - AI Voice HUD</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body data-theme="cyan" class="min-h-screen text-slate-100 flex flex-col justify-between p-3 md:p-5 relative">
-
-    <header class="hud-card hud-corner rounded-lg p-3 md:p-4 mb-4 flex flex-wrap items-center justify-between gap-3 z-10">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full border border-[var(--primary)] flex items-center justify-center bg-slate-900/90">
-                <i class="fa-solid fa-brain text-xl text-[var(--primary)]"></i>
-            </div>
-            <div>
-                <h1 class="font-sans font-black tracking-widest text-lg md:text-xl text-[var(--primary)] flex items-center gap-2">
-                    JALTRON <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-[var(--primary)] text-slate-200">CORE v5.0</span>
-                </h1>
-                <p class="text-[10px] text-slate-400 uppercase tracking-widest">CYBERPUNK HIGH-PERFORMANCE VOICE HUD</p>
-            </div>
-        </div>
-
-        <!-- Mode Switches & Live Status Badge -->
-        <div class="flex items-center gap-3 flex-wrap">
-            <button onclick="toggleTheme()" class="px-3 py-1.5 rounded border border-slate-700 bg-slate-900/80 hover:border-[var(--primary)] transition-all text-xs font-mono flex items-center gap-2">
-                <i class="fa-solid fa-palette text-[var(--primary)]"></i>
-                <span id="theme-btn-label">THEME: CYAN</span>
-            </button>
-
-            <button id="mute-btn" onclick="toggleMute()" class="px-3 py-1.5 rounded border border-slate-700 bg-slate-900/80 hover:border-[var(--primary)] transition-all text-xs font-mono flex items-center gap-2">
-                <i id="mute-icon" class="fa-solid fa-volume-high text-[var(--primary)]"></i>
-                <span id="mute-label">VOICE: ON</span>
-            </button>
-
-            <div id="status-badge" class="px-3 py-1.5 rounded border border-slate-800 bg-slate-950 text-xs font-mono flex items-center gap-2">
-                <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
-                <span id="status-text" class="tracking-wider uppercase text-slate-300 font-bold">STANDBY</span>
-            </div>
-        </div>
-    </header>
-
-    <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 my-1 z-10">
-        
-        <!-- LEFT PANEL: QUICK COMMAND SHORTCUTS -->
-        <aside class="lg:col-span-3 flex flex-col gap-3">
-            <div class="hud-card hud-corner rounded-lg p-4 flex-1 flex flex-col justify-between">
-                <div>
-                    <div class="text-xs font-sans font-bold text-[var(--primary)] tracking-widest border-b border-slate-800 pb-2 mb-3 flex items-center justify-between">
-                        <span><i class="fa-solid fa-bolt mr-2"></i>VOICE COMMANDS</span>
-                        <span class="text-[10px] text-slate-500 font-mono">DIRECT</span>
-                    </div>
-
-                    <div class="space-y-2 font-mono text-xs">
-                        <button onclick="runCommand('open youtube')" class="w-full p-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[var(--primary)] rounded text-left transition-all flex items-center justify-between">
-                            <span>🚀 "open youtube"</span>
-                            <i class="fa-solid fa-arrow-right text-[10px] text-slate-500"></i>
-                        </button>
-                        <button onclick="runCommand('open google')" class="w-full p-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[var(--primary)] rounded text-left transition-all flex items-center justify-between">
-                            <span>🔍 "open google"</span>
-                            <i class="fa-solid fa-arrow-right text-[10px] text-slate-500"></i>
-                        </button>
-                        <button onclick="runCommand('open github')" class="w-full p-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[var(--primary)] rounded text-left transition-all flex items-center justify-between">
-                            <span>💻 "open github"</span>
-                            <i class="fa-solid fa-arrow-right text-[10px] text-slate-500"></i>
-                        </button>
-                        <button onclick="runCommand('open whatsapp')" class="w-full p-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[var(--primary)] rounded text-left transition-all flex items-center justify-between">
-                            <span>💬 "open whatsapp"</span>
-                            <i class="fa-solid fa-arrow-right text-[10px] text-slate-500"></i>
-                        </button>
-                        <button onclick="runCommand('system status')" class="w-full p-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[var(--primary)] rounded text-left transition-all flex items-center justify-between">
-                            <span>⚡ "system status"</span>
-                            <i class="fa-solid fa-arrow-right text-[10px] text-slate-500"></i>
-                        </button>
-                        <button onclick="runCommand('time')" class="w-full p-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[var(--primary)] rounded text-left transition-all flex items-center justify-between">
-                            <span>🕒 "time and date"</span>
-                            <i class="fa-solid fa-arrow-right text-[10px] text-slate-500"></i>
-                        </button>
-                        <button onclick="runCommand('clear')" class="w-full p-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[var(--primary)] rounded text-left transition-all flex items-center justify-between">
-                            <span>🧹 "clear logs"</span>
-                            <i class="fa-solid fa-arrow-right text-[10px] text-slate-500"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-slate-400">
-                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Speech Voice Engine</div>
-                    <div id="voice-name-display" class="truncate font-bold text-slate-200">Loading synthetic voice...</div>
-                </div>
-            </div>
-        </aside>
-
-        <!-- CENTER PANEL: LAG-FREE ARC REACTOR & SPEECH FEEDBACK -->
-        <section class="lg:col-span-6 flex flex-col gap-3">
-            <div class="hud-card hud-corner rounded-lg flex-1 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden min-h-[380px]">
-                
-                <!-- Pure CSS Holographic Rings (No Canvas Lag) -->
-                <div class="relative flex items-center justify-center mb-6">
-                    <div class="w-64 h-64 md:w-72 md:h-72 rounded-full border border-dashed border-[var(--primary)] opacity-40 spin-cw absolute pointer-events-none"></div>
-                    <div class="w-52 h-52 md:w-60 md:h-60 rounded-full border-2 border-dotted border-[var(--primary)] opacity-60 spin-ccw absolute pointer-events-none"></div>
-
-                    <!-- Main Core Activation Button -->
-                    <button id="core-btn" onclick="toggleCore()" class="relative z-20 w-36 h-36 md:w-44 md:h-44 rounded-full bg-slate-950 border-2 border-[var(--primary)] flex flex-col items-center justify-center cursor-pointer transition-transform hover:scale-105 core-pulse group">
-                        <i id="core-icon" class="fa-solid fa-power-off text-3xl md:text-4xl text-[var(--primary)] mb-2 group-hover:scale-110 transition-transform"></i>
-                        <span id="core-label" class="font-sans font-black text-xs md:text-sm tracking-widest text-slate-100 uppercase">ACTIVATE</span>
-                        <span id="core-subtext" class="text-[9px] font-mono text-slate-400 tracking-tight">JALTRON AI</span>
-                    </button>
-                </div>
-
-                <!-- Live Speech Recognition Output Banner -->
-                <div class="w-full max-w-lg bg-slate-950/80 border border-slate-800 rounded-lg p-3 mt-2">
-                    <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-1 flex items-center justify-between">
-                        <span>LIVE SPEECH STREAM</span>
-                        <span id="listening-indicator" class="text-[var(--primary)] hidden animate-pulse">● REC</span>
-                    </div>
-                    <div id="live-transcript" class="font-mono text-sm font-semibold text-[var(--primary)] min-h-[24px] flex items-center justify-center">
-                        Click "ACTIVATE" to speak
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- RIGHT PANEL: TERMINAL LOG FEED -->
-        <aside class="lg:col-span-3 flex flex-col">
-            <div class="hud-card hud-corner rounded-lg flex-1 flex flex-col p-4 min-h-[320px]">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-                    <span class="text-xs font-sans font-bold text-[var(--primary)] tracking-widest flex items-center gap-2">
-                        <i class="fa-solid fa-terminal"></i> TERMINAL FEED
-                    </span>
-                    <button onclick="clearTerminal()" class="text-[10px] font-mono text-slate-500 hover:text-slate-200">
-                        [CLEAR]
-                    </button>
-                </div>
-
-                <div id="terminal-feed" class="flex-1 overflow-y-auto space-y-2 text-xs font-mono max-h-[400px] pr-1">
-                    <div class="p-2 rounded bg-slate-900/80 border-l-2 border-slate-600 text-slate-400">
-                        <span class="text-[10px] text-slate-500 block">[SYSTEM INIT]</span>
-                        JALTRON core standby. Mic recognition optimized for 100% accuracy.
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-    </main>
-
-    <!-- BOTTOM INPUT BAR (TEXT FALLBACK) -->
-    <footer class="hud-card rounded-lg p-3 z-10 mt-3">
-        <form onsubmit="handleFormSubmit(event)" class="flex items-center gap-2">
-            <div class="relative flex-1">
-                <i class="fa-solid fa-terminal absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-                <input id="text-input" type="text" placeholder="Type command fallback (e.g. 'open youtube', 'search space news', 'system status')..." 
-                       class="w-full bg-slate-950 border border-slate-800 focus:border-[var(--primary)] rounded py-2 pl-9 pr-4 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none transition-colors">
-            </div>
-            <button type="submit" class="px-5 py-2 bg-[var(--primary)] text-slate-950 font-sans font-black text-xs rounded hover:opacity-90 transition-opacity flex items-center gap-1">
-                <span>EXECUTE</span>
-                <i class="fa-solid fa-paper-plane text-xs"></i>
-            </button>
-        </form>
-    </footer>
-
-    <script>
-        // System State
-        let isActivated = false;
-        let isMuted = false;
-        let isSpeaking = false;
-        let currentTheme = 'cyan';
-        
-        let recognition = null;
-        let synth = window.speechSynthesis;
-        let selectedVoice = null;
-
-        // Web Speech API Setup tuned for high accuracy
-        function initSpeechRecognition() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-            if (!SpeechRecognition) {
-                logTerminal('SYSTEM ERROR', 'Speech Recognition API not supported in this browser. Use text input bar below.', 'text-rose-400');
-                updateLiveTranscript('Speech API unsupported - Use text input');
-                return null;
-            }
-
-            const rec = new SpeechRecognition();
-            rec.continuous = true;
-            rec.interimResults = true; // Key for immediate accurate visual feedback
-            rec.lang = 'en-US';
-
-            rec.onstart = () => {
-                updateStatus('LISTENING', 'bg-emerald-500 animate-pulse');
-                document.getElementById('listening-indicator').classList.remove('hidden');
-                updateLiveTranscript('Listening... Speak now!');
-            };
-
-            rec.onresult = (event) => {
-                let interimTranscript = '';
-                let finalTranscript = '';
-
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript;
-                    } else {
-                        interimTranscript += transcript;
-                    }
-                }
-
-                // Show real-time interim speech string
-                if (interimTranscript) {
-                    updateLiveTranscript(`Heard: "${interimTranscript.trim()}"`);
-                }
-
-                // Process final result string
-                if (finalTranscript) {
-                    const cleanCmd = finalTranscript.trim();
-                    updateLiveTranscript(`Executing: "${cleanCmd}"`);
-                    logTerminal('VOICE INPUT', `"${cleanCmd}"`, 'text-cyan-300');
-                    runCommand(cleanCmd);
-                }
-            };
-
-            rec.onerror = (event) => {
-                console.warn('Speech recognition error:', event.error);
-                if (event.error === 'not-allowed') {
-                    logTerminal('MIC BLOCKED', 'Microphone permission denied.', 'text-rose-400');
-                    updateStatus('MIC ERROR', 'bg-rose-500');
-                    updateLiveTranscript('Microphone access blocked');
-                    isActivated = false;
-                    updateCoreUI();
-                }
-            };
-
-            rec.onend = () => {
-                document.getElementById('listening-indicator').classList.add('hidden');
-                // Reliable continuous restart loop
-                if (isActivated && !isSpeaking) {
-                    setTimeout(() => {
-                        try { rec.start(); } catch (e) {}
-                    }, 300);
-                } else if (!isActivated) {
-                    updateStatus('STANDBY', 'bg-slate-600');
-                }
-            };
-
-            return rec;
-        }
-
-        // Deep Low-Pitched Voice Synthesis Setup (JARVIS/Ultron Hybrid)
-        function initVoiceSynthesis() {
-            if (!synth) return;
-
-            function loadVoices() {
-                const voices = synth.getVoices();
-                if (!voices.length) return;
-
-                const preferredNames = [
-                    'Google UK English Male',
-                    'Daniel',
-                    'Alex',
-                    'Microsoft David',
-                    'Google US English'
-                ];
-
-                for (let name of preferredNames) {
-                    const found = voices.find(v => v.name.includes(name));
-                    if (found) {
-                        selectedVoice = found;
-                        break;
-                    }
-                }
-
-                if (!selectedVoice) selectedVoice = voices[0];
-
-                const voiceLabel = document.getElementById('voice-name-display');
-                if (voiceLabel && selectedVoice) {
-                    voiceLabel.textContent = `${selectedVoice.name} (${selectedVoice.lang})`;
-                }
-            }
-
-            loadVoices();
-            if (synth.onvoiceschanged !== undefined) {
-                synth.onvoiceschanged = loadVoices;
-            }
-        }
-
-        function speak(text) {
-            if (isMuted || !synth) return;
-
-            synth.cancel(); // Stop ongoing speech
-
-            const utterance = new SpeechSynthesisUtterance(text);
-            if (selectedVoice) utterance.voice = selectedVoice;
-
-            // Deep futuristic pitch parameters
-            utterance.pitch = currentTheme === 'ultron' ? 0.65 : 0.80;
-            utterance.rate = 1.0;
-
-            utterance.onstart = () => {
-                isSpeaking = true;
-                updateStatus('SPEAKING', 'bg-amber-400 animate-pulse');
-            };
-
-            utterance.onend = () => {
-                isSpeaking = false;
-                if (isActivated) {
-                    updateStatus('LISTENING', 'bg-emerald-500 animate-pulse');
-                    startListening();
-                } else {
-                    updateStatus('STANDBY', 'bg-slate-600');
-                }
-            };
-
-            utterance.onerror = () => {
-                isSpeaking = false;
-                if (isActivated) startListening();
-            };
-
-            synth.speak(utterance);
-        }
-
-        // JALTRON High-Performance Command Router
-        function runCommand(rawCmd) {
-            if (!rawCmd) return;
-            const cmd = rawCmd.toLowerCase().trim();
-
-            // 1. OPEN APPS / WEBSITES
-            if (cmd.startsWith('open ')) {
-                const target = cmd.replace('open ', '').trim();
-                const appUrls = {
-                    'youtube': 'https://youtube.com',
-                    'google': 'https://google.com',
-                    'github': 'https://github.com',
-                    'discord': 'https://discord.com',
-                    'whatsapp': 'https://web.whatsapp.com',
-                    'spotify': 'https://spotify.com',
-                    'reddit': 'https://reddit.com',
-                    'chatgpt': 'https://chatgpt.com'
-                };
-
-                if (appUrls[target]) {
-                    speak(`Opening ${target}`);
-                    logTerminal('LAUNCH', `Opening module: ${target}`, 'text-emerald-400');
-                    window.open(appUrls[target], '_blank');
-                } else {
-                    speak(`Opening web link for ${target}`);
-                    window.open(`https://${target}.com`, '_blank');
-                }
-                return;
-            }
-
-            // 2. SEARCH COMMANDS
-            if (cmd.startsWith('search ')) {
-                const query = cmd.replace('search ', '').trim();
-                speak(`Searching Google for ${query}`);
-                logTerminal('SEARCH', `Web search query: "${query}"`, 'text-cyan-300');
-                window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
-                return;
-            }
-
-            // 3. SYSTEM DIAGNOSTICS
-            if (cmd.includes('system status') || cmd.includes('status') || cmd.includes('diagnostics')) {
-                speak('All neural modules operational. Visual HUD rendering at 60 frames per second with zero latency.');
-                logTerminal('STATUS', 'Core state: OPTIMAL | Latency: 0ms | Frame rate: 60 FPS', 'text-cyan-400');
-                return;
-            }
-
-            // 4. THEME SWITCHING
-            if (cmd.includes('theme') || cmd.includes('ultron') || cmd.includes('cyan')) {
-                if (cmd.includes('ultron') || cmd.includes('red')) {
-                    setTheme('ultron');
-                    speak('Ultron crimson protocol engaged.');
-                } else {
-                    setTheme('cyan');
-                    speak('Jarvis cyan mode restored.');
-                }
-                return;
-            }
-
-            // 5. TIME AND DATE
-            if (cmd.includes('time') || cmd.includes('date')) {
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const dateStr = now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-                speak(`The time is ${timeStr} on ${dateStr}`);
-                logTerminal('CHRONO', `${timeStr} - ${dateStr}`, 'text-cyan-300');
-                return;
-            }
-
-            // 6. CLEAR LOGS
-            if (cmd.includes('clear')) {
-                clearTerminal();
-                speak('Terminal log buffer cleared.');
-                return;
-            }
-
-            // DEFAULT UNRECOGNIZED RESPONSE
-            speak(`Processed command: ${cmd}`);
-            logTerminal('ACKNOWLEDGE', `Processed: "${cmd}"`, 'text-slate-300');
-        }
-
-        // Core Control & Handlers
-        function toggleCore() {
-            isActivated = !isActivated;
-
-            if (isActivated) {
-                updateCoreUI();
-                logTerminal('CORE EVENT', 'JALTRON AI Core Activated.', 'text-cyan-400');
-                speak('JALTRON online. Listening for voice input.');
-                startListening();
-            } else {
-                if (recognition) {
-                    try { recognition.stop(); } catch(e){}
-                }
-                if (synth) synth.cancel();
-                updateCoreUI();
-                updateStatus('STANDBY', 'bg-slate-600');
-                updateLiveTranscript('Click "ACTIVATE" to speak');
-                logTerminal('CORE EVENT', 'JALTRON core powered down to standby.', 'text-slate-500');
-            }
-        }
-
-        function startListening() {
-            if (!recognition) recognition = initSpeechRecognition();
-            if (recognition && isActivated && !isSpeaking) {
-                try {
-                    recognition.start();
-                } catch (e) {}
-            }
-        }
-
-        function updateCoreUI() {
-            const btn = document.getElementById('core-btn');
-            const icon = document.getElementById('core-icon');
-            const label = document.getElementById('core-label');
-
-            if (isActivated) {
-                btn.classList.add('border-cyan-400');
-                icon.className = 'fa-solid fa-microphone text-3xl md:text-4xl text-[var(--primary)] mb-2 animate-pulse';
-                label.textContent = 'ONLINE';
-            } else {
-                btn.classList.remove('border-cyan-400');
-                icon.className = 'fa-solid fa-power-off text-3xl md:text-4xl text-[var(--primary)] mb-2';
-                label.textContent = 'ACTIVATE';
-            }
-        }
-
-        function updateStatus(text, dotClass) {
-            document.getElementById('status-text').textContent = text;
-            document.getElementById('status-dot').className = `w-2.5 h-2.5 rounded-full ${dotClass}`;
-        }
-
-        function updateLiveTranscript(msg) {
-            document.getElementById('live-transcript').textContent = msg;
-        }
-
-        function setTheme(theme) {
-            currentTheme = theme;
-            document.body.setAttribute('data-theme', theme);
-            document.getElementById('theme-btn-label').textContent = `THEME: ${theme.toUpperCase()}`;
-            logTerminal('THEME', `Color theme updated to ${theme.toUpperCase()}`, 'text-amber-300');
-        }
-
-        function toggleTheme() {
-            setTheme(currentTheme === 'cyan' ? 'ultron' : 'cyan');
-        }
-
-        function toggleMute() {
-            isMuted = !isMuted;
-            document.getElementById('mute-label').textContent = isMuted ? 'VOICE: OFF' : 'VOICE: ON';
-            document.getElementById('mute-icon').className = isMuted ? 'fa-solid fa-volume-xmark text-rose-500' : 'fa-solid fa-volume-high text-[var(--primary)]';
-            if (isMuted && synth) synth.cancel();
-        }
-
-        function handleFormSubmit(e) {
-            e.preventDefault();
-            const input = document.getElementById('text-input');
-            const val = input.value.trim();
-            if (val) {
-                logTerminal('TEXT INPUT', `"${val}"`, 'text-cyan-300');
-                runCommand(val);
-                input.value = '';
-            }
-        }
-
-        function logTerminal(tag, message, tagColor = 'text-cyan-400') {
-            const feed = document.getElementById('terminal-feed');
-            if (!feed) return;
-
-            const time = new Date().toLocaleTimeString();
-            const item = document.createElement('div');
-            item.className = 'p-2 rounded bg-slate-900/90 border-l-2 border-[var(--primary)] text-slate-200';
-            item.innerHTML = `
-                <div class="flex items-center justify-between text-[10px] text-slate-500 mb-0.5">
-                    <span class="${tagColor} font-bold">[${tag}]</span>
-                    <span>${time}</span>
-                </div>
-                <div class="leading-relaxed break-words text-xs">${message}</div>
-            `;
-
-            feed.appendChild(item);
-            feed.scrollTop = feed.scrollHeight;
-        }
-
-        function clearTerminal() {
-            const feed = document.getElementById('terminal-feed');
-            if (feed) feed.innerHTML = '';
-        }
-
-        // Initialize on Load
-        window.onload = function() {
-            initVoiceSynthesis();
-            logTerminal('SYSTEM READY', 'Click ACTIVATE to grant microphone access & start.', 'text-emerald-400');
-        };
-    </script>
+<body data-theme="cyan" data-state="standby">
+
+  <header class="hud hud-corner top">
+    <div class="brand">
+      <img class="logo" src="favicon.png" alt="" width="44" height="44">
+      <div>
+        <h1>JALTRON <span class="tag">CORE v6.0</span></h1>
+        <p class="sub">AI voice assistant</p>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="btn danger" id="shut-btn" title="Silence JALTRON (Esc)">
+        <i class="fa-solid fa-hand"></i><span>SHUT UP</span>
+      </button>
+      <button class="btn" id="mute-btn" title="Turn spoken replies on or off">
+        <i id="mute-icon" class="fa-solid fa-volume-high"></i><span id="mute-label">VOICE ON</span>
+      </button>
+      <button class="btn" id="theme-btn" title="Switch colour theme">
+        <i class="fa-solid fa-palette"></i><span id="theme-label">CYAN</span>
+      </button>
+      <button class="btn" id="settings-btn" title="AI and voice settings">
+        <i class="fa-solid fa-gear"></i><span>SETTINGS</span>
+      </button>
+      <div class="status" id="status"><span class="dot" id="status-dot"></span><span id="status-text">STANDBY</span></div>
+    </div>
+  </header>
+
+  <main class="grid">
+
+    <aside class="hud hud-corner panel side">
+      <div class="panel-title"><i class="fa-solid fa-bolt"></i> Voice commands</div>
+      <div class="cmd-list" id="cmd-list">
+        <button data-cmd="open youtube"><span>Open YouTube</span></button>
+        <button data-cmd="open github"><span>Open GitHub</span></button>
+        <button data-cmd="open discord"><span>Open Discord</span></button>
+        <button data-cmd="what time is it"><span>Time and date</span></button>
+        <button data-cmd="system status"><span>System status</span></button>
+        <button data-cmd="ultron mode"><span>Ultron mode</span></button>
+        <button data-cmd="new chat"><span>Forget conversation</span></button>
+        <button data-cmd="shut up"><span>Shut up</span></button>
+      </div>
+      <div class="engine">
+        <div class="mini">AI engine</div>
+        <div id="engine-name" class="strong">Offline brain</div>
+        <div class="mini mt">Voice</div>
+        <div id="voice-name" class="strong">Loading...</div>
+      </div>
+    </aside>
+
+    <section class="hud hud-corner panel center">
+      <div class="reactor">
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <button id="core-btn" class="core" aria-label="Activate JALTRON">
+          <i id="core-icon" class="fa-solid fa-power-off"></i>
+          <span id="core-label">ACTIVATE</span>
+        </button>
+      </div>
+
+      <div class="live">
+        <div class="live-head"><span>Live speech</span><span id="rec" class="rec hidden">● REC</span></div>
+        <div id="live-transcript">Press activate, then speak. Say "shut up" any time.</div>
+      </div>
+
+      <div id="chat" class="chat" aria-live="polite"></div>
+    </section>
+
+    <aside class="hud hud-corner panel side">
+      <div class="panel-title">
+        <span><i class="fa-solid fa-terminal"></i> Terminal feed</span>
+        <button class="link" id="clear-log">clear</button>
+      </div>
+      <div id="terminal" class="terminal"></div>
+    </aside>
+
+  </main>
+
+  <footer class="hud bar">
+    <form id="form" autocomplete="off">
+      <input id="text-input" type="text" placeholder="Ask anything, or type a command like 'open youtube' or 'search space news'" maxlength="1000">
+      <button type="submit" class="btn primary"><span>SEND</span><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+  </footer>
+
+  <dialog id="settings">
+    <form method="dialog" id="settings-form">
+      <h2>Settings</h2>
+
+      <label>AI provider
+        <select id="s-provider">
+          <option value="anthropic">Claude (Anthropic API)</option>
+          <option value="openai">OpenAI-compatible API</option>
+          <option value="offline">Offline brain (no key)</option>
+        </select>
+      </label>
+
+      <label>API key
+        <input id="s-key" type="password" placeholder="Paste your API key" autocomplete="off" spellcheck="false">
+      </label>
+      <p class="note">Your key is kept in memory only. It is never saved, so you will need to enter it again after a reload. It is sent only to the provider you pick.</p>
+
+      <label class="row-anthropic">Claude model
+        <input id="s-model-anthropic" type="text" spellcheck="false">
+      </label>
+      <label class="row-openai">Model
+        <input id="s-model-openai" type="text" spellcheck="false">
+      </label>
+      <label class="row-openai">Base URL
+        <input id="s-base" type="text" spellcheck="false">
+      </label>
+
+      <hr>
+
+      <label>Voice
+        <select id="s-voice"></select>
+      </label>
+      <div class="two">
+        <label>Speed <output id="o-rate"></output>
+          <input id="s-rate" type="range" min="0.7" max="1.6" step="0.05">
+        </label>
+        <label>Pitch <output id="o-pitch"></output>
+          <input id="s-pitch" type="range" min="0.4" max="1.4" step="0.05">
+        </label>
+      </div>
+
+      <div class="dlg-actions">
+        <button type="button" class="btn" id="s-test">TEST VOICE</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="s-cancel">CANCEL</button>
+        <button type="submit" class="btn primary" value="save">SAVE</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="index.js"></script>
 </body>
 </html>
