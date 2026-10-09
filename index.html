@@ -3,30 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JALTRON OS // CORE</title>
+    <title>JALTRON // ULTRON-JARVIS HYBRID CORE</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="hud-container">
-        <div class="reactor-box">
-            <div class="ring outer-ring"></div>
-            <div class="ring inner-ring"></div>
-            <div class="core-node" id="coreNode"></div>
-        </div>
-        
-        <h1 class="title">JALTRON <span class="status-tag" id="statusTag">OFFLINE</span></h1>
-        
-        <div class="terminal-window">
-            <div class="terminal-header">SYSTEM LOGS</div>
-            <div class="terminal-body" id="logOutput">
-                <p class="system-msg">[SYS_INIT]: JALTRON core loaded. Awaiting activation.</p>
-            </div>
-        </div>
+    <div class="scanline"></div>
+    <div class="grid-overlay"></div>
 
-        <div class="controls">
-            <button id="listenBtn" class="btn">ACTIVATE JALTRON</button>
-        </div>
-    </div>
+    <main class="hud-container">
+        <!-- HEADER STATUS -->
+        <header class="hud-header">
+            <div class="sys-id">CORE_ID: JALTRON-v9.0</div>
+            <div class="status-badge" id="statusBadge"><span class="dot"></span> STANDBY</div>
+            <div class="sys-clock" id="sysClock">00:00:00</div>
+        </header>
+
+        <!-- REACTOR & AUDIO VISUALIZER CANVAS -->
+        <section class="visualizer-wrapper">
+            <canvas id="audioCanvas" width="300" height="300"></canvas>
+            <div class="core-trigger" id="coreTrigger">
+                <div class="core-text">JALTRON</div>
+            </div>
+        </section>
+
+        <!-- TERMINAL FEED -->
+        <section class="terminal-container">
+            <div class="terminal-bar">
+                <span>SYSTEM LOGS // REAL-TIME FEED</span>
+                <span id="fpsCounter">60 FPS</span>
+            </div>
+            <div class="terminal-body" id="logStream">
+                <p class="msg-sys">[SYSTEM]: JALTRON Core online. Click Reactor or press Space to initialize mic stream.</p>
+            </div>
+        </section>
+
+        <!-- QUICK MACRO COMMAND PANELS -->
+        <footer class="hud-macros">
+            <button onclick="window.jaltron.exec('open youtube')">YOUTUBE</button>
+            <button onclick="window.jaltron.exec('open github')">GITHUB</button>
+            <button onclick="window.jaltron.exec('open discord')">DISCORD</button>
+            <button onclick="window.jaltron.exec('system status')">DIAGNOSTICS</button>
+        </footer>
+    </main>
 
     <script src="app.js"></script>
 </body>
