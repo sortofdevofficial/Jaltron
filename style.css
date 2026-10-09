@@ -1,0 +1,138 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+body {
+    background-color: #030712;
+    color: #00f3ff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.hud-container {
+    width: 90%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.reactor-box {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid transparent;
+}
+
+.outer-ring {
+    width: 140px;
+    height: 140px;
+    border-top-color: #00f3ff;
+    border-bottom-color: #00f3ff;
+    animation: spin 4s linear infinite;
+}
+
+.inner-ring {
+    width: 100px;
+    height: 100px;
+    border-left-color: #ff0055;
+    border-right-color: #ff0055;
+    animation: spin-reverse 2.5s linear infinite;
+}
+
+.core-node {
+    width: 40px;
+    height: 40px;
+    background-color: #00f3ff;
+    border-radius: 50%;
+    box-shadow: 0 0 20px #00f3ff, 0 0 40px #00f3ff;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.title {
+    font-size: 2rem;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px #00f3ff;
+}
+
+.status-tag {
+    font-size: 0.9rem;
+    color: #ff0055;
+    border: 1px solid #ff0055;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.terminal-window {
+    width: 100%;
+    height: 180px;
+    background: rgba(0, 15, 30, 0.8);
+    border: 1px solid #00f3ff;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+}
+
+.terminal-header {
+    background: rgba(0, 243, 255, 0.15);
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border-bottom: 1px solid #00f3ff;
+}
+
+.terminal-body {
+    padding: 10px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.user-msg { color: #ffffff; }
+.jaltron-msg { color: #00f3ff; }
+.system-msg { color: #ff0055; }
+
+.btn {
+    background: transparent;
+    color: #00f3ff;
+    border: 2px solid #00f3ff;
+    padding: 12px 24px;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: 0.2s ease;
+}
+
+.btn:hover {
+    background: #00f3ff;
+    color: #030712;
+    box-shadow: 0 0 20px #00f3ff;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(-360deg); }
+}

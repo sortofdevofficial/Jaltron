@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JALTRON OS // CORE</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="hud-container">
+        <div class="reactor-box">
+            <div class="ring outer-ring"></div>
+            <div class="ring inner-ring"></div>
+            <div class="core-node" id="coreNode"></div>
+        </div>
+        
+        <h1 class="title">JALTRON <span class="status-tag" id="statusTag">OFFLINE</span></h1>
+        
+        <div class="terminal-window">
+            <div class="terminal-header">SYSTEM LOGS</div>
+            <div class="terminal-body" id="logOutput">
+                <p class="system-msg">[SYS_INIT]: JALTRON core loaded. Awaiting activation.</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="listenBtn" class="btn">ACTIVATE JALTRON</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
