@@ -13,58 +13,50 @@
 </head>
 <body>
 
-  <!-- TOP HEADER -->
   <header class="hud top">
     <div class="brand">
-      <div class="logo-wrapper">
-        <img src="favicon.png" alt="JALTRON Logo" width="30" height="30">
-      </div>
+      <div class="logo-wrapper"><img src="favicon.png" alt="JALTRON Logo" width="30" height="30"></div>
       <div>
         <h1>JALTRON</h1>
-        <p class="sub">AI Task & Context Planner</p>
+        <p class="sub">AI Task &amp; Context Planner</p>
       </div>
     </div>
-
     <div class="top-actions">
+      <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i></button>
       <div class="status"><span class="dot"></span><span>SYSTEM ONLINE</span></div>
     </div>
   </header>
 
-  <!-- DASHBOARD STATS -->
+  <div class="notice" id="notice">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>Tasks are kept in memory only and clear when you refresh. Use <b>Export</b> to save a backup and <b>Import</b> to load it back.</span>
+    <button class="icon-btn sm" id="notice-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
   <section class="stats-grid">
-    <div class="hud card">
-      <div class="card-title"><i class="fa-solid fa-list-check"></i> Total Tasks</div>
-      <div class="card-value" id="stat-total">0</div>
-    </div>
-    <div class="hud card">
-      <div class="card-title"><i class="fa-solid fa-spinner"></i> In Progress</div>
-      <div class="card-value primary" id="stat-pending">0</div>
-    </div>
-    <div class="hud card">
-      <div class="card-title"><i class="fa-solid fa-check-double"></i> Completed</div>
-      <div class="card-value ok" id="stat-done">0</div>
-    </div>
-    <div class="hud card">
-      <div class="card-title"><i class="fa-solid fa-fire"></i> High Priority</div>
-      <div class="card-value danger" id="stat-high">0</div>
-    </div>
+    <div class="hud card"><div class="card-title"><i class="fa-solid fa-list-check"></i> Total Tasks</div><div class="card-value" id="stat-total">0</div></div>
+    <div class="hud card"><div class="card-title"><i class="fa-solid fa-spinner"></i> In Progress</div><div class="card-value primary" id="stat-pending">0</div></div>
+    <div class="hud card"><div class="card-title"><i class="fa-solid fa-check-double"></i> Completed</div><div class="card-value ok" id="stat-done">0</div></div>
+    <div class="hud card"><div class="card-title"><i class="fa-solid fa-fire"></i> High Priority</div><div class="card-value danger" id="stat-high">0</div></div>
+    <div class="hud card"><div class="card-title"><i class="fa-solid fa-triangle-exclamation"></i> Overdue</div><div class="card-value warn" id="stat-overdue">0</div></div>
   </section>
 
-  <!-- MAIN CONTENT: PLAN MANAGER -->
-  <main class="grid">
+  <div class="hud progress-wrap">
+    <div class="progress-label"><span>Overall progress</span><span id="progress-text">0%</span></div>
+    <div class="progress"><div id="progress-bar"></div></div>
+  </div>
 
-    <!-- ADD TASK / AI PARSER -->
+  <main class="grid">
     <aside class="hud panel">
       <div class="panel-title">
         <span><i class="fa-solid fa-robot"></i> Quick Add</span>
-        <img src="favicon.png" alt="" width="16" height="16" style="opacity: 0.6;">
+        <img src="favicon.png" alt="" width="16" height="16" style="opacity:.6">
       </div>
       <form id="task-form">
         <div class="field">
-          <label for="task-title">Task Description</label>
-          <input type="text" id="task-title" placeholder="e.g., Fix database path error in server.js" required>
+          <label for="task-title">Task description</label>
+          <input type="text" id="task-title" placeholder="e.g., Fix database path error in server.js" required maxlength="140" autocomplete="off">
         </div>
-
         <div class="two-col">
           <div class="field">
             <label for="task-prio">Priority</label>
@@ -77,42 +69,53 @@
           <div class="field">
             <label for="task-tag">Category</label>
             <select id="task-tag">
-              <option value="Dev">Dev</option>
-              <option value="Bug">Bug</option>
-              <option value="Study">Study</option>
-              <option value="General">General</option>
+              <option>Dev</option><option>Bug</option><option>Study</option><option>General</option>
             </select>
           </div>
         </div>
-
-        <button type="submit" class="btn primary full"><i class="fa-solid fa-plus"></i> ADD TO PLAN</button>
+        <div class="field">
+          <label for="task-due">Due date (optional)</label>
+          <input type="date" id="task-due">
+        </div>
+        <button type="submit" class="btn primary full"><i class="fa-solid fa-plus"></i> Add to plan</button>
       </form>
 
       <div class="ai-box">
         <div class="ai-head"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Plan Optimizer</div>
-        <p class="sub">Re-orders active tasks based on impact & priority score.</p>
-        <button class="btn full mt" id="ai-sort-btn"><i class="fa-solid fa-bolt"></i> OPTIMIZE PLAN</button>
+        <p class="sub">Ranks active tasks by priority, deadline pressure and category. Bugs and overdue work rise first.</p>
+        <button class="btn full mt" id="ai-sort-btn"><i class="fa-solid fa-bolt"></i> Optimize plan</button>
+      </div>
+
+      <div class="data-row">
+        <button class="btn full" id="export-btn"><i class="fa-solid fa-download"></i> Export</button>
+        <button class="btn full" id="import-btn"><i class="fa-solid fa-upload"></i> Import</button>
+        <input type="file" id="import-file" accept="application/json" hidden>
       </div>
     </aside>
 
-    <!-- TASK LIST BOARD -->
     <section class="hud panel main-board">
       <div class="panel-title">
         <span><i class="fa-solid fa-layer-group"></i> Active Execution Plan</span>
-        <div class="filter-group">
+        <div class="filter-group" id="filters">
           <button class="filter-btn active" data-filter="all">All</button>
           <button class="filter-btn" data-filter="pending">Pending</button>
           <button class="filter-btn" data-filter="done">Completed</button>
         </div>
       </div>
 
-      <div id="task-list" class="task-list">
-        <!-- Tasks will render here -->
+      <div class="toolbar">
+        <div class="search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="search" placeholder="Search tasks  ( / )" aria-label="Search tasks"></div>
+        <select id="cat-filter" aria-label="Filter by category">
+          <option value="all">All categories</option><option>Dev</option><option>Bug</option><option>Study</option><option>General</option>
+        </select>
+        <button class="btn" id="clear-done"><i class="fa-solid fa-broom"></i> Clear completed</button>
       </div>
-    </section>
 
+      <div id="task-list" class="task-list"></div>
+    </section>
   </main>
 
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="index.js"></script>
 </body>
 </html>
