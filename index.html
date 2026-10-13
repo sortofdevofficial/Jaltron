@@ -3,149 +3,111 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JALTRON - AI Voice HUD</title>
-  <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
-  <link rel="apple-touch-icon" href="favicon.png">
+  <title>JALTRON - AI Plan Manager</title>
+  <link id="favicon" rel="icon" type="image/svg+xml" href="">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@600;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body data-theme="cyan" data-state="standby">
+<body data-theme="cyan">
 
-  <header class="hud hud-corner top">
+  <!-- TOP HEADER -->
+  <header class="hud top">
     <div class="brand">
-      <img class="logo" src="favicon.png" alt="" width="44" height="44">
+      <div class="core-mini"><i class="fa-solid fa-atom"></i></div>
       <div>
-        <h1>JALTRON <span class="tag">CORE v6.0</span></h1>
-        <p class="sub">AI voice assistant</p>
+        <h1>JALTRON <span class="tag">v7.0</span></h1>
+        <p class="sub">AI Task & Context Planner</p>
       </div>
     </div>
 
     <div class="top-actions">
-      <button class="btn danger" id="shut-btn" title="Silence JALTRON (Esc)">
-        <i class="fa-solid fa-hand"></i><span>SHUT UP</span>
-      </button>
-      <button class="btn" id="mute-btn" title="Turn spoken replies on or off">
-        <i id="mute-icon" class="fa-solid fa-volume-high"></i><span id="mute-label">VOICE ON</span>
-      </button>
-      <button class="btn" id="theme-btn" title="Switch colour theme">
-        <i class="fa-solid fa-palette"></i><span id="theme-label">CYAN</span>
-      </button>
-      <button class="btn" id="settings-btn" title="AI and voice settings">
-        <i class="fa-solid fa-gear"></i><span>SETTINGS</span>
-      </button>
-      <div class="status" id="status"><span class="dot" id="status-dot"></span><span id="status-text">STANDBY</span></div>
+      <button class="btn" id="theme-btn"><i class="fa-solid fa-palette"></i><span id="theme-label">CYAN</span></button>
+      <div class="status"><span class="dot"></span><span>SYSTEM ONLINE</span></div>
     </div>
   </header>
 
+  <!-- DASHBOARD STATS -->
+  <section class="stats-grid">
+    <div class="hud card">
+      <div class="card-title"><i class="fa-solid fa-list-check"></i> Total Tasks</div>
+      <div class="card-value" id="stat-total">0</div>
+    </div>
+    <div class="hud card">
+      <div class="card-title"><i class="fa-solid fa-spinner"></i> In Progress</div>
+      <div class="card-value glow" id="stat-pending">0</div>
+    </div>
+    <div class="hud card">
+      <div class="card-title"><i class="fa-solid fa-check-double"></i> Completed</div>
+      <div class="card-value ok" id="stat-done">0</div>
+    </div>
+    <div class="hud card">
+      <div class="card-title"><i class="fa-solid fa-fire"></i> High Priority</div>
+      <div class="card-value danger" id="stat-high">0</div>
+    </div>
+  </section>
+
+  <!-- MAIN CONTENT: PLAN MANAGER -->
   <main class="grid">
 
-    <aside class="hud hud-corner panel side">
-      <div class="panel-title"><i class="fa-solid fa-bolt"></i> Voice commands</div>
-      <div class="cmd-list" id="cmd-list">
-        <button data-cmd="open youtube"><span>Open YouTube</span></button>
-        <button data-cmd="open github"><span>Open GitHub</span></button>
-        <button data-cmd="open discord"><span>Open Discord</span></button>
-        <button data-cmd="what time is it"><span>Time and date</span></button>
-        <button data-cmd="system status"><span>System status</span></button>
-        <button data-cmd="ultron mode"><span>Ultron mode</span></button>
-        <button data-cmd="new chat"><span>Forget conversation</span></button>
-        <button data-cmd="shut up"><span>Shut up</span></button>
-      </div>
-      <div class="engine">
-        <div class="mini">AI engine</div>
-        <div id="engine-name" class="strong">Offline brain</div>
-        <div class="mini mt">Voice</div>
-        <div id="voice-name" class="strong">Loading...</div>
+    <!-- ADD TASK / AI PARSER -->
+    <aside class="hud panel">
+      <div class="panel-title"><i class="fa-solid fa-robot"></i> Quick Add / AI Parse</div>
+      <form id="task-form">
+        <div class="field">
+          <label for="task-title">Task Description</label>
+          <input type="text" id="task-title" placeholder="e.g., Fix database path error in server.js" required>
+        </div>
+
+        <div class="two-col">
+          <div class="field">
+            <label for="task-prio">Priority</label>
+            <select id="task-prio">
+              <option value="high">High</option>
+              <option value="medium" selected>Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="task-tag">Category</label>
+            <select id="task-tag">
+              <option value="Dev">Dev</option>
+              <option value="Bug">Bug</option>
+              <option value="Study">Study</option>
+              <option value="General">General</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="btn primary full"><i class="fa-solid fa-plus"></i> ADD TO PLAN</button>
+      </form>
+
+      <div class="ai-box">
+        <div class="ai-head"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Plan Optimizer</div>
+        <p class="sub">Re-orders active tasks based on impact and priority score.</p>
+        <button class="btn full mt" id="ai-sort-btn"><i class="fa-solid fa-bolt"></i> OPTIMIZE PLAN</button>
       </div>
     </aside>
 
-    <section class="hud hud-corner panel center">
-      <div class="reactor">
-        <div class="ring r1"></div>
-        <div class="ring r2"></div>
-        <button id="core-btn" class="core" aria-label="Activate JALTRON">
-          <i id="core-icon" class="fa-solid fa-power-off"></i>
-          <span id="core-label">ACTIVATE</span>
-        </button>
+    <!-- TASK LIST BOARD -->
+    <section class="hud panel main-board">
+      <div class="panel-title">
+        <span><i class="fa-solid fa-layer-group"></i> Active Execution Plan</span>
+        <div class="filter-group">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="pending">Pending</button>
+          <button class="filter-btn" data-filter="done">Completed</button>
+        </div>
       </div>
 
-      <div class="live">
-        <div class="live-head"><span>Live speech</span><span id="rec" class="rec hidden">● REC</span></div>
-        <div id="live-transcript">Press activate, then speak. Say "shut up" any time.</div>
+      <div id="task-list" class="task-list">
+        <!-- Tasks will render here -->
       </div>
-
-      <div id="chat" class="chat" aria-live="polite"></div>
     </section>
 
-    <aside class="hud hud-corner panel side">
-      <div class="panel-title">
-        <span><i class="fa-solid fa-terminal"></i> Terminal feed</span>
-        <button class="link" id="clear-log">clear</button>
-      </div>
-      <div id="terminal" class="terminal"></div>
-    </aside>
-
   </main>
-
-  <footer class="hud bar">
-    <form id="form" autocomplete="off">
-      <input id="text-input" type="text" placeholder="Ask anything, or type a command like 'open youtube' or 'search space news'" maxlength="1000">
-      <button type="submit" class="btn primary"><span>SEND</span><i class="fa-solid fa-paper-plane"></i></button>
-    </form>
-  </footer>
-
-  <dialog id="settings">
-    <form method="dialog" id="settings-form">
-      <h2>Settings</h2>
-
-      <label>AI provider
-        <select id="s-provider">
-          <option value="anthropic">Claude (Anthropic API)</option>
-          <option value="openai">OpenAI-compatible API</option>
-          <option value="offline">Offline brain (no key)</option>
-        </select>
-      </label>
-
-      <label>API key
-        <input id="s-key" type="password" placeholder="Paste your API key" autocomplete="off" spellcheck="false">
-      </label>
-      <p class="note">Your key is kept in memory only. It is never saved, so you will need to enter it again after a reload. It is sent only to the provider you pick.</p>
-
-      <label class="row-anthropic">Claude model
-        <input id="s-model-anthropic" type="text" spellcheck="false">
-      </label>
-      <label class="row-openai">Model
-        <input id="s-model-openai" type="text" spellcheck="false">
-      </label>
-      <label class="row-openai">Base URL
-        <input id="s-base" type="text" spellcheck="false">
-      </label>
-
-      <hr>
-
-      <label>Voice
-        <select id="s-voice"></select>
-      </label>
-      <div class="two">
-        <label>Speed <output id="o-rate"></output>
-          <input id="s-rate" type="range" min="0.7" max="1.6" step="0.05">
-        </label>
-        <label>Pitch <output id="o-pitch"></output>
-          <input id="s-pitch" type="range" min="0.4" max="1.4" step="0.05">
-        </label>
-      </div>
-
-      <div class="dlg-actions">
-        <button type="button" class="btn" id="s-test">TEST VOICE</button>
-        <span class="spacer"></span>
-        <button type="button" class="btn" id="s-cancel">CANCEL</button>
-        <button type="submit" class="btn primary" value="save">SAVE</button>
-      </div>
-    </form>
-  </dialog>
 
   <script src="index.js"></script>
 </body>
