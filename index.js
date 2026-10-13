@@ -1,53 +1,9 @@
 'use strict';
 
-// --- ROTATING FAVICON GENERATOR ---
-const canvas = document.createElement('canvas');
-canvas.width = 64; canvas.height = 64;
-const ctx = canvas.getContext('2d');
-let angle = 0;
-
-function updateFavicon() {
-  ctx.clearRect(0, 0, 64, 64);
-  ctx.save();
-  ctx.translate(32, 32);
-  ctx.rotate((angle * Math.PI) / 180);
-
-  // Outer ring
-  ctx.beginPath();
-  ctx.arc(0, 0, 26, 0, Math.PI * 2);
-  ctx.strokeStyle = '#00f3ff';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  // Core teeth
-  ctx.beginPath();
-  ctx.arc(0, 0, 14, 0, Math.PI * 1.5);
-  ctx.strokeStyle = '#ff0055';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  ctx.restore();
-
-  // Center dot
-  ctx.beginPath();
-  ctx.arc(32, 32, 4, 0, Math.PI * 2);
-  ctx.fillStyle = '#00f3ff';
-  ctx.fill();
-
-  const favicon = document.getElementById('favicon');
-  if (favicon) favicon.href = canvas.toDataURL('image/png');
-
-  angle = (angle + 6) % 360;
-}
-setInterval(updateFavicon, 100);
-
-// --- APP STATE & DOM ---
 const $ = (id) => document.getElementById(id);
 let tasks = JSON.parse(localStorage.getItem('jaltron_tasks') || '[]');
 let currentFilter = 'all';
-let theme = 'cyan';
 
-// --- RENDER & STATS ---
 function saveAndRender() {
   localStorage.setItem('jaltron_tasks', JSON.stringify(tasks));
   
@@ -68,7 +24,7 @@ function saveAndRender() {
   });
 
   if (filtered.length === 0) {
-    listEl.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted);">No tasks found.</div>`;
+    listEl.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:12px;">No tasks found. Add one above.</div>`;
     return;
   }
 
@@ -78,11 +34,11 @@ function saveAndRender() {
     item.innerHTML = `
       <div class="task-left">
         <button class="check-btn" onclick="toggleTask(${task.id})">
-          ${task.done ? '<i class="fa-solid fa-check"></i>' : ''}
+          <i class="fa-solid fa-check"></i>
         </button>
         <div>
-          <div>${escapeHtml(task.title)}</div>
-          <div style="margin-top: 4px; display: flex; gap: 4px;">
+          <div style="font-weight: 500;">${escapeHtml(task.title)}</div>
+          <div style="margin-top: 6px; display: flex; gap: 6px;">
             <span class="badge ${task.prio}">${task.prio}</span>
             <span class="badge tag">${task.tag}</span>
           </div>
@@ -98,7 +54,6 @@ function escapeHtml(str) {
   return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
 }
 
-// --- ACTIONS ---
 window.toggleTask = (id) => {
   tasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
   saveAndRender();
@@ -144,13 +99,6 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     currentFilter = e.target.dataset.filter;
     saveAndRender();
   });
-});
-
-// Theme Switcher
-$('theme-btn').addEventListener('click', () => {
-  theme = theme === 'cyan' ? 'ultron' : 'cyan';
-  document.body.dataset.theme = theme;
-  $('theme-label').textContent = theme.toUpperCase();
 });
 
 // Initial load

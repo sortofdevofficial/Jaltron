@@ -4,27 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JALTRON - AI Plan Manager</title>
-  <link id="favicon" rel="icon" type="image/svg+xml" href="">
+  <link id="favicon" rel="icon" type="image/png" href="favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@600;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body data-theme="cyan">
+<body>
 
   <!-- TOP HEADER -->
   <header class="hud top">
     <div class="brand">
-      <div class="core-mini"><i class="fa-solid fa-atom"></i></div>
+      <img src="favicon.png" alt="JALTRON Logo" class="brand-logo" width="36" height="36">
       <div>
-        <h1>JALTRON <span class="tag">v7.0</span></h1>
+        <h1>JALTRON <span class="tag">PRO</span></h1>
         <p class="sub">AI Task & Context Planner</p>
       </div>
     </div>
 
     <div class="top-actions">
-      <button class="btn" id="theme-btn"><i class="fa-solid fa-palette"></i><span id="theme-label">CYAN</span></button>
       <div class="status"><span class="dot"></span><span>SYSTEM ONLINE</span></div>
     </div>
   </header>
@@ -37,7 +36,7 @@
     </div>
     <div class="hud card">
       <div class="card-title"><i class="fa-solid fa-spinner"></i> In Progress</div>
-      <div class="card-value glow" id="stat-pending">0</div>
+      <div class="card-value primary" id="stat-pending">0</div>
     </div>
     <div class="hud card">
       <div class="card-title"><i class="fa-solid fa-check-double"></i> Completed</div>
@@ -54,7 +53,10 @@
 
     <!-- ADD TASK / AI PARSER -->
     <aside class="hud panel">
-      <div class="panel-title"><i class="fa-solid fa-robot"></i> Quick Add / AI Parse</div>
+      <div class="panel-title">
+        <span><i class="fa-solid fa-robot"></i> Quick Add</span>
+        <img src="favicon.png" alt="" width="18" height="18" style="opacity: 0.7;">
+      </div>
       <form id="task-form">
         <div class="field">
           <label for="task-title">Task Description</label>
@@ -86,7 +88,7 @@
 
       <div class="ai-box">
         <div class="ai-head"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Plan Optimizer</div>
-        <p class="sub">Re-orders active tasks based on impact and priority score.</p>
+        <p class="sub">Re-orders active tasks based on priority score.</p>
         <button class="btn full mt" id="ai-sort-btn"><i class="fa-solid fa-bolt"></i> OPTIMIZE PLAN</button>
       </div>
     </aside>
