@@ -37,7 +37,7 @@ function saveAndRender() {
           <i class="fa-solid fa-check"></i>
         </button>
         <div>
-          <div style="font-weight: 500; color: #fff;">${escapeHtml(task.title)}</div>
+          <div style="font-weight: 500; color: var(--text);">${escapeHtml(task.title)}</div>
           <div style="margin-top: 6px; display: flex; gap: 6px;">
             <span class="badge ${task.prio}">${task.prio}</span>
             <span class="badge tag">${task.tag}</span>
