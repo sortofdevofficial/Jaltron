@@ -2,7 +2,11 @@
 
 const $ = (id) => document.getElementById(id);
 
-// State lives in memory only (no localStorage / cookies).
+// Set this to your VPS address once the AI server is running, e.g. 'https://ai.yourdomain.com'.
+// Left empty, the app runs in demo mode: no AI chat, tasks reset on refresh.
+const API_BASE = '';
+
+// State lives in memory (and on your server when API_BASE is set). No localStorage.
 let tasks = [];
 let nextId = 1;
 let currentFilter = 'all';
@@ -35,14 +39,15 @@ function dueBadge(t) {
 }
 
 function render() {
+  scheduleSync();
   const total = tasks.length;
   const done = tasks.filter(t => t.done).length;
   const overdue = tasks.filter(t => !t.done && t.due && dayDiff(t.due) < 0).length;
-  $('stat-total').textContent = total;
-  $('stat-pending').textContent = total - done;
-  $('stat-done').textContent = done;
-  $('stat-high').textContent = tasks.filter(t => !t.done && t.prio === 'high').length;
-  $('stat-overdue').textContent = overdue;
+  setNum('stat-total', total);
+  setNum('stat-pending', total - done);
+  setNum('stat-done', done);
+  setNum('stat-high', tasks.filter(t => !t.done && t.prio === 'high').length);
+  setNum('stat-overdue', overdue);
   const pct = total ? Math.round(done / total * 100) : 0;
   $('progress-bar').style.width = pct + '%';
   $('progress-text').textContent = `${pct}% (${done}/${total})`;
@@ -61,12 +66,13 @@ function render() {
     return;
   }
 
+  const canDrag = currentFilter === 'all' && currentCat === 'all' && !q && !editingId;
   listEl.innerHTML = filtered.map(t => {
     const body = editingId === t.id
       ? `<input class="edit-input" data-edit="${t.id}" value="${escapeHtml(t.title)}" maxlength="140" aria-label="Edit task">`
       : `<div class="task-title">${escapeHtml(t.title)}</div>`;
     return `
-    <div class="task-item p-${t.prio} ${t.done ? 'completed' : ''}" data-id="${t.id}">
+    <div class="task-item p-${t.prio} ${t.done ? 'completed' : ''}" data-id="${t.id}" ${canDrag ? 'draggable="true"' : ''}>
       <div class="task-left">
         <button class="check-btn" data-act="toggle" aria-label="Toggle complete"><i class="fa-solid fa-check"></i></button>
         <div class="task-main">
@@ -187,38 +193,6 @@ $('clear-done').addEventListener('click', () => {
   toast(`Cleared ${n} completed task${n > 1 ? 's' : ''}`);
 });
 
-// Export / Import (file-based backup, no browser storage)
-$('export-btn').addEventListener('click', () => {
-  if (!tasks.length) return toast('Nothing to export yet');
-  const blob = new Blob([JSON.stringify({ app: 'jaltron', tasks }, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `jaltron-plan-${todayStr()}.json`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-});
-$('import-btn').addEventListener('click', () => $('import-file').click());
-$('import-file').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-  try {
-    const data = JSON.parse(await file.text());
-    const list = Array.isArray(data) ? data : data.tasks;
-    if (!Array.isArray(list)) throw new Error('bad');
-    tasks = list.filter(t => t && typeof t.title === 'string').map(t => ({
-      id: nextId++,
-      title: t.title.slice(0, 140),
-      prio: WEIGHT[t.prio] ? t.prio : 'medium',
-      tag: ['Dev', 'Bug', 'Study', 'General'].includes(t.tag) ? t.tag : 'General',
-      due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : '',
-      done: !!t.done
-    }));
-    render();
-    toast(`Imported ${tasks.length} tasks`);
-  } catch { toast('Import failed: not a valid JALTRON file'); }
-});
-
 // Theme (in-memory only; follows system preference on load)
 function setTheme(dark) {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
@@ -226,13 +200,122 @@ function setTheme(dark) {
 }
 setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
 $('theme-btn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme !== 'dark'));
-$('notice-close').addEventListener('click', () => $('notice').remove());
 
 // "/" focuses search
 document.addEventListener('keydown', (e) => {
   if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $('search').focus(); }
 });
 
+// Animated counters
+function setNum(id, n) {
+  const el = $(id), from = Number(el.textContent) || 0;
+  if (from === n) { el.textContent = n; return; }
+  const t0 = performance.now();
+  (function step(t) {
+    const p = Math.min((t - t0) / 350, 1);
+    el.textContent = Math.round(from + (n - from) * p);
+    if (p < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
+// Drag to reorder (only in the unfiltered view)
+let dragId = null;
+const listEl = $('task-list');
+listEl.addEventListener('dragstart', (e) => {
+  const it = e.target.closest('.task-item');
+  if (!it || !it.draggable) return;
+  dragId = Number(it.dataset.id);
+  it.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+});
+listEl.addEventListener('dragover', (e) => {
+  if (dragId === null) return;
+  e.preventDefault();
+  listEl.querySelectorAll('.drop-target').forEach(x => x.classList.remove('drop-target'));
+  const it = e.target.closest('.task-item');
+  if (it && Number(it.dataset.id) !== dragId) it.classList.add('drop-target');
+});
+listEl.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const it = e.target.closest('.task-item');
+  if (!it || dragId === null) return;
+  const from = tasks.findIndex(t => t.id === dragId);
+  const to = tasks.findIndex(t => t.id === Number(it.dataset.id));
+  if (from > -1 && to > -1 && from !== to) { const [m] = tasks.splice(from, 1); tasks.splice(to, 0, m); }
+  dragId = null;
+  render();
+});
+listEl.addEventListener('dragend', () => { dragId = null; render(); });
+
+// ---- Server connection (VPS) ----
+let online = false, lastSynced = '', syncTimer = null;
+function setStatus(state, text) {
+  $('status').dataset.state = state;
+  $('status-text').textContent = text;
+}
+function scheduleSync() {
+  if (!online) return;
+  const s = JSON.stringify(tasks);
+  if (s === lastSynced) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    try {
+      await fetch(API_BASE + '/api/tasks', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: s });
+      lastSynced = s;
+    } catch { online = false; setStatus('offline', 'SERVER LOST'); }
+  }, 400);
+}
+async function connect() {
+  if (!API_BASE) return setStatus('demo', 'DEMO MODE');
+  try {
+    const h = await fetch(API_BASE + '/api/health', { cache: 'no-store' });
+    if (!h.ok) throw 0;
+    const saved = await (await fetch(API_BASE + '/api/tasks')).json();
+    tasks = Array.isArray(saved) ? saved : [];
+    nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
+    lastSynced = JSON.stringify(tasks);
+    online = true;
+    setStatus('online', 'AI ONLINE');
+    render();
+  } catch { setStatus('offline', 'SERVER OFFLINE'); }
+}
+
+// ---- AI chat ----
+const chatMsgs = [];
+const log = $('chat-log');
+function addMsg(cls, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.textContent = text;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+  return d;
+}
+async function ask(text) {
+  addMsg('user', text);
+  chatMsgs.push({ role: 'user', content: text });
+  if (!online) return addMsg('ai', "The AI server isn't connected yet. Set API_BASE at the top of index.js to your VPS address.");
+  const typing = addMsg('ai typing', 'Thinking...');
+  try {
+    const r = await fetch(API_BASE + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: chatMsgs, tasks: tasks.filter(t => !t.done) }) });
+    const d = await r.json();
+    typing.className = 'msg ai';
+    typing.textContent = d.reply || 'No response.';
+    chatMsgs.push({ role: 'assistant', content: typing.textContent });
+  } catch { typing.className = 'msg ai'; typing.textContent = 'Could not reach the AI server.'; }
+}
+const toggleChat = (open) => { $('chat').hidden = !open; $('chat-fab').hidden = open; if (open) $('chat-input').focus(); };
+$('chat-fab').addEventListener('click', () => toggleChat(true));
+$('chat-close').addEventListener('click', () => toggleChat(false));
+$('chips').addEventListener('click', (e) => { if (e.target.matches('button')) ask(e.target.textContent); });
+$('chat-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = $('chat-input').value.trim();
+  if (v) { $('chat-input').value = ''; ask(v); }
+});
+addMsg('ai', 'Hi, I am JALTRON. Ask me to prioritize, plan your day or break a task into steps.');
+
 // Keep due-date labels fresh
 setInterval(render, 60000 * 30);
 render();
+connect();
