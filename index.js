@@ -24,7 +24,7 @@ function saveAndRender() {
   });
 
   if (filtered.length === 0) {
-    listEl.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:12px;">No tasks found. Add one above.</div>`;
+    listEl.innerHTML = `<div style="text-align:center; padding:35px; color:var(--muted); font-size:12px;">No active tasks in this view.</div>`;
     return;
   }
 
@@ -37,7 +37,7 @@ function saveAndRender() {
           <i class="fa-solid fa-check"></i>
         </button>
         <div>
-          <div style="font-weight: 500;">${escapeHtml(task.title)}</div>
+          <div style="font-weight: 500; color: #fff;">${escapeHtml(task.title)}</div>
           <div style="margin-top: 6px; display: flex; gap: 6px;">
             <span class="badge ${task.prio}">${task.prio}</span>
             <span class="badge tag">${task.tag}</span>
