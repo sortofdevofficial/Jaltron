@@ -405,6 +405,9 @@ Use [] when nothing should change. Keep the reply under 40 words.`;
 async function ask(text) {
   addMsg('user', text);
   chatMsgs.push({ role: 'user', content: text });
+  if (typeof Brain === 'undefined') {
+    return addMsg('ai', 'brain.js did not load. Upload brain.js to the same folder as index.html and redeploy.');
+  }
   let res = Brain.respond(text, tasks, chatMsgs);
   if (res.unknown && llmState === 'ready') {
     const typing = addMsg('ai typing', 'Thinking...');
