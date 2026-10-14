@@ -4,7 +4,11 @@ const $ = (id) => document.getElementById(id);
 
 // Set this to your VPS address once the AI server is running, e.g. 'https://ai.yourdomain.com'.
 // Left empty, the app runs in demo mode: no AI chat, tasks reset on refresh.
-const API_BASE = '';
+// Direct address of the Wispbyte server (plain HTTP). Works from http://, localhost or a local file.
+// On an https:// site (Vercel, GitHub Pages) browsers block plain HTTP, so it calls /api on the same
+// site instead, which vercel.json forwards to the server.
+const DIRECT_API = 'http://78.154.103.47:11903';
+const API_BASE = location.protocol === 'https:' ? location.origin : DIRECT_API;
 
 // State lives in memory (and on your server when API_BASE is set). No localStorage.
 let tasks = [];
