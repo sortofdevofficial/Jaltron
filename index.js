@@ -281,6 +281,25 @@ async function connect() {
 }
 
 // ---- AI chat ----
+// Run actions the assistant returns (add, complete, delete, prio, clear, optimize, filter)
+function applyActions(actions) {
+  for (const a of actions) {
+    if (a.type === 'add' && a.title) tasks.unshift({ id: nextId++, title: String(a.title).slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: a.tag || 'General', due: a.due || '', done: false });
+    else if (a.type === 'complete') tasks = tasks.map(t => t.id === a.id ? { ...t, done: true } : t);
+    else if (a.type === 'delete') tasks = tasks.filter(t => t.id !== a.id);
+    else if (a.type === 'prio' && WEIGHT[a.prio]) tasks = tasks.map(t => t.id === a.id ? { ...t, prio: a.prio } : t);
+    else if (a.type === 'clear_done') tasks = tasks.filter(t => !t.done);
+    else if (a.type === 'optimize') tasks.sort((x, y) => (x.done !== y.done) ? (x.done ? 1 : -1) : score(y) - score(x));
+    else if (a.type === 'filter') {
+      if (a.status) currentFilter = a.status;
+      if (a.cat) currentCat = a.cat;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === currentFilter));
+      $('cat-filter').value = currentCat;
+    }
+  }
+  render();
+}
+
 const chatMsgs = [];
 const log = $('chat-log');
 function addMsg(cls, text) {
@@ -297,11 +316,12 @@ async function ask(text) {
   if (!online) return addMsg('ai', "The AI server isn't connected yet. Set API_BASE at the top of index.js to your VPS address.");
   const typing = addMsg('ai typing', 'Thinking...');
   try {
-    const r = await fetch(API_BASE + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: chatMsgs, tasks: tasks.filter(t => !t.done) }) });
+    const r = await fetch(API_BASE + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: chatMsgs, tasks }) });
     const d = await r.json();
     typing.className = 'msg ai';
     typing.textContent = d.reply || 'No response.';
     chatMsgs.push({ role: 'assistant', content: typing.textContent });
+    if (Array.isArray(d.actions) && d.actions.length) applyActions(d.actions);
   } catch { typing.className = 'msg ai'; typing.textContent = 'Could not reach the AI server.'; }
 }
 const toggleChat = (open) => { $('chat').hidden = !open; $('chat-fab').hidden = open; if (open) $('chat-input').focus(); };
@@ -313,7 +333,7 @@ $('chat-form').addEventListener('submit', (e) => {
   const v = $('chat-input').value.trim();
   if (v) { $('chat-input').value = ''; ask(v); }
 });
-addMsg('ai', 'Hi, I am JALTRON. Ask me to prioritize, plan your day or break a task into steps.');
+addMsg('ai', 'Hi, I am JALTRON. I can add, complete and delete tasks for you, plan your day, or explain the site. Try: add fix login bug tomorrow high');
 
 // Keep due-date labels fresh
 setInterval(render, 60000 * 30);
