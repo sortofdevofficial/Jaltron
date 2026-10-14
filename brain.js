@@ -52,7 +52,7 @@ function find(list, text) {
 function parseTask(raw) {
   let s = ' ' + raw.trim() + ' ', due = '', prio = 'medium', tag = '', m;
   if ((m = s.match(/\b(\d{4}-\d{2}-\d{2})\b/))) { due = m[1]; s = s.replace(m[0], ' '); }
-  else if (/\btomorrow\b/i.test(s)) { due = dateStr(1); s = s.replace(/\b(?:by|due|for)?\s*tomorrow\b/i, ' '); }
+  else if (/\b(?:tomorrow|tmrw|tmr|tmw)\b/i.test(s)) { due = dateStr(1); s = s.replace(/\b(?:by|due|for)?\s*(?:tomorrow|tmrw|tmr|tmw)\b/i, ' '); }
   else if (/\btoday\b/i.test(s)) { due = dateStr(0); s = s.replace(/\b(?:by|due|for)?\s*today\b/i, ' '); }
   else if (/\bnext week\b/i.test(s)) { due = dateStr(7); s = s.replace(/\bnext week\b/i, ' '); }
   else if ((m = s.match(/\b(?:by|on|due|next|this)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i))) { due = nextDay(m[1]); s = s.replace(m[0], ' '); }

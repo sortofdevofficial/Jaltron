@@ -111,9 +111,18 @@
   <section class="chat" id="chat" aria-label="JALTRON AI assistant" hidden>
     <div class="chat-head"><span><i class="fa-solid fa-wand-magic-sparkles"></i> Ask JALTRON</span><button class="icon-btn sm" id="chat-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="ai-bar">
-      <button class="btn" id="ai-enable"><i class="fa-solid fa-microchip"></i> Enable real AI (runs in your browser, ~400 MB)</button>
+      <button class="btn" id="ai-enable"><i class="fa-solid fa-microchip"></i> Enable bigger AI (optional, ~400 MB download)</button>
       <div class="ai-prog" id="ai-prog" hidden><div id="ai-prog-fill"></div></div>
       <span class="sub" id="ai-state"></span>
+      <span class="sub" id="nn-state">Starting neural AI...</span>
+      <details class="teach">
+        <summary>Teach the AI</summary>
+        <form id="teach-form">
+          <input id="teach-text" placeholder='A phrase, e.g. "knock out the biology revision"' maxlength="140" autocomplete="off">
+          <select id="teach-intent" aria-label="What it means"></select>
+          <button class="btn primary">Teach</button>
+        </form>
+      </details>
     </div>
     <div class="chat-log" id="chat-log"></div>
     <div class="chips" id="chips"><button>Add a study task</button><button>Plan my day</button><button>Summary</button><button>What can you do?</button></div>
@@ -122,6 +131,8 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="brain.js"></script>
+  <script src="training-data.js"></script>
+  <script src="tinybrain.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

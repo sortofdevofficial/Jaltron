@@ -401,6 +401,72 @@ Use [] when nothing should change. Keep the reply under 40 words.`;
   return { reply: data.reply.slice(0, 400) + (dropped ? '\n(I skipped some changes I could not match safely.)' : ''), actions: ok };
 }
 
+// ---- Neural AI: a small network trained from scratch on characters (see tinybrain.js) ----
+let taught = []; // phrases users taught the AI (saved on the server when it is online)
+function setNn(text) { const el = $('nn-state'); if (el) el.textContent = text; }
+async function trainAI(refetch) {
+  if (typeof TinyBrain === 'undefined' || !window.TRAIN) return setNn('Neural AI files missing: upload tinybrain.js and training-data.js.');
+  setNn('Training neural AI...');
+  try {
+    if (refetch && online) { try { const t = await (await fetch(API_BASE + '/api/teach')).json(); if (Array.isArray(t)) taught = t; } catch { /* offline */ } }
+    const r = await TinyBrain.train(taught, (ep, total) => setNn(`Training neural AI... ${Math.round(ep / total * 100)}%`));
+    setNn(`Neural AI ready: ${r.examples} examples, ${Math.round(r.acc * 100)}% accuracy on unseen phrases`);
+  } catch (err) { console.error(err); setNn('Neural AI failed to train. Built-in commands still work.'); }
+}
+
+const MOTIVATE = ['Small steps count. Pick one task and give it 10 focused minutes.', 'You do not have to do everything today, just the next thing.', 'Start with the easiest task to build momentum.'];
+// Turns the network's guess (intent) into a real action by finding the details in your sentence
+function neuralRespond(text) {
+  const p = TinyBrain.predict(text);
+  if (!p || p.intent === 'unknown' || p.conf < 0.5) return null;
+  const canned = { plan: 'plan my day', first: 'what should i do first', summary: 'summary', overdue: "what's overdue", help: 'what can you do', greet: 'hi', thanks: 'thanks', optimize: 'optimize', clear_done: 'clear completed', complete_all: 'complete all' };
+  const strip = (s, extra) => s.replace(extra, ' ').replace(/\b(?:bro|pls|please|can you|could you|i|im|just|already|the|my|a|an|task|tasks|is|are|was|now|lol|from|list|on|it|me|to|of)\b/gi, ' ').replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+  const known = (t) => t && Brain.find(tasks, t);
+  let cmd = canned[p.intent] || null, res = null, t;
+  switch (p.intent) {
+    case 'motivate': res = { reply: MOTIVATE[Math.floor(Math.random() * MOTIVATE.length)] + '\n' + Brain.respond('what should i do first', tasks, []).reply, actions: [] }; break;
+    case 'chat': res = { reply: 'I am JALTRON, your planning assistant. I can manage your tasks and plan your day. Say "what can you do" to see how.', actions: [] }; break;
+    case 'add': cmd = 'add ' + (text.replace(/^(?:bro\s+|hey\s+|please\s+|pls\s+|can you\s+|could you\s+)?(?:i\s+(?:need|have|want|gotta|must|should)\s+to\s+|remind me to\s+|(?:add|create|put|new task|make)\s+(?:a\s+)?(?:new\s+)?(?:task\s+)?(?:to\s+|for\s+)?)/i, '').trim() || text); break;
+    case 'complete': t = strip(text, /\b(?:finished|finish|done|completed|complete|check off|tick off|mark|with|did)\b/gi); if (!known(t)) return null; cmd = 'complete ' + t; break;
+    case 'delete': t = strip(text, /\b(?:delete|remove|cancel|drop|get rid|dont need|anymore|trash|erase)\b/gi); if (!known(t)) return null; cmd = 'delete ' + t; break;
+    case 'reopen': t = strip(text, /\b(?:reopen|undo|complete|not done|yet|did not|didnt|finish|finished|uncheck|bring back)\b/gi); if (!known(t)) return null; cmd = 'reopen ' + t; break;
+    case 'search': t = strip(text, /\b(?:find|search|where|show|look|for|do have)\b/gi); if (!t) return null; cmd = 'find ' + t; break;
+    case 'prio': {
+      const level = /not important|\b(low|later|wait|unimportant|lower)\b/i.test(text) ? 'low' : /\b(urgent|important|asap|high|critical|raise)\b/i.test(text) ? 'high' : 'medium';
+      t = strip(text, /\b(?:make|set|priority|urgent|important|asap|high|critical|raise|low|later|wait|lower|unimportant|not|super|very|medium|can)\b/gi);
+      if (!known(t)) return null; cmd = `make ${t} ${level} priority`; break;
+    }
+    case 'due': {
+      const d = Brain.parseTask(text).due;
+      if (!d) return { reply: 'Which date? Try "tomorrow", "friday" or 2026-10-25.', actions: [] };
+      t = strip(text, /\b(?:move|postpone|push|delay|reschedule|change|deadline|due|until|tomorrow|tmrw|tmr|today|next week|in \d+ days?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{4}-\d{2}-\d{2})\b/gi);
+      if (!known(t)) return null; cmd = `move ${t} to ${d}`; break;
+    }
+    case 'tag': {
+      const c = (text.match(/\b(dev|bugs?|study|general)\b/i) || [])[1];
+      t = strip(text, /\b(?:tag|put|under|as|mark|category|change|dev|bugs?|study|general|thing)\b/gi);
+      if (!c || !known(t)) return null; cmd = `tag ${t} as ${c.toLowerCase().replace(/^bugs$/, 'bug')}`; break;
+    }
+    case 'breakdown': t = strip(text, /\b(?:break down|split|steps|how do finish|how should approach|help start|into|how)\b/gi); cmd = 'break down' + (t ? ' ' + t : ''); break;
+  }
+  if (!res) { if (!cmd) return null; res = Brain.respond(cmd, tasks, []); if (res.unknown) return null; }
+  return { ...res, reply: res.reply + `\n(AI read this as "${p.intent}", ${Math.round(p.conf * 100)}% sure)` };
+}
+
+// Teach the AI: add a phrase, retrain right away
+if (typeof TinyBrain !== 'undefined') TinyBrain.INTENTS.forEach(i => $('teach-intent').add(new Option(i, i)));
+$('teach-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = $('teach-text').value.trim(), intent = $('teach-intent').value;
+  if (!text || text.length > 140) return;
+  $('teach-text').value = '';
+  taught.push({ text, intent });
+  if (online) fetch(API_BASE + '/api/teach', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, intent }) }).catch(() => {});
+  addMsg('ai', `Learned: "${text}" means "${intent}". Retraining...`);
+  await trainAI(false);
+  addMsg('ai', 'Done. Try that phrase again.');
+});
+
 // Chat: exact commands run instantly; anything else goes to the on-device AI when it is on
 async function ask(text) {
   addMsg('user', text);
@@ -409,12 +475,13 @@ async function ask(text) {
     return addMsg('ai', 'brain.js did not load. Upload brain.js to the same folder as index.html and redeploy.');
   }
   let res = Brain.respond(text, tasks, chatMsgs);
+  if (res.unknown && typeof TinyBrain !== 'undefined' && TinyBrain.ready) { const n = neuralRespond(text); if (n) res = n; }
   if (res.unknown && llmState === 'ready') {
     const typing = addMsg('ai typing', 'Thinking...');
     try { res = await llmAsk(); } catch (err) { console.error(err); }
     typing.remove();
   } else if (res.unknown && llmState !== 'loading') {
-    res = { ...res, reply: res.reply + '\n\nTip: tap "Enable real AI" above and I can understand free-form requests.' };
+    res = { ...res, reply: res.reply + '\n\nTip: open "Teach the AI" below and show me what that means.' };
   }
   addMsg('ai', res.reply);
   chatMsgs.push({ role: 'assistant', content: res.reply });
@@ -444,4 +511,4 @@ $('cmd-form').addEventListener('submit', (e) => {
   toggleChat(true);
   ask(v);
 });
-connect();
+connect().then(() => trainAI(true));
