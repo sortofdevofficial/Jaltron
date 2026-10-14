@@ -109,16 +109,24 @@
 
   <button class="fab" id="chat-fab" aria-label="Open AI assistant"><i class="fa-solid fa-comment-dots"></i></button>
   <section class="chat" id="chat" aria-label="JALTRON AI assistant" hidden>
-    <div class="chat-head"><span><i class="fa-solid fa-wand-magic-sparkles"></i> Ask JALTRON</span><button class="icon-btn sm" id="chat-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="chat-head">
+      <span><i class="fa-solid fa-wand-magic-sparkles"></i> Ask JALTRON</span>
+      <button class="icon-btn sm" id="chat-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
     <div class="ai-bar">
-      <button class="btn" id="ai-enable"><i class="fa-solid fa-microchip"></i> Enable bigger AI (optional, ~400 MB download)</button>
-      <div class="ai-prog" id="ai-prog" hidden><div id="ai-prog-fill"></div></div>
-      <span class="sub" id="ai-state"></span>
       <span class="sub" id="nn-state">Starting neural AI...</span>
     </div>
     <div class="chat-log" id="chat-log"></div>
-    <div class="chips" id="chips"><button>Add a study task</button><button>Plan my day</button><button>Summary</button><button>What can you do?</button></div>
-    <form class="chat-form" id="chat-form"><input id="chat-input" placeholder="Ask about your plan" autocomplete="off"><button class="btn primary" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
+    <div class="chips" id="chips">
+      <button>Add a study task</button>
+      <button>Plan my day</button>
+      <button>Summary</button>
+      <button>What can you do?</button>
+    </div>
+    <form class="chat-form" id="chat-form">
+      <input id="chat-input" placeholder="Ask about your plan" autocomplete="off" aria-label="Ask about your plan">
+      <button class="btn primary" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
   </section>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

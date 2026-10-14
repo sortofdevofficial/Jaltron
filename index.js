@@ -2,15 +2,9 @@
 
 const $ = (id) => document.getElementById(id);
 
-// Set this to your VPS address once the AI server is running, e.g. 'https://ai.yourdomain.com'.
-// Left empty, the app runs in demo mode: no AI chat, tasks reset on refresh.
-// Direct address of the Wispbyte server (plain HTTP). Works from http://, localhost or a local file.
-// On an https:// site (Vercel, GitHub Pages) browsers block plain HTTP, so it calls /api on the same
-// site instead, which vercel.json forwards to the server.
 const DIRECT_API = 'http://78.154.103.47:11903';
 const API_BASE = location.protocol === 'https:' ? location.origin : DIRECT_API;
 
-// State lives in memory (and on your server when API_BASE is set). No localStorage.
 let tasks = [];
 let nextId = 1;
 let currentFilter = 'all';
@@ -53,8 +47,7 @@ function render() {
   setNum('stat-high', tasks.filter(t => !t.done && t.prio === 'high').length);
   setNum('stat-overdue', overdue);
   const pct = total ? Math.round(done / total * 100) : 0;
-  $('progress-bar').style.width = pct + '%';
-  $('progress-text').textContent = `${pct}% (${done}/${total})`;
+  $('progress-bar').style.width = pct + '\%';$('progress-text').textContent = `${pct}% (${done}/${total})`;
 
   const q = query.toLowerCase();
   const filtered = tasks.filter(t => {
@@ -121,7 +114,6 @@ function commitEdit(id) {
   render();
 }
 
-// Task list actions (event delegation)
 $('task-list').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-act]');
   if (!btn) return;
@@ -139,28 +131,22 @@ $('task-list').addEventListener('click', (e) => {
   }
   render();
 });
+
 $('task-list').addEventListener('keydown', (e) => {
   if (!e.target.matches('.edit-input')) return;
   if (e.key === 'Enter') commitEdit(Number(e.target.dataset.edit));
   if (e.key === 'Escape') { editingId = null; render(); }
 });
-$('task-list').addEventListener('dblclick', (e) => {
-  const title = e.target.closest('.task-title');
-  if (title) { editingId = Number(title.closest('.task-item').dataset.id); render(); }
-});
 
-// Add task
 $('task-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const title = $('task-title').value.trim();
   if (!title) return;
-  tasks.unshift({ id: nextId++, title, prio: $('task-prio').value, tag: $('task-tag').value, due: $('task-due').value || '', done: false });
-  $('task-title').value = '';
-  $('task-due').value = '';
+  tasks.unshift({ id: nextId++, title, prio: $('task-prio').value, tag: $('task-tag').value, due:$('task-due').value || '', done: false });
+  $('task-title').value = '';$('task-due').value = '';
   render();
 });
 
-// AI optimizer: score = priority + deadline pressure + category bonus
 function score(t) {
   let s = WEIGHT[t.prio] * 10;
   if (t.due) {
@@ -170,6 +156,7 @@ function score(t) {
   if (t.tag === 'Bug') s += 6;
   return s;
 }
+
 $('ai-sort-btn').addEventListener('click', () => {
   tasks.sort((a, b) => (a.done !== b.done) ? (a.done ? 1 : -1) : score(b) - score(a));
   currentFilter = 'all';
@@ -179,7 +166,6 @@ $('ai-sort-btn').addEventListener('click', () => {
   toast(top ? `Top priority: ${top.title} (${top.prio}${top.due ? ', due ' + top.due : ''})` : 'Plan optimized');
 });
 
-// Filters, search, category
 $('filters').addEventListener('click', (e) => {
   const b = e.target.closest('.filter-btn');
   if (!b) return;
@@ -188,9 +174,9 @@ $('filters').addEventListener('click', (e) => {
   currentFilter = b.dataset.filter;
   render();
 });
+
 $('search').addEventListener('input', (e) => { query = e.target.value.trim(); render(); });
-$('cat-filter').addEventListener('change', (e) => { currentCat = e.target.value; render(); });
-$('clear-done').addEventListener('click', () => {
+$('cat-filter').addEventListener('change', (e) => { currentCat = e.target.value; render(); });$('clear-done').addEventListener('click', () => {
   const n = tasks.filter(t => t.done).length;
   if (!n) return toast('No completed tasks to clear');
   tasks = tasks.filter(t => !t.done);
@@ -198,7 +184,6 @@ $('clear-done').addEventListener('click', () => {
   toast(`Cleared ${n} completed task${n > 1 ? 's' : ''}`);
 });
 
-// Theme (in-memory only; follows system preference on load)
 function setTheme(dark) {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   $('theme-btn').innerHTML = `<i class="fa-solid fa-${dark ? 'sun' : 'moon'}"></i>`;
@@ -206,12 +191,10 @@ function setTheme(dark) {
 setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
 $('theme-btn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme !== 'dark'));
 
-// "/" focuses search
 document.addEventListener('keydown', (e) => {
   if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $('search').focus(); }
 });
 
-// Animated counters
 function setNum(id, n) {
   const el = $(id), from = Number(el.textContent) || 0;
   if (from === n) { el.textContent = n; return; }
@@ -223,7 +206,6 @@ function setNum(id, n) {
   })(t0);
 }
 
-// Drag to reorder (only in the unfiltered view)
 let dragId = null;
 const listEl = $('task-list');
 listEl.addEventListener('dragstart', (e) => {
@@ -252,7 +234,6 @@ listEl.addEventListener('drop', (e) => {
 });
 listEl.addEventListener('dragend', () => { dragId = null; render(); });
 
-// ---- Server connection (VPS) ----
 let online = false, lastSynced = '', syncTimer = null;
 function setStatus(state, text) {
   $('status').dataset.state = state;
@@ -285,8 +266,6 @@ async function connect() {
   } catch { setStatus('offline', 'SERVER OFFLINE'); }
 }
 
-// ---- AI chat ----
-// Run actions the assistant returns (add, complete, delete, prio, clear, optimize, filter)
 function applyActions(actions) {
   for (const a of actions) {
     if (a.type === 'add' && a.title) tasks.unshift({ id: nextId++, title: String(a.title).slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: a.tag || 'General', due: a.due || '', done: false });
@@ -322,98 +301,17 @@ function addMsg(cls, text) {
   log.scrollTop = log.scrollHeight;
   return d;
 }
-// ---- On-device AI: Transformers.js + Qwen2.5-0.5B-Instruct, runs fully in the browser ----
-const LLM_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2';
-const LLM_MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';
-let llm = null, llmState = 'off'; // off | loading | ready | error
 
-function updateAiUi(text, frac) {
-  $('ai-enable').hidden = !(llmState === 'off' || llmState === 'error');
-  $('ai-prog').hidden = llmState !== 'loading';
-  if (frac != null) $('ai-prog-fill').style.width = Math.round(frac * 100) + '%';
-  $('ai-state').textContent = text;
-}
-async function loadLLM() {
-  if (llmState === 'loading' || llmState === 'ready') return;
-  llmState = 'loading';
-  updateAiUi('Loading AI...', 0);
-  try {
-    const { pipeline } = await import(LLM_URL);
-    const files = {};
-    const progress = (p) => {
-      if (p.status !== 'progress' || !p.total) return;
-      files[p.file] = [p.loaded, p.total];
-      const v = Object.values(files), l = v.reduce((s, f) => s + f[0], 0), t = v.reduce((s, f) => s + f[1], 0);
-      updateAiUi(`Downloading AI model ${Math.round(l / t * 100)}%`, l / t);
-    };
-    const make = (device) => pipeline('text-generation', LLM_MODEL, { dtype: 'q4', device, progress_callback: progress });
-    try { llm = await make(navigator.gpu ? 'webgpu' : 'wasm'); } catch { llm = await make('wasm'); }
-    llmState = 'ready';
-    updateAiUi('Real AI is on (runs in your browser)', 1);
-    addMsg('ai', 'Real AI is ready. Ask me anything about your plan, or say things like "I have an exam tomorrow, remind me to revise biology".');
-  } catch (err) {
-    console.error(err);
-    llmState = 'error';
-    updateAiUi('Could not load the AI model. Built-in commands still work.');
-  }
-}
-
-const VALID_TAGS = ['Dev', 'Bug', 'Study', 'General'];
-function resolveActions(list) {
-  const ok = []; let dropped = 0;
-  for (const a of (Array.isArray(list) ? list : []).slice(0, 6)) {
-    if (!a || typeof a !== 'object') { dropped++; continue; }
-    if (a.type === 'add' && typeof a.title === 'string' && a.title.trim()) {
-      ok.push({ type: 'add', title: a.title.trim().slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: VALID_TAGS.includes(a.tag) ? a.tag : 'General', due: /^\d{4}-\d{2}-\d{2}$/.test(a.due || '') ? a.due : '' });
-    } else if (['complete', 'prio', 'rename', 'due', 'tag'].includes(a.type)) {
-      const t = Brain.find(tasks, String(a.target || ''));
-      if (!t) { dropped++; continue; }
-      if (a.type === 'prio' && !WEIGHT[a.prio]) { dropped++; continue; }
-      if (a.type === 'tag' && !VALID_TAGS.includes(a.tag)) { dropped++; continue; }
-      if (a.type === 'due' && !/^\d{4}-\d{2}-\d{2}$/.test(a.due || '')) { dropped++; continue; }
-      if (a.type === 'rename' && !String(a.title || '').trim()) { dropped++; continue; }
-      ok.push({ type: a.type, id: t.id, prio: a.prio, tag: a.tag, due: a.due, title: a.title });
-    } else dropped++; // delete and bulk actions are never taken from the model: use the explicit commands
-  }
-  return { ok, dropped };
-}
-async function llmAsk() {
-  const list = tasks.slice(0, 40).map(t => `- ${t.title} | ${t.prio} | ${t.tag} | ${t.due || 'no date'} | ${t.done ? 'done' : 'open'}`).join('\n') || '(no tasks)';
-  const tmr = new Date(Date.now() + 864e5), tm = `${tmr.getFullYear()}-${String(tmr.getMonth() + 1).padStart(2, '0')}-${String(tmr.getDate()).padStart(2, '0')}`;
-  const system = `You are JALTRON, a friendly task planner. Today is ${todayStr()}.
-Tasks (title | priority | category | due | status):
-${list}
-Answer with ONE line of JSON only: {"reply":"short answer","actions":[]}
-Action types: {"type":"add","title":"","prio":"high|medium|low","tag":"Dev|Bug|Study|General","due":"YYYY-MM-DD or empty"}, {"type":"complete","target":"task title"}, {"type":"prio","target":"","prio":""}, {"type":"rename","target":"","title":""}, {"type":"due","target":"","due":""}, {"type":"tag","target":"","tag":""}.
-Use [] when nothing should change. Keep the reply under 40 words.`;
-  const shots = [
-    { role: 'user', content: 'remind me to revise biology tomorrow' },
-    { role: 'assistant', content: JSON.stringify({ reply: 'Added a task to revise biology for tomorrow.', actions: [{ type: 'add', title: 'Revise biology', prio: 'medium', tag: 'Study', due: tm }] }) },
-    { role: 'user', content: 'what should I focus on?' },
-    { role: 'assistant', content: JSON.stringify({ reply: 'Start with your highest priority open task, then work down the list.', actions: [] }) }
-  ];
-  const out = await llm([{ role: 'system', content: system }, ...shots, ...chatMsgs.slice(-4).map(m => ({ role: m.role, content: m.content }))], { max_new_tokens: 200, do_sample: false });
-  const raw = String(out[0].generated_text.at(-1).content || '').trim();
-  let data = null;
-  try { const m = raw.match(/\{[\s\S]*\}/); data = m && JSON.parse(m[0]); } catch { /* plain text answer */ }
-  if (!data || typeof data.reply !== 'string') return { reply: raw.slice(0, 400) || 'I am not sure how to help with that.', actions: [] };
-  const { ok, dropped } = resolveActions(data.actions);
-  return { reply: data.reply.slice(0, 400) + (dropped ? '\n(I skipped some changes I could not match safely.)' : ''), actions: ok };
-}
-
-// ---- Neural AI: a small network trained from scratch on characters (see tinybrain.js) ----
 function setNn(text) { const el = $('nn-state'); if (el) el.textContent = text; }
 async function trainAI() {
-  if (typeof TinyBrain === 'undefined' || !window.TRAIN) return setNn('Neural AI files missing: upload tinybrain.js, training-data.js and knowledge.js.');
+  if (typeof TinyBrain === 'undefined' || !window.TRAIN) return setNn('Neural AI files missing.');
   setNn('Training neural AI...');
   try {
     const r = await TinyBrain.train([], (ep, total) => setNn(`Training neural AI... ${Math.round(ep / total * 100)}%`));
-    setNn(`Neural AI ready: ${r.examples} examples, ${Math.round(r.acc * 100)}% accuracy on unseen phrases`);
-  } catch (err) { console.error(err); setNn('Neural AI failed to train. Built-in commands still work.'); }
+    setNn(`Neural AI ready (${Math.round(r.acc * 100)}% accuracy)`);
+  } catch (err) { console.error(err); setNn('Neural AI failed to train.'); }
 }
 
-const MOTIVATE = ['Small steps count. Pick one task and give it 10 focused minutes.', 'You do not have to do everything today, just the next thing.', 'Start with the easiest task to build momentum.'];
-// Turns the network's guess (intent) into a real action by finding the details in your sentence
 const KSTOP = new Set('a an the i me my you is are do does how what to of and or it in on for can we be this that with'.split(' '));
 const kw = (s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w && !KSTOP.has(w));
 const kOverlap = (k, q) => { const toks = new Set(k.phrases.flatMap(kw)); let s = 0; q.forEach(w => { if (toks.has(w)) s++; }); return s; };
@@ -425,9 +323,7 @@ function neuralRespond(text) {
   const p = TinyBrain.predict(text);
   if (!p) return null;
   const KB = window.KNOWLEDGE || [], q = new Set(kw(text));
-  // Calculations are recognised directly
   if (/\d/.test(text) && /[+\-*/^%]|\b(?:times|plus|minus|divided|squared)\b/i.test(text)) { const m = KB.find(x => x.id === 'util_math'); if (m) return kAnswer(m, text); }
-  // Keyword check backs up the network for knowledge questions
   let bk = null, bs = 0;
   for (const k of KB) { const s = kOverlap(k, q); if (s > bs) { bs = s; bk = k; } }
   if (p.intent === 'unknown' || p.conf < 0.5) return bk && bs >= 2 ? kAnswer(bk, text) : null;
@@ -443,8 +339,8 @@ function neuralRespond(text) {
   const known = (t) => t && Brain.find(tasks, t);
   let cmd = canned[intent] || null, res = null, t;
   switch (intent) {
-    case 'motivate': res = { reply: MOTIVATE[Math.floor(Math.random() * MOTIVATE.length)] + '\n' + Brain.respond('what should i do first', tasks, []).reply, actions: [] }; break;
-    case 'chat': res = { reply: 'That is outside what I know. I can help with your tasks, this site, planning, studying, debugging and quick things like dates, calculations and jokes. Say "what do you know" for the list.', actions: [] }; break;
+    case 'motivate': res = { reply: 'Small steps count. Pick one task and give it 10 focused minutes.\n' + Brain.respond('what should i do first', tasks, []).reply, actions: [] }; break;
+    case 'chat': res = { reply: 'I can help with your tasks, planning, studying, debugging, and quick calculations or jokes.', actions: [] }; break;
     case 'add': cmd = 'add ' + (text.replace(/^(?:bro\s+|hey\s+|please\s+|pls\s+|can you\s+|could you\s+)?(?:i\s+(?:need|have|want|gotta|must|should)\s+to\s+|remind me to\s+|(?:add|create|put|new task|make)\s+(?:a\s+)?(?:new\s+)?(?:task\s+)?(?:to\s+|for\s+)?)/i, '').trim() || text); break;
     case 'complete': t = strip(text, /\b(?:finished|finish|done|completed|complete|check off|tick off|mark|with|did)\b/gi); if (!known(t)) return null; cmd = 'complete ' + t; break;
     case 'delete': t = strip(text, /\b(?:delete|remove|cancel|drop|get rid|dont need|anymore|trash|erase)\b/gi); if (!known(t)) return null; cmd = 'delete ' + t; break;
@@ -457,7 +353,7 @@ function neuralRespond(text) {
     }
     case 'due': {
       const d = Brain.parseTask(text).due;
-      if (!d) return { reply: 'Which date? Try "tomorrow", "friday" or 2026-10-25.', actions: [] };
+      if (!d) return { reply: 'Which date? Try "tomorrow", "friday" or YYYY-MM-DD.', actions: [] };
       t = strip(text, /\b(?:move|postpone|push|delay|reschedule|change|deadline|due|until|tomorrow|tmrw|tmr|today|next week|in \d+ days?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{4}-\d{2}-\d{2})\b/gi);
       if (!known(t)) return null; cmd = `move ${t} to ${d}`; break;
     }
@@ -469,45 +365,35 @@ function neuralRespond(text) {
     case 'breakdown': t = strip(text, /\b(?:break down|split|steps|how do finish|how should approach|help start|into|how)\b/gi); cmd = 'break down' + (t ? ' ' + t : ''); break;
   }
   if (!res) { if (!cmd) return null; res = Brain.respond(cmd, tasks, []); if (res.unknown) return null; }
-  return { ...res, reply: res.reply + `\n(AI read this as "${intent}", ${Math.round(p.conf * 100)}% sure)` };
+  return { ...res, reply: res.reply };
 }
 
-// Chat: exact commands run instantly; anything else goes to the on-device AI when it is on
 async function ask(text) {
   addMsg('user', text);
   chatMsgs.push({ role: 'user', content: text });
   if (typeof Brain === 'undefined') {
-    return addMsg('ai', 'brain.js did not load. Upload brain.js to the same folder as index.html and redeploy.');
+    return addMsg('ai', 'brain.js did not load.');
   }
   let res = Brain.respond(text, tasks, chatMsgs);
   if (res.unknown && typeof TinyBrain !== 'undefined' && TinyBrain.ready) { const n = neuralRespond(text); if (n) res = n; }
-  if (res.unknown && llmState === 'ready') {
-    const typing = addMsg('ai typing', 'Thinking...');
-    try { res = await llmAsk(); } catch (err) { console.error(err); }
-    typing.remove();
-  } else if (res.unknown && llmState !== 'loading') {
-    res = { ...res, reply: res.reply + '\n\nTip: open "Teach the AI" below and show me what that means.' };
-  }
   addMsg('ai', res.reply);
   chatMsgs.push({ role: 'assistant', content: res.reply });
   if (res.actions && res.actions.length) applyActions(res.actions);
 }
-$('ai-enable').addEventListener('click', loadLLM);
-const toggleChat = (open) => { $('chat').hidden = !open; $('chat-fab').hidden = open; if (open) $('chat-input').focus(); };
-$('chat-fab').addEventListener('click', () => toggleChat(true));
-$('chat-close').addEventListener('click', () => toggleChat(false));
-$('chips').addEventListener('click', (e) => { if (e.target.matches('button')) ask(e.target.textContent); });
-$('chat-form').addEventListener('submit', (e) => {
+
+const toggleChat = (open) => { $('chat').hidden = !open; $('chat-fab').hidden = open; if (open)$('chat-input').focus(); };
+$('chat-fab').addEventListener('click', () => toggleChat(true));$('chat-close').addEventListener('click', () => toggleChat(false));
+$('chips').addEventListener('click', (e) => { if (e.target.matches('button')) ask(e.target.textContent); });$('chat-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const v = $('chat-input').value.trim();
   if (v) { $('chat-input').value = ''; ask(v); }
 });
-addMsg('ai', 'Hi, I am JALTRON. I can add, complete and delete tasks for you, plan your day, or explain the site. Try: add fix login bug tomorrow high');
 
-// Keep due-date labels fresh
+addMsg('ai', 'Hi, I am JALTRON. I can manage your plan, answer questions, or sort priorities. Try: add fix login bug tomorrow high');
+
 setInterval(render, 60000 * 30);
 render();
-// Sidebar AI command bar: opens the chat and runs the command
+
 $('cmd-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const v = $('cmd-input').value.trim();
@@ -516,4 +402,5 @@ $('cmd-form').addEventListener('submit', (e) => {
   toggleChat(true);
   ask(v);
 });
+
 connect().then(() => trainAI());
