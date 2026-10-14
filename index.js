@@ -175,7 +175,8 @@ $('ai-sort-btn').addEventListener('click', () => {
   currentFilter = 'all';
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
   render();
-  toast('Plan optimized by impact score');
+  const top = tasks.find(t => !t.done);
+  toast(top ? `Top priority: ${top.title} (${top.prio}${top.due ? ', due ' + top.due : ''})` : 'Plan optimized');
 });
 
 // Filters, search, category
@@ -293,6 +294,13 @@ function applyActions(actions) {
     else if (a.type === 'delete') tasks = tasks.filter(t => t.id !== a.id);
     else if (a.type === 'prio' && WEIGHT[a.prio]) tasks = tasks.map(t => t.id === a.id ? { ...t, prio: a.prio } : t);
     else if (a.type === 'clear_done') tasks = tasks.filter(t => !t.done);
+    else if (a.type === 'complete_all') tasks = tasks.map(t => ({ ...t, done: true }));
+    else if (a.type === 'clear_all') tasks = [];
+    else if (a.type === 'reopen') tasks = tasks.map(t => t.id === a.id ? { ...t, done: false } : t);
+    else if (a.type === 'rename' && a.title) tasks = tasks.map(t => t.id === a.id ? { ...t, title: String(a.title).slice(0, 140) } : t);
+    else if (a.type === 'due') tasks = tasks.map(t => t.id === a.id ? { ...t, due: a.due || '' } : t);
+    else if (a.type === 'tag' && ['Dev', 'Bug', 'Study', 'General'].includes(a.tag)) tasks = tasks.map(t => t.id === a.id ? { ...t, tag: a.tag } : t);
+    else if (a.type === 'search') { query = String(a.q || ''); $('search').value = query; }
     else if (a.type === 'optimize') tasks.sort((x, y) => (x.done !== y.done) ? (x.done ? 1 : -1) : score(y) - score(x));
     else if (a.type === 'filter') {
       if (a.status) currentFilter = a.status;
@@ -314,20 +322,102 @@ function addMsg(cls, text) {
   log.scrollTop = log.scrollHeight;
   return d;
 }
+// ---- On-device AI: Transformers.js + Qwen2.5-0.5B-Instruct, runs fully in the browser ----
+const LLM_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2';
+const LLM_MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';
+let llm = null, llmState = 'off'; // off | loading | ready | error
+
+function updateAiUi(text, frac) {
+  $('ai-enable').hidden = !(llmState === 'off' || llmState === 'error');
+  $('ai-prog').hidden = llmState !== 'loading';
+  if (frac != null) $('ai-prog-fill').style.width = Math.round(frac * 100) + '%';
+  $('ai-state').textContent = text;
+}
+async function loadLLM() {
+  if (llmState === 'loading' || llmState === 'ready') return;
+  llmState = 'loading';
+  updateAiUi('Loading AI...', 0);
+  try {
+    const { pipeline } = await import(LLM_URL);
+    const files = {};
+    const progress = (p) => {
+      if (p.status !== 'progress' || !p.total) return;
+      files[p.file] = [p.loaded, p.total];
+      const v = Object.values(files), l = v.reduce((s, f) => s + f[0], 0), t = v.reduce((s, f) => s + f[1], 0);
+      updateAiUi(`Downloading AI model ${Math.round(l / t * 100)}%`, l / t);
+    };
+    const make = (device) => pipeline('text-generation', LLM_MODEL, { dtype: 'q4', device, progress_callback: progress });
+    try { llm = await make(navigator.gpu ? 'webgpu' : 'wasm'); } catch { llm = await make('wasm'); }
+    llmState = 'ready';
+    updateAiUi('Real AI is on (runs in your browser)', 1);
+    addMsg('ai', 'Real AI is ready. Ask me anything about your plan, or say things like "I have an exam tomorrow, remind me to revise biology".');
+  } catch (err) {
+    console.error(err);
+    llmState = 'error';
+    updateAiUi('Could not load the AI model. Built-in commands still work.');
+  }
+}
+
+const VALID_TAGS = ['Dev', 'Bug', 'Study', 'General'];
+function resolveActions(list) {
+  const ok = []; let dropped = 0;
+  for (const a of (Array.isArray(list) ? list : []).slice(0, 6)) {
+    if (!a || typeof a !== 'object') { dropped++; continue; }
+    if (a.type === 'add' && typeof a.title === 'string' && a.title.trim()) {
+      ok.push({ type: 'add', title: a.title.trim().slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: VALID_TAGS.includes(a.tag) ? a.tag : 'General', due: /^\d{4}-\d{2}-\d{2}$/.test(a.due || '') ? a.due : '' });
+    } else if (['complete', 'prio', 'rename', 'due', 'tag'].includes(a.type)) {
+      const t = Brain.find(tasks, String(a.target || ''));
+      if (!t) { dropped++; continue; }
+      if (a.type === 'prio' && !WEIGHT[a.prio]) { dropped++; continue; }
+      if (a.type === 'tag' && !VALID_TAGS.includes(a.tag)) { dropped++; continue; }
+      if (a.type === 'due' && !/^\d{4}-\d{2}-\d{2}$/.test(a.due || '')) { dropped++; continue; }
+      if (a.type === 'rename' && !String(a.title || '').trim()) { dropped++; continue; }
+      ok.push({ type: a.type, id: t.id, prio: a.prio, tag: a.tag, due: a.due, title: a.title });
+    } else dropped++; // delete and bulk actions are never taken from the model: use the explicit commands
+  }
+  return { ok, dropped };
+}
+async function llmAsk() {
+  const list = tasks.slice(0, 40).map(t => `- ${t.title} | ${t.prio} | ${t.tag} | ${t.due || 'no date'} | ${t.done ? 'done' : 'open'}`).join('\n') || '(no tasks)';
+  const tmr = new Date(Date.now() + 864e5), tm = `${tmr.getFullYear()}-${String(tmr.getMonth() + 1).padStart(2, '0')}-${String(tmr.getDate()).padStart(2, '0')}`;
+  const system = `You are JALTRON, a friendly task planner. Today is ${todayStr()}.
+Tasks (title | priority | category | due | status):
+${list}
+Answer with ONE line of JSON only: {"reply":"short answer","actions":[]}
+Action types: {"type":"add","title":"","prio":"high|medium|low","tag":"Dev|Bug|Study|General","due":"YYYY-MM-DD or empty"}, {"type":"complete","target":"task title"}, {"type":"prio","target":"","prio":""}, {"type":"rename","target":"","title":""}, {"type":"due","target":"","due":""}, {"type":"tag","target":"","tag":""}.
+Use [] when nothing should change. Keep the reply under 40 words.`;
+  const shots = [
+    { role: 'user', content: 'remind me to revise biology tomorrow' },
+    { role: 'assistant', content: JSON.stringify({ reply: 'Added a task to revise biology for tomorrow.', actions: [{ type: 'add', title: 'Revise biology', prio: 'medium', tag: 'Study', due: tm }] }) },
+    { role: 'user', content: 'what should I focus on?' },
+    { role: 'assistant', content: JSON.stringify({ reply: 'Start with your highest priority open task, then work down the list.', actions: [] }) }
+  ];
+  const out = await llm([{ role: 'system', content: system }, ...shots, ...chatMsgs.slice(-4).map(m => ({ role: m.role, content: m.content }))], { max_new_tokens: 200, do_sample: false });
+  const raw = String(out[0].generated_text.at(-1).content || '').trim();
+  let data = null;
+  try { const m = raw.match(/\{[\s\S]*\}/); data = m && JSON.parse(m[0]); } catch { /* plain text answer */ }
+  if (!data || typeof data.reply !== 'string') return { reply: raw.slice(0, 400) || 'I am not sure how to help with that.', actions: [] };
+  const { ok, dropped } = resolveActions(data.actions);
+  return { reply: data.reply.slice(0, 400) + (dropped ? '\n(I skipped some changes I could not match safely.)' : ''), actions: ok };
+}
+
+// Chat: exact commands run instantly; anything else goes to the on-device AI when it is on
 async function ask(text) {
   addMsg('user', text);
   chatMsgs.push({ role: 'user', content: text });
-  if (!online) return addMsg('ai', "The AI server isn't connected yet. Set API_BASE at the top of index.js to your VPS address.");
-  const typing = addMsg('ai typing', 'Thinking...');
-  try {
-    const r = await fetch(API_BASE + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: chatMsgs, tasks }) });
-    const d = await r.json();
-    typing.className = 'msg ai';
-    typing.textContent = d.reply || 'No response.';
-    chatMsgs.push({ role: 'assistant', content: typing.textContent });
-    if (Array.isArray(d.actions) && d.actions.length) applyActions(d.actions);
-  } catch { typing.className = 'msg ai'; typing.textContent = 'Could not reach the AI server.'; }
+  let res = Brain.respond(text, tasks, chatMsgs);
+  if (res.unknown && llmState === 'ready') {
+    const typing = addMsg('ai typing', 'Thinking...');
+    try { res = await llmAsk(); } catch (err) { console.error(err); }
+    typing.remove();
+  } else if (res.unknown && llmState !== 'loading') {
+    res = { ...res, reply: res.reply + '\n\nTip: tap "Enable real AI" above and I can understand free-form requests.' };
+  }
+  addMsg('ai', res.reply);
+  chatMsgs.push({ role: 'assistant', content: res.reply });
+  if (res.actions && res.actions.length) applyActions(res.actions);
 }
+$('ai-enable').addEventListener('click', loadLLM);
 const toggleChat = (open) => { $('chat').hidden = !open; $('chat-fab').hidden = open; if (open) $('chat-input').focus(); };
 $('chat-fab').addEventListener('click', () => toggleChat(true));
 $('chat-close').addEventListener('click', () => toggleChat(false));
@@ -342,4 +432,13 @@ addMsg('ai', 'Hi, I am JALTRON. I can add, complete and delete tasks for you, pl
 // Keep due-date labels fresh
 setInterval(render, 60000 * 30);
 render();
+// Sidebar AI command bar: opens the chat and runs the command
+$('cmd-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = $('cmd-input').value.trim();
+  if (!v) return;
+  $('cmd-input').value = '';
+  toggleChat(true);
+  ask(v);
+});
 connect();
