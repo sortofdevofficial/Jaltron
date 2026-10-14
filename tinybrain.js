@@ -3,9 +3,9 @@
 // No libraries, no downloads. It trains in your browser each time the page loads.
 (function (root) {
   'use strict';
-  const DIM = 2048, HID = 96, EPOCHS = 30;
-  const INTENTS = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'unknown'];
-  const K = INTENTS.length;
+  const DIM = 4096, HID = 128, EPOCHS = 16;
+  const BASE = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'unknown'];
+  let INTENTS = BASE.slice(), K = INTENTS.length;
   let W1, b1, W2, b2, ready = false, seed = 1;
 
   const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
@@ -66,9 +66,10 @@
   function build(cfg, extra) {
     const out = [], fill = (t) => t.replace(/\{(\w+)\}/g, (_, k) => pick(cfg.slots[k] || ['thing']));
     for (const [intent, list] of Object.entries(cfg.templates)) for (const t of list) {
-      const reps = t.includes('{') ? 6 : 1;
+      const reps = t.includes('{') ? 3 : 1;
       for (let r = 0; r < reps; r++) out.push([fill(t), intent, false]);
     }
+    for (const k of root.KNOWLEDGE || []) for (const ph of k.phrases) for (let r = 0; r < 4; r++) out.push([ph, 'k_' + k.id, false]);
     for (const [t, i] of cfg.examples || []) for (let r = 0; r < 4; r++) out.push([t, i, false]);
     for (const e of extra || []) for (let r = 0; r < 8; r++) out.push([e.text, e.intent, true]);
     // Gibberish and special-character noise teach the net to say "I don't know"
@@ -84,7 +85,9 @@
   }
 
   async function train(extra, onProgress) {
-    seed = 7; init(); ready = false;
+    seed = 7; ready = false;
+    INTENTS = BASE.concat((root.KNOWLEDGE || []).map(k => 'k_' + k.id)); K = INTENTS.length;
+    init();
     const all = build(root.TRAIN, extra).map(([t, i, tg]) => ({ ix: feats(t), y: INTENTS.indexOf(i), tg })).filter(d => d.y >= 0);
     for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
     const hold = [], tr = [];
@@ -109,6 +112,6 @@
     return { intent: INTENTS[b], conf: p[b] };
   }
 
-  const api = { INTENTS, train, predict, get ready() { return ready; } };
+  const api = { get INTENTS() { return INTENTS; }, train, predict, get ready() { return ready; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.TinyBrain = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -402,30 +402,49 @@ Use [] when nothing should change. Keep the reply under 40 words.`;
 }
 
 // ---- Neural AI: a small network trained from scratch on characters (see tinybrain.js) ----
-let taught = []; // phrases users taught the AI (saved on the server when it is online)
 function setNn(text) { const el = $('nn-state'); if (el) el.textContent = text; }
-async function trainAI(refetch) {
-  if (typeof TinyBrain === 'undefined' || !window.TRAIN) return setNn('Neural AI files missing: upload tinybrain.js and training-data.js.');
+async function trainAI() {
+  if (typeof TinyBrain === 'undefined' || !window.TRAIN) return setNn('Neural AI files missing: upload tinybrain.js, training-data.js and knowledge.js.');
   setNn('Training neural AI...');
   try {
-    if (refetch && online) { try { const t = await (await fetch(API_BASE + '/api/teach')).json(); if (Array.isArray(t)) taught = t; } catch { /* offline */ } }
-    const r = await TinyBrain.train(taught, (ep, total) => setNn(`Training neural AI... ${Math.round(ep / total * 100)}%`));
+    const r = await TinyBrain.train([], (ep, total) => setNn(`Training neural AI... ${Math.round(ep / total * 100)}%`));
     setNn(`Neural AI ready: ${r.examples} examples, ${Math.round(r.acc * 100)}% accuracy on unseen phrases`);
   } catch (err) { console.error(err); setNn('Neural AI failed to train. Built-in commands still work.'); }
 }
 
 const MOTIVATE = ['Small steps count. Pick one task and give it 10 focused minutes.', 'You do not have to do everything today, just the next thing.', 'Start with the easiest task to build momentum.'];
 // Turns the network's guess (intent) into a real action by finding the details in your sentence
+const KSTOP = new Set('a an the i me my you is are do does how what to of and or it in on for can we be this that with'.split(' '));
+const kw = (s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w && !KSTOP.has(w));
+const kOverlap = (k, q) => { const toks = new Set(k.phrases.flatMap(kw)); let s = 0; q.forEach(w => { if (toks.has(w)) s++; }); return s; };
+function kAnswer(k, text) {
+  const a = typeof k.answer === 'function' ? k.answer(text, tasks) : Array.isArray(k.answer) ? k.answer[Math.floor(Math.random() * k.answer.length)] : k.answer;
+  return { reply: a, actions: [] };
+}
 function neuralRespond(text) {
   const p = TinyBrain.predict(text);
-  if (!p || p.intent === 'unknown' || p.conf < 0.5) return null;
+  if (!p) return null;
+  const KB = window.KNOWLEDGE || [], q = new Set(kw(text));
+  // Calculations are recognised directly
+  if (/\d/.test(text) && /[+\-*/^%]|\b(?:times|plus|minus|divided|squared)\b/i.test(text)) { const m = KB.find(x => x.id === 'util_math'); if (m) return kAnswer(m, text); }
+  // Keyword check backs up the network for knowledge questions
+  let bk = null, bs = 0;
+  for (const k of KB) { const s = kOverlap(k, q); if (s > bs) { bs = s; bk = k; } }
+  if (p.intent === 'unknown' || p.conf < 0.5) return bk && bs >= 2 ? kAnswer(bk, text) : null;
+  if (p.intent.startsWith('k_')) {
+    const nk = KB.find(x => 'k_' + x.id === p.intent);
+    if (!nk) return null;
+    return kAnswer(bk && bk !== nk && bs > kOverlap(nk, q) ? bk : nk, text);
+  }
+  let intent = p.intent;
+  if (intent === 'reopen' && /\b(finished|finish|done|completed)\b/i.test(text) && !/\b(not|didnt|did not|never|still|yet)\b/i.test(text)) intent = 'complete';
   const canned = { plan: 'plan my day', first: 'what should i do first', summary: 'summary', overdue: "what's overdue", help: 'what can you do', greet: 'hi', thanks: 'thanks', optimize: 'optimize', clear_done: 'clear completed', complete_all: 'complete all' };
   const strip = (s, extra) => s.replace(extra, ' ').replace(/\b(?:bro|pls|please|can you|could you|i|im|just|already|the|my|a|an|task|tasks|is|are|was|now|lol|from|list|on|it|me|to|of)\b/gi, ' ').replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
   const known = (t) => t && Brain.find(tasks, t);
-  let cmd = canned[p.intent] || null, res = null, t;
-  switch (p.intent) {
+  let cmd = canned[intent] || null, res = null, t;
+  switch (intent) {
     case 'motivate': res = { reply: MOTIVATE[Math.floor(Math.random() * MOTIVATE.length)] + '\n' + Brain.respond('what should i do first', tasks, []).reply, actions: [] }; break;
-    case 'chat': res = { reply: 'I am JALTRON, your planning assistant. I can manage your tasks and plan your day. Say "what can you do" to see how.', actions: [] }; break;
+    case 'chat': res = { reply: 'That is outside what I know. I can help with your tasks, this site, planning, studying, debugging and quick things like dates, calculations and jokes. Say "what do you know" for the list.', actions: [] }; break;
     case 'add': cmd = 'add ' + (text.replace(/^(?:bro\s+|hey\s+|please\s+|pls\s+|can you\s+|could you\s+)?(?:i\s+(?:need|have|want|gotta|must|should)\s+to\s+|remind me to\s+|(?:add|create|put|new task|make)\s+(?:a\s+)?(?:new\s+)?(?:task\s+)?(?:to\s+|for\s+)?)/i, '').trim() || text); break;
     case 'complete': t = strip(text, /\b(?:finished|finish|done|completed|complete|check off|tick off|mark|with|did)\b/gi); if (!known(t)) return null; cmd = 'complete ' + t; break;
     case 'delete': t = strip(text, /\b(?:delete|remove|cancel|drop|get rid|dont need|anymore|trash|erase)\b/gi); if (!known(t)) return null; cmd = 'delete ' + t; break;
@@ -450,22 +469,8 @@ function neuralRespond(text) {
     case 'breakdown': t = strip(text, /\b(?:break down|split|steps|how do finish|how should approach|help start|into|how)\b/gi); cmd = 'break down' + (t ? ' ' + t : ''); break;
   }
   if (!res) { if (!cmd) return null; res = Brain.respond(cmd, tasks, []); if (res.unknown) return null; }
-  return { ...res, reply: res.reply + `\n(AI read this as "${p.intent}", ${Math.round(p.conf * 100)}% sure)` };
+  return { ...res, reply: res.reply + `\n(AI read this as "${intent}", ${Math.round(p.conf * 100)}% sure)` };
 }
-
-// Teach the AI: add a phrase, retrain right away
-if (typeof TinyBrain !== 'undefined') TinyBrain.INTENTS.forEach(i => $('teach-intent').add(new Option(i, i)));
-$('teach-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const text = $('teach-text').value.trim(), intent = $('teach-intent').value;
-  if (!text || text.length > 140) return;
-  $('teach-text').value = '';
-  taught.push({ text, intent });
-  if (online) fetch(API_BASE + '/api/teach', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, intent }) }).catch(() => {});
-  addMsg('ai', `Learned: "${text}" means "${intent}". Retraining...`);
-  await trainAI(false);
-  addMsg('ai', 'Done. Try that phrase again.');
-});
 
 // Chat: exact commands run instantly; anything else goes to the on-device AI when it is on
 async function ask(text) {
@@ -511,4 +516,4 @@ $('cmd-form').addEventListener('submit', (e) => {
   toggleChat(true);
   ask(v);
 });
-connect().then(() => trainAI(true));
+connect().then(() => trainAI());

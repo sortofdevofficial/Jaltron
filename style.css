@@ -184,7 +184,3 @@ input:focus, select:focus { border-color: var(--primary); outline: none; box-sha
 .ai-bar .btn { justify-content: center; font-size: 11px; }
 .ai-prog { height: 6px; background: var(--panel-3); border-radius: 99px; overflow: hidden; }
 #ai-prog-fill { height: 100%; width: 0; background: var(--primary); transition: width .3s; }
-
-.teach { font-size: 11px; color: var(--muted); }
-.teach summary { cursor: pointer; font-weight: 600; padding: 2px 0; }
-.teach form { flex-direction: column; gap: 6px; margin-top: 6px; }

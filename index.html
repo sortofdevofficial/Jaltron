@@ -115,14 +115,6 @@
       <div class="ai-prog" id="ai-prog" hidden><div id="ai-prog-fill"></div></div>
       <span class="sub" id="ai-state"></span>
       <span class="sub" id="nn-state">Starting neural AI...</span>
-      <details class="teach">
-        <summary>Teach the AI</summary>
-        <form id="teach-form">
-          <input id="teach-text" placeholder='A phrase, e.g. "knock out the biology revision"' maxlength="140" autocomplete="off">
-          <select id="teach-intent" aria-label="What it means"></select>
-          <button class="btn primary">Teach</button>
-        </form>
-      </details>
     </div>
     <div class="chat-log" id="chat-log"></div>
     <div class="chips" id="chips"><button>Add a study task</button><button>Plan my day</button><button>Summary</button><button>What can you do?</button></div>
@@ -132,6 +124,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="brain.js"></script>
   <script src="training-data.js"></script>
+  <script src="knowledge.js"></script>
   <script src="tinybrain.js"></script>
   <script src="index.js"></script>
 </body>
