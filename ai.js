@@ -33,6 +33,12 @@
       return 'Answer: ' + Math.round(v * 1e10) / 1e10;
     } catch { return 'I could not read that calculation. Try "12 * 5", "15% of 200" or "2^10".'; }
   }
+// Lists the live categories, including the ones the user created
+root.catReply = () => {
+  const c = window.CATS ? CATS() : ['Dev', 'Bug', 'Study', 'General'];
+  const mine = c.slice(4);
+  return 'Your categories: ' + c.join(', ') + '.' + (mine.length ? ' Your own: ' + mine.join(', ') + '.' : '') + ' Bugs get a small boost in Smart sort. Say "tag login as dev" to change one, or use the + New button next to Category to create more.';
+};
   const E = (id, phrases, answer) => ({ id, phrases, answer });
 
   root.KNOWLEDGE = [
@@ -46,7 +52,7 @@
     E('site_theme', ['how do i change the theme', 'is there dark mode', 'how to turn on dark mode', 'light mode please', 'change colors'], 'Press the moon or sun button in the top right to switch between light and dark. It starts from your device setting.'),
     E('site_save', ['are my tasks saved', 'do tasks save when i refresh', 'where is my data stored', 'how does saving work', 'will i lose my tasks'], 'Sign in with Google (top right) and your tasks save to your own account in the cloud and load on any device. Signed out, they live only in this page and refreshing clears them. Nothing goes in your browser storage.'),
     E('site_status', ['what does ai online mean', 'what does demo mode mean', 'why does it say server offline', 'what is the status badge', 'header status meaning'], 'TRAINING: the built-in neural AI is still learning in your browser (a few seconds). AI READY: it is trained. SYNCED: it is trained and you are signed in, so tasks save to your account.'),
-    E('site_category', ['what are the categories', 'what is the difference between dev and bug', 'how do categories work', 'what categories exist', 'what is a category'], 'Categories are Dev (building things), Bug (fixing problems), Study (learning) and General (everything else). Bugs get a small boost in Smart sort. You can create your own categories in your account panel (click your name in the header when signed in). Say "tag login as dev" to change one.'),
+    E('site_category', ['what are the categories', 'what is the difference between dev and bug', 'how do categories work', 'what categories exist', 'what is a category'], () => window.catReply()),
     E('site_due', ['how do due dates work', 'how do i set a deadline', 'what do the due badges mean', 'can i add a deadline', 'overdue badge meaning'], 'Pick a date in Quick Add or say "add pay hosting friday". Badges show Due today, Due tomorrow, a date, or how many days overdue (red). Say "move login to monday" to change one.'),
     E('site_stats', ['what do the cards at the top mean', 'what is the high priority count', 'what does in progress mean', 'explain the stats', 'what is the progress bar'], 'The cards count all tasks, open tasks (In Progress), completed tasks, open High priority tasks and overdue tasks. The bar shows the percent of tasks completed.'),
     E('site_assistant', ['how do i use the ai chat', 'what commands can i say', 'how do i talk to you', 'how to use the assistant', 'examples of things to say'], 'Type naturally, for example: "add task for my study tomorrow", "complete login", "make docs low priority", "move login to friday", "plan my day", "what is due today", "summary". Say "what can you do" for the full list.'),
@@ -413,7 +419,7 @@ const FAQ = [
   [/dark|light|theme|mode/, 'Use the moon or sun button in the header to switch themes.'],
   [/save|persist|lost|refresh|storage|backup/, 'Sign in with Google and tasks save to your account. Signed out, they reset on refresh.'],
   [/status|online|offline|demo/, 'Header status: TRAINING means the neural AI is still learning in your browser. AI READY means it is trained.'],
-  [/categor|tag/, 'Categories are Dev, Bug, Study and General. Say "add fix login bug" and I will pick Bug automatically.'],
+  [/categor|tag/, () => window.catReply()],
   [/due|deadline|date/, 'Set a due date when adding a task. Badges show Due today, Due tomorrow or how many days overdue. You can tell me too: "add pay hosting tomorrow".']
 ];
 
@@ -501,6 +507,8 @@ function respond(msg, tasksIn, history) {
   }
   if (/^(?:please\s+|can you\s+|go\s+)?(?:optimi[sz]e|re-?order|re-?sort|organi[sz]e|sort)\b/.test(l))
     return say('Optimized your plan by priority, deadlines and category.', [{ type: 'optimize' }]);
+  if ((r = l.match(/^(?:show|filter)\s+(?:me\s+)?(?:only\s+)?(?:the\s+)?(.+?)(?:\s+tasks?)?$/)) && catOf(r[1]))
+    return say('Done. Filter updated.', [{ type: 'filter', cat: catOf(r[1]) }]);
   if ((r = l.match(/^show\s+(?:me\s+)?(?:only\s+)?(?:the\s+)?(all|everything|pending|active|open|completed|done|finished|bugs?|dev|study|general)\b/))) {
     const k = r[1];
     const a = /^(all|everything)$/.test(k) ? { type: 'filter', status: 'all', cat: 'all' }
@@ -533,7 +541,7 @@ function respond(msg, tasksIn, history) {
     return open.length ? say(`Do this first: "${open[0].title}" (${why(open[0])}).` + (open[1] ? `\nThen: "${open[1].title}".` : '')) : say('Your plan is empty. Add a task and I will tell you what to do first.');
   if (/\b(help|what can you|commands|features|how do you work)\b/.test(l))
     return say('I can:\n- add tasks: "add task for my study", "add fix login bug tomorrow high", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "delete old task"\n- edit: "rename login to fix auth", "move login to friday", "make login low priority", "tag docs as study"\n- find and filter: "find login", "show pending", "show bugs", "clear filters"\n- think: "plan my day", "what\'s due today", "summary", "overdue", "break down login"\n- explain the site: drag, edit, themes, saving, status');
-  for (const [re, ans] of FAQ) if (re.test(l)) return say(ans);
+  for (const [re, ans] of FAQ) if (re.test(l)) return say(typeof ans === 'function' ? ans() : ans);
 
   return Object.assign(say('I did not get that. Try "add physics exam tomorrow urgent", "complete login", "plan my day" or ask "what do you know".'), { unknown: true });
 }

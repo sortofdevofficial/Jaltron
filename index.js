@@ -2,7 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 
-// Signed out: tasks live only in memory. Signed in: they sync to Firestore at users/<uid>/tasks (see db.js).
+// Signed out: tasks live only in memory. Signed in: they sync to Firestore at u/<uid>/t (see db.js).
 let tasks = [];
 let nextId = 1;
 let currentFilter = 'all';
@@ -291,10 +291,10 @@ addEventListener('jaltron:user', (e) => {
   const { user, tasks: saved, profile: p } = e.detail;
   tasks = saved; profile = p; custom = p.k;
   nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
-  $('notice-text').textContent = user ? `Signed in as @${p.n}. Your tasks sync to your account.` : 'Sign in with Google to save your tasks. Until then they only live in this page and refreshing clears them.';
+  document.querySelector('.notice').style.display = user ? 'none' : '';
   fillCats(); renderAccount(); render();
   if (aiReady) ready();
-  if (user) toast('Signed in');
+  if (user && !e.detail.cached) toast('Signed in');
 });
 addEventListener('jaltron:error', (e) => toast(e.detail));
 $('auth-btn').addEventListener('click', () => {
@@ -313,21 +313,46 @@ $('name-form').addEventListener('submit', async (e) => {
   try { profile.n = await DB.setUsername(v); renderAccount(); setMsg('Username changed.', true); }
   catch (err) { setMsg(err.message === 'taken' ? 'That username is already taken.' : 'Could not change the username. Try again.'); }
 });
+const saveCats = () => { if (window.DB && DB.user) DB.setCats(custom); };
+// Shared by the account panel and the Quick Add "New" button. Returns an error text, or '' on success.
+function addCategory(raw) {
+  const v = String(raw).trim().replace(/\s+/g, ' ');
+  if (!v) return 'Type a category name.';
+  if (catList().some(c => c.toLowerCase() === v.toLowerCase())) return 'You already have that category.';
+  if (custom.length >= 12) return 'You can create up to 12 categories.';
+  custom.push(v); saveCats();
+  fillCats(); renderCats();
+  return '';
+}
 $('cat-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const v = $('cat-input').value.trim().replace(/\s+/g, ' ');
-  if (!v) return;
-  if (catList().some(c => c.toLowerCase() === v.toLowerCase())) return setMsg('You already have that category.');
-  if (custom.length >= 12) return setMsg('You can create up to 12 categories.');
-  custom.push(v); DB.setCats(custom);
+  const err = addCategory($('cat-input').value);
+  if (err) return setMsg(err);
   $('cat-input').value = '';
-  fillCats(); renderCats(); setMsg('Category added.', true);
+  setMsg('Category added.', true);
 });
+// Quick Add: the visible "New" button opens an inline creator and selects the new category
+$('new-cat-btn').addEventListener('click', () => {
+  const box = $('quick-cat-box');
+  box.classList.toggle('open');
+  if (box.classList.contains('open')) $('quick-cat').focus();
+});
+function quickAddCat() {
+  const v = $('quick-cat').value.trim().replace(/\s+/g, ' ');
+  const err = addCategory(v);
+  if (err) return toast(err);
+  $('task-tag').value = v;
+  $('quick-cat').value = '';
+  $('quick-cat-box').classList.remove('open');
+  toast(`Category "${v}" created`);
+}
+$('quick-cat-add').addEventListener('click', quickAddCat);
+$('quick-cat').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); quickAddCat(); } });
 $('acct-cats').addEventListener('click', (e) => {
   const b = e.target.closest('[data-cat]');
   if (!b) return;
   const c = b.dataset.cat;
-  custom = custom.filter(x => x !== c); DB.setCats(custom);
+  custom = custom.filter(x => x !== c); saveCats();
   tasks = tasks.map(t => t.tag === c ? { ...t, tag: 'General' } : t); // its tasks move to General
   fillCats(); renderCats(); render(); setMsg(`Removed "${c}". Its tasks moved to General.`, true);
 });

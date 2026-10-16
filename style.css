@@ -219,3 +219,10 @@ h1 { background: linear-gradient(90deg, var(--primary), var(--ok)); -webkit-back
 .ai-bar .btn { justify-content: center; font-size: 11px; }
 .ai-prog { height: 6px; background: var(--panel-3); border-radius: 99px; overflow: hidden; }
 #ai-prog-fill { height: 100%; width: 0; background: var(--primary); transition: width .3s; }
+/* New category button + inline creator */
+.label-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.new-cat-btn { background: var(--primary); color: #fff; border: none; border-radius: 99px; padding: 3px 10px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(37,99,235,.35); transition: background .2s, transform .15s; }
+.new-cat-btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+.quick-cat { display: none; gap: 8px; align-items: center; padding: 10px; border: 1px dashed var(--primary); border-radius: 10px; background: var(--panel-2); margin: -4px 0 4px; }
+.quick-cat.open { display: flex; }
+.quick-cat input { flex: 1; min-width: 0; }

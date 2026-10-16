@@ -64,11 +64,15 @@
             </select>
           </div>
           <div class="field">
-            <label for="task-tag">Category</label>
+            <div class="label-row"><label for="task-tag">Category</label><button type="button" class="new-cat-btn" id="new-cat-btn"><i class="fa-solid fa-plus"></i> New</button></div>
             <select id="task-tag">
               <option>Dev</option><option>Bug</option><option>Study</option><option>General</option>
             </select>
           </div>
+        </div>
+        <div class="quick-cat" id="quick-cat-box">
+          <input type="text" id="quick-cat" maxlength="20" placeholder="New category, e.g. Gym" autocomplete="off" aria-label="New category name">
+          <button type="button" class="btn primary" id="quick-cat-add"><i class="fa-solid fa-check"></i> Create</button>
         </div>
         <div class="field">
           <label for="task-due">Due date (optional)</label>
