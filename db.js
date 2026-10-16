@@ -1,7 +1,7 @@
 // JALTRON cloud: Google sign-in + Firestore. Email, photo, name and last login come from Auth, so none are stored.
 //   u/<uid>      { k: [custom categories] }
 //   u/<uid>/t/<id> { t: title, p: h|m|l, c: category, d: due, x: done, o: order }
-//   un/<name>    { u: uid }   (the only place a username is stored; the doc ID is the name, which keeps it unique)
+//   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, writeBatch, runTransaction, query, orderBy, where, limit } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
@@ -60,19 +60,19 @@ function save(tasks) {
 
 // Claim a username atomically: fails with "taken" if another account owns it
 const NAME_RE = /^[a-z0-9_]{3,20}$/;
-// Find the username this account owns (usernames live only in un/<name>)
+// Find the username this account owns (usernames live only in u/<name>; the uid doc has no 'u' field so it never matches)
 async function mine() {
-  const s = await getDocs(query(collection(db, 'un'), where('u', '==', auth.currentUser.uid), limit(1)));
+  const s = await getDocs(query(collection(db, 'u'), where('u', '==', auth.currentUser.uid), limit(1)));
   return s.empty ? '' : s.docs[0].id;
 }
 async function setUsername(name) {
   name = String(name).trim().toLowerCase();
   if (!NAME_RE.test(name)) throw new Error('invalid');
-  const uid = auth.currentUser.uid, nref = doc(db, 'un', name), old = await mine();
+  const uid = auth.currentUser.uid, nref = doc(db, 'u', name), old = await mine();
   await runTransaction(db, async (tx) => {
     const n = await tx.get(nref);
     if (n.exists() && n.data().u !== uid) throw new Error('taken');
-    if (old && old !== name) tx.delete(doc(db, 'un', old));
+    if (old && old !== name) tx.delete(doc(db, 'u', old));
     tx.set(nref, { u: uid });
   });
   const c = readCache(uid);
