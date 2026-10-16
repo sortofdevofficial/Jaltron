@@ -2,7 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 
-// Tasks live only in memory: nothing is saved to a server, file or localStorage. Refresh clears them.
+// Signed out: tasks live only in memory. Signed in: they sync to Firestore at users/<uid>/tasks (see db.js).
 let tasks = [];
 let nextId = 1;
 let currentFilter = 'all';
@@ -35,6 +35,7 @@ function dueBadge(t) {
 }
 
 function render() {
+  if (window.DB) DB.save(tasks);
   const total = tasks.length;
   const done = tasks.filter(t => t.done).length;
   const overdue = tasks.filter(t => !t.done && t.due && dayDiff(t.due) < 0).length;
@@ -248,6 +249,23 @@ function setStatus(state, text) {
   $('status-text').textContent = text;
 }
 
+// ---- Cloud account (db.js) ----
+let aiReady = false;
+const ready = () => setStatus('online', DB.user ? 'SYNCED' : 'AI READY');
+addEventListener('jaltron:user', (e) => {
+  const { user, tasks: saved } = e.detail;
+  tasks = saved;
+  nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
+  $('auth-btn').querySelector('span').textContent = user ? 'Sign out' : 'Sign in';
+  $('auth-btn').title = user ? (user.email || user.displayName || '') : '';
+  $('notice-text').textContent = user ? `Signed in as ${user.displayName || user.email}. Your tasks sync to your account.` : 'Sign in with Google to save your tasks. Until then they only live in this page and refreshing clears them.';
+  render();
+  if (aiReady) ready();
+  if (user) toast('Signed in');
+});
+addEventListener('jaltron:error', (e) => toast(e.detail));
+$('auth-btn').addEventListener('click', () => window.DB ? (DB.user ? DB.signOut() : DB.signIn()) : toast('Cloud is still loading, try again'));
+
 // ---- AI chat ----
 // Run actions the assistant returns (add, complete, delete, prio, clear, optimize, filter)
 function applyActions(actions) {
@@ -328,4 +346,4 @@ $('cmd-form').addEventListener('submit', (e) => {
   ask(v);
 });
 setStatus('demo', 'TRAINING');
-trainAI().then(() => setStatus('online', 'AI READY'));
+trainAI().then(() => { aiReady = true; if (window.DB) ready(); else setStatus('online', 'AI READY'); });
