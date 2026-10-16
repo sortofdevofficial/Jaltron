@@ -46,7 +46,7 @@
     E('site_theme', ['how do i change the theme', 'is there dark mode', 'how to turn on dark mode', 'light mode please', 'change colors'], 'Press the moon or sun button in the top right to switch between light and dark. It starts from your device setting.'),
     E('site_save', ['are my tasks saved', 'do tasks save when i refresh', 'where is my data stored', 'how does saving work', 'will i lose my tasks'], 'Sign in with Google (top right) and your tasks save to your own account in the cloud and load on any device. Signed out, they live only in this page and refreshing clears them. Nothing goes in your browser storage.'),
     E('site_status', ['what does ai online mean', 'what does demo mode mean', 'why does it say server offline', 'what is the status badge', 'header status meaning'], 'TRAINING: the built-in neural AI is still learning in your browser (a few seconds). AI READY: it is trained. SYNCED: it is trained and you are signed in, so tasks save to your account.'),
-    E('site_category', ['what are the categories', 'what is the difference between dev and bug', 'how do categories work', 'what categories exist', 'what is a category'], 'Categories are Dev (building things), Bug (fixing problems), Study (learning) and General (everything else). Bugs get a small boost in Smart sort. Say "tag login as dev" to change one.'),
+    E('site_category', ['what are the categories', 'what is the difference between dev and bug', 'how do categories work', 'what categories exist', 'what is a category'], 'Categories are Dev (building things), Bug (fixing problems), Study (learning) and General (everything else). Bugs get a small boost in Smart sort. You can create your own categories in your account panel (click your name in the header when signed in). Say "tag login as dev" to change one.'),
     E('site_due', ['how do due dates work', 'how do i set a deadline', 'what do the due badges mean', 'can i add a deadline', 'overdue badge meaning'], 'Pick a date in Quick Add or say "add pay hosting friday". Badges show Due today, Due tomorrow, a date, or how many days overdue (red). Say "move login to monday" to change one.'),
     E('site_stats', ['what do the cards at the top mean', 'what is the high priority count', 'what does in progress mean', 'explain the stats', 'what is the progress bar'], 'The cards count all tasks, open tasks (In Progress), completed tasks, open High priority tasks and overdue tasks. The bar shows the percent of tasks completed.'),
     E('site_assistant', ['how do i use the ai chat', 'what commands can i say', 'how do i talk to you', 'how to use the assistant', 'examples of things to say'], 'Type naturally, for example: "add task for my study tomorrow", "complete login", "make docs low priority", "move login to friday", "plan my day", "what is due today", "summary". Say "what can you do" for the full list.'),
@@ -315,11 +315,14 @@ const dateStr = (off = 0) => { const d = new Date(); d.setDate(d.getDate() + off
 const days = (d) => Math.round((new Date(d + 'T00:00') - new Date(dateStr() + 'T00:00')) / 864e5);
 const nextDay = (n) => { const i = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(n.toLowerCase()); return dateStr(((i - new Date().getDay() + 7) % 7) || 7); };
 const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+const cats = () => (window.CATS ? CATS() : ['Dev', 'Bug', 'Study', 'General']);
+const catOf = (s) => { const x = String(s).trim().toLowerCase(); return cats().find(c => c.toLowerCase() === x || c.toLowerCase() + 's' === x) || null; };
+const customIn = (s) => cats().slice(4).find(c => (' ' + s.toLowerCase().replace(/[^a-z0-9]+/g, ' ') + ' ').includes(' ' + c.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + ' ')) || '';
 
 const clean = (t) => ({
   id: Number(t.id) || 0, title: String(t.title || '').slice(0, 140),
   prio: W[t.prio] ? t.prio : 'medium',
-  tag: ['Dev', 'Bug', 'Study', 'General'].includes(t.tag) ? t.tag : 'General',
+  tag: (window.CATS ? CATS() : ['Dev', 'Bug', 'Study', 'General']).includes(t.tag) ? t.tag : 'General',
   due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : '', done: !!t.done
 });
 
@@ -387,7 +390,8 @@ function parseTask(raw) {
   const high = /\b(?:urgent|urgently|asap|critical|top priority|high priority|(?:very|super|really|extremely)\s+important|important)\b|\s(?:high)\s*$/i;
   if (low.test(s)) prio = 'low'; else if (high.test(s)) prio = 'high';
   s = s.replace(/\b(?:(?:its|it's|it is|this is|thats|that's|is|very|super|really|so|extremely|quite)\s+)*(?:not urgent|not important|low priority|no rush|whenever|chill|top priority|high priority|medium priority|urgently|urgent|asap|critical|(?:very|super|really|extremely)\s+important|important)\b/gi, ' ').replace(/\s(?:high|low|medium)\s*$/i, ' ');
-  if ((m = s.match(/(?:category|tag|#)\s*(dev|bug|study|general)\b/i))) { tag = cap(m[1].toLowerCase()); s = s.replace(m[0], ' '); }
+  if ((m = s.match(/(?:category|tag|#)\s*([\w-]+)/i)) && catOf(m[1])) { tag = catOf(m[1]); s = s.replace(m[0], ' '); }
+  else if (customIn(s)) tag = customIn(s);
   else if (TAG_WORDS.Bug.test(s)) tag = 'Bug';
   else if (TAG_WORDS.Study.test(s)) tag = 'Study';
   else if (TAG_WORDS.Dev.test(s)) tag = 'Dev';
@@ -465,8 +469,8 @@ function respond(msg, tasksIn, history) {
     const t = find(tasks, r[1]);
     return t ? say(`Renamed "${t.title}" to "${cap(r[2].trim())}".`, [{ type: 'rename', id: t.id, title: cap(r[2].trim()) }]) : say(`I could not find a task matching "${r[1]}".`);
   }
-  if ((r = m.match(/^(?:tag|categori[sz]e|move|set)\s+(.+?)\s+(?:as|to|under|category)\s+(dev|bug|study|general)$/i))) {
-    const t = find(tasks, r[1]), c = cap(r[2].toLowerCase());
+  if ((r = m.match(/^(?:tag|categori[sz]e|move|set)\s+(.+?)\s+(?:as|to|under|category)\s+(.+)$/i)) && catOf(r[2])) {
+    const t = find(tasks, r[1]), c = catOf(r[2]);
     return t ? say(`Moved "${t.title}" to ${c}.`, [{ type: 'tag', id: t.id, tag: c }]) : say(`I could not find a task matching "${r[1]}".`);
   }
   if ((r = m.match(/^(?:move|reschedule|postpone|push|delay)\s+(.+?)\s+(?:to|until|till|for|by|on)\s+(.+)$/i))) {
@@ -521,7 +525,7 @@ function respond(msg, tasksIn, history) {
   if (/\b(break|split|steps|how (do|to) i (finish|do))\b/.test(l)) {
     const named = find(open, l.replace(/.*?\b(?:break down|break|split|steps (?:for|to))\b/, ''));
     const t = named || open[0];
-    return t ? say(`To finish "${t.title}":\n` + STEPS[t.tag].map((s, i) => `${i + 1}. ${s}`).join('\n')) : say('Add a task first and I will break it down.');
+    return t ? say(`To finish "${t.title}":\n` + (STEPS[t.tag] || STEPS.General).map((s, i) => `${i + 1}. ${s}`).join('\n')) : say('Add a task first and I will break it down.');
   }
   if (/\b(plan|schedule|today|my day)\b/.test(l))
     return open.length ? say('Suggested order:\n' + open.slice(0, 5).map((t, i) => `${i + 1}. ${t.title} (${why(t)})`).join('\n')) : say('Your plan is empty. Add a task and I will plan around it.');
@@ -595,9 +599,11 @@ function neuralRespond(text, tasks) {
       if (!known(t)) return null; cmd = `move ${t} to ${d}`; break;
     }
     case 'tag': {
-      const c = (text.match(/\b(dev|bugs?|study|general)\b/i) || [])[1];
-      t = strip(text, /\b(?:tag|put|under|as|mark|category|change|dev|bugs?|study|general|thing)\b/gi);
-      if (!c || !known(t)) return null; cmd = `tag ${t} as ${c.toLowerCase().replace(/^bugs$/, 'bug')}`; break;
+      let c = null, at = -1; // the category named last in the sentence is the target
+      for (const x of (window.CATS ? CATS() : [])) { const i = text.toLowerCase().lastIndexOf(x.toLowerCase()); if (i > at) { at = i; c = x; } }
+      if (!c) return null;
+      t = strip(text.slice(0, at) + ' ' + text.slice(at + c.length), /\b(?:tag|put|under|as|mark|category|change|thing)\b/gi);
+      if (!known(t)) return null; cmd = `tag ${t} as ${c}`; break;
     }
     case 'breakdown': t = strip(text, /\b(?:break down|split|steps|how do finish|how should approach|help start|into|how)\b/gi); cmd = 'break down' + (t ? ' ' + t : ''); break;
   }

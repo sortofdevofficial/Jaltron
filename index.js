@@ -11,6 +11,10 @@ let query = '';
 let editingId = null;
 let lastDeleted = null;
 let toastTimer = null;
+const DEFAULT_CATS = ['Dev', 'Bug', 'Study', 'General'];
+let custom = [];
+const catList = () => [...DEFAULT_CATS, ...custom];
+window.CATS = catList; // ai.js reads this so the chat knows your own categories
 
 const WEIGHT = { high: 3, medium: 2, low: 1 };
 const todayStr = () => {
@@ -250,21 +254,83 @@ function setStatus(state, text) {
 }
 
 // ---- Cloud account (db.js) ----
-let aiReady = false;
+let aiReady = false, profile = { n: '', k: [] };
 const ready = () => setStatus('online', DB.user ? 'SYNCED' : 'AI READY');
+const setMsg = (text, ok) => { $('acct-msg').textContent = text; $('acct-msg').dataset.ok = ok ? '1' : ''; };
+
+// Rebuild the category dropdowns (defaults + this user's own categories)
+function fillCats() {
+  const opts = catList().map(c => `<option>${escapeHtml(c)}</option>`).join('');
+  const tv = $('task-tag').value, fv = $('cat-filter').value;
+  $('task-tag').innerHTML = opts;
+  $('cat-filter').innerHTML = '<option value="all">All categories</option>' + opts;
+  $('task-tag').value = catList().includes(tv) ? tv : 'General';
+  $('cat-filter').value = catList().includes(fv) ? fv : 'all';
+  currentCat = $('cat-filter').value;
+}
+function renderCats() {
+  $('acct-cats').innerHTML = DEFAULT_CATS.map(c => `<span class="chip">${c}</span>`).join('')
+    + custom.map(c => `<span class="chip mine">${escapeHtml(c)}<button data-cat="${escapeHtml(c)}" aria-label="Remove ${escapeHtml(c)}"><i class="fa-solid fa-xmark"></i></button></span>`).join('');
+}
+// Profile icon, email and name come straight from Google sign-in; only the username is ours
+function avatar(user, cls = '') {
+  const initial = escapeHtml((profile.n || user.email || '?')[0].toUpperCase());
+  return user.photoURL ? `<img class="avatar ${cls}" src="${escapeHtml(user.photoURL)}" alt="" referrerpolicy="no-referrer">` : `<span class="avatar ${cls}">${initial}</span>`;
+}
+function renderAccount() {
+  const user = window.DB && DB.user;
+  $('auth-btn').innerHTML = user ? `${avatar(user)}<span>@${escapeHtml(profile.n)}</span>` : '<i class="fa-brands fa-google"></i><span>Sign in</span>';
+  $('auth-btn').title = user ? (user.email || '') : '';
+  if (!user) return;
+  $('acct-avatar').outerHTML = avatar(user, 'lg').replace('class="avatar', 'id="acct-avatar" class="avatar');
+  $('acct-email').textContent = user.email || user.displayName || '';
+  $('acct-name').value = profile.n;
+  renderCats();
+}
 addEventListener('jaltron:user', (e) => {
-  const { user, tasks: saved } = e.detail;
-  tasks = saved;
+  const { user, tasks: saved, profile: p } = e.detail;
+  tasks = saved; profile = p; custom = p.k;
   nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
-  $('auth-btn').querySelector('span').textContent = user ? 'Sign out' : 'Sign in';
-  $('auth-btn').title = user ? (user.email || user.displayName || '') : '';
-  $('notice-text').textContent = user ? `Signed in as ${user.displayName || user.email}. Your tasks sync to your account.` : 'Sign in with Google to save your tasks. Until then they only live in this page and refreshing clears them.';
-  render();
+  $('notice-text').textContent = user ? `Signed in as @${p.n}. Your tasks sync to your account.` : 'Sign in with Google to save your tasks. Until then they only live in this page and refreshing clears them.';
+  fillCats(); renderAccount(); render();
   if (aiReady) ready();
   if (user) toast('Signed in');
 });
 addEventListener('jaltron:error', (e) => toast(e.detail));
-$('auth-btn').addEventListener('click', () => window.DB ? (DB.user ? DB.signOut() : DB.signIn()) : toast('Cloud is still loading, try again'));
+$('auth-btn').addEventListener('click', () => {
+  if (!window.DB) return toast('Cloud is still loading, try again');
+  if (!DB.user) return DB.signIn();
+  setMsg(''); renderAccount(); $('acct').showModal();
+});
+$('acct-close').addEventListener('click', () => $('acct').close());
+$('acct').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+$('acct-signout').addEventListener('click', () => { $('acct').close(); DB.signOut(); });
+$('name-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const v = $('acct-name').value.trim().toLowerCase().replace(/^@/, '');
+  if (!/^[a-z0-9_]{3,20}$/.test(v)) return setMsg('Use 3 to 20 letters, numbers or underscores.');
+  if (v === profile.n) return setMsg('That is already your username.');
+  try { profile.n = await DB.setUsername(v); renderAccount(); setMsg('Username changed.', true); }
+  catch (err) { setMsg(err.message === 'taken' ? 'That username is already taken.' : 'Could not change the username. Try again.'); }
+});
+$('cat-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = $('cat-input').value.trim().replace(/\s+/g, ' ');
+  if (!v) return;
+  if (catList().some(c => c.toLowerCase() === v.toLowerCase())) return setMsg('You already have that category.');
+  if (custom.length >= 12) return setMsg('You can create up to 12 categories.');
+  custom.push(v); DB.setCats(custom);
+  $('cat-input').value = '';
+  fillCats(); renderCats(); setMsg('Category added.', true);
+});
+$('acct-cats').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-cat]');
+  if (!b) return;
+  const c = b.dataset.cat;
+  custom = custom.filter(x => x !== c); DB.setCats(custom);
+  tasks = tasks.map(t => t.tag === c ? { ...t, tag: 'General' } : t); // its tasks move to General
+  fillCats(); renderCats(); render(); setMsg(`Removed "${c}". Its tasks moved to General.`, true);
+});
 
 // ---- AI chat ----
 // Run actions the assistant returns (add, complete, delete, prio, clear, optimize, filter)
@@ -280,7 +346,7 @@ function applyActions(actions) {
     else if (a.type === 'reopen') tasks = tasks.map(t => t.id === a.id ? { ...t, done: false } : t);
     else if (a.type === 'rename' && a.title) tasks = tasks.map(t => t.id === a.id ? { ...t, title: String(a.title).slice(0, 140) } : t);
     else if (a.type === 'due') tasks = tasks.map(t => t.id === a.id ? { ...t, due: a.due || '' } : t);
-    else if (a.type === 'tag' && ['Dev', 'Bug', 'Study', 'General'].includes(a.tag)) tasks = tasks.map(t => t.id === a.id ? { ...t, tag: a.tag } : t);
+    else if (a.type === 'tag' && catList().includes(a.tag)) tasks = tasks.map(t => t.id === a.id ? { ...t, tag: a.tag } : t);
     else if (a.type === 'search') { query = String(a.q || ''); $('search').value = query; }
     else if (a.type === 'optimize') tasks.sort((x, y) => (x.done !== y.done) ? (x.done ? 1 : -1) : score(y) - score(x));
     else if (a.type === 'filter') {

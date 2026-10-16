@@ -181,6 +181,26 @@ input:focus, select:focus { border-color: var(--primary); outline: none; box-sha
 
 [hidden] { display: none !important; }
 
+/* Account */
+#auth-btn { padding: 5px 12px 5px 6px; }
+#auth-btn:has(.fa-google) { padding: 8px 12px; }
+.avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: var(--primary); color: #fff; display: inline-grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.avatar.lg { width: 44px; height: 44px; font-size: 18px; }
+.acct { border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); padding: 22px; width: min(420px, 92vw); margin: auto; box-shadow: 0 16px 48px rgba(0,0,0,.3); }
+.acct[open] { display: flex; flex-direction: column; gap: 18px; animation: pop .2s ease; }
+.acct::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(3px); }
+.acct-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.acct-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.acct-id strong { overflow-wrap: anywhere; }
+.acct .cmd-form { margin-top: 0; }
+.cat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 500; background: var(--panel-2); border: 1px solid var(--border); }
+.chip.mine { border-color: var(--primary); }
+.chip button { background: none; border: none; color: var(--muted); padding: 0; line-height: 1; }
+.chip button:hover { color: var(--danger); }
+#acct-msg { min-height: 16px; color: var(--danger); }
+#acct-msg[data-ok="1"] { color: var(--ok); }
+
 /* Polish */
 body { background: radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--primary) 12%, transparent), transparent), var(--bg); -webkit-font-smoothing: antialiased; }
 .top { position: sticky; top: 12px; z-index: 30; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--panel) 88%, transparent); }

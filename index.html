@@ -119,6 +119,24 @@
     <form class="chat-form" id="chat-form"><input id="chat-input" placeholder="Ask about your plan" autocomplete="off"><button class="btn primary" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
   </section>
 
+  <dialog id="acct" class="acct" aria-label="Account">
+    <div class="acct-head">
+      <div class="acct-id"><span class="avatar lg" id="acct-avatar"></span><div><strong id="acct-email"></strong><div class="sub">Signed in with Google</div></div></div>
+      <button class="icon-btn sm" id="acct-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="field">
+      <label for="acct-name">Username (unique, 3 to 20 letters, numbers or _)</label>
+      <form class="cmd-form" id="name-form"><input id="acct-name" maxlength="20" autocomplete="off"><button class="btn primary">Save</button></form>
+    </div>
+    <div class="field">
+      <label for="cat-input">Your categories</label>
+      <div id="acct-cats" class="cat-chips"></div>
+      <form class="cmd-form" id="cat-form"><input id="cat-input" maxlength="20" placeholder="New category, e.g. Gym" autocomplete="off"><button class="btn primary">Add</button></form>
+    </div>
+    <p class="sub" id="acct-msg" aria-live="polite"></p>
+    <button class="btn full" id="acct-signout"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="db.js"></script>
   <script src="ai.js"></script>
