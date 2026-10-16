@@ -23,9 +23,11 @@
     </div>
     <div class="top-actions">
       <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i></button>
-      <div class="status" id="status"><span class="dot"></span><span id="status-text">CONNECTING</span></div>
+      <div class="status" id="status" data-state="demo"><span class="dot"></span><span id="status-text">STARTING</span></div>
     </div>
   </header>
+
+  <div class="notice"><i class="fa-solid fa-circle-info"></i><span>Private by design: tasks are never saved, not on a server, file or browser. Refreshing clears them.</span></div>
 
   <section class="stats-grid">
     <div class="hud card"><div class="card-title"><i class="fa-solid fa-list-check"></i> Total Tasks</div><div class="card-value" id="stat-total">0</div></div>
@@ -110,12 +112,9 @@
   <button class="fab" id="chat-fab" aria-label="Open AI assistant"><i class="fa-solid fa-comment-dots"></i></button>
   <section class="chat" id="chat" aria-label="JALTRON AI assistant" hidden>
     <div class="chat-head"><span><i class="fa-solid fa-wand-magic-sparkles"></i> Ask JALTRON</span><button class="icon-btn sm" id="chat-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="ai-bar">
-      </div>
-      <span class="sub" id="nn-state">Starting neural AI...</span>
-    </div>
+    <div class="ai-bar"><span class="sub" id="nn-state">Starting neural AI...</span></div>
     <div class="chat-log" id="chat-log"></div>
-    <div class="chips" id="chips"><button>Add a study task</button><button>Plan my day</button><button>Summary</button><button>What can you do?</button></div>
+    <div class="chips" id="chips"><button>Wsp</button><button>Add a study task</button><button>Plan my day</button><button>Summary</button><button>What can you do?</button></div>
     <form class="chat-form" id="chat-form"><input id="chat-input" placeholder="Ask about your plan" autocomplete="off"><button class="btn primary" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
   </section>
 

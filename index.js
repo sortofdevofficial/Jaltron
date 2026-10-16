@@ -2,15 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 
-// Set this to your VPS address once the AI server is running, e.g. 'https://ai.yourdomain.com'.
-// Left empty, the app runs in demo mode: no AI chat, tasks reset on refresh.
-// Direct address of the Wispbyte server (plain HTTP). Works from http://, localhost or a local file.
-// On an https:// site (Vercel, GitHub Pages) browsers block plain HTTP, so it calls /api on the same
-// site instead, which vercel.json forwards to the server.
-const DIRECT_API = 'http://78.154.103.47:11903';
-const API_BASE = location.protocol === 'https:' ? location.origin : DIRECT_API;
-
-// State lives in memory (and on your server when API_BASE is set). No localStorage.
+// Tasks live only in memory: nothing is saved to a server, file or localStorage. Refresh clears them.
 let tasks = [];
 let nextId = 1;
 let currentFilter = 'all';
@@ -43,7 +35,6 @@ function dueBadge(t) {
 }
 
 function render() {
-  scheduleSync();
   const total = tasks.length;
   const done = tasks.filter(t => t.done).length;
   const overdue = tasks.filter(t => !t.done && t.due && dayDiff(t.due) < 0).length;
@@ -252,37 +243,9 @@ listEl.addEventListener('drop', (e) => {
 });
 listEl.addEventListener('dragend', () => { dragId = null; render(); });
 
-// ---- Server connection (VPS) ----
-let online = false, lastSynced = '', syncTimer = null;
 function setStatus(state, text) {
   $('status').dataset.state = state;
   $('status-text').textContent = text;
-}
-function scheduleSync() {
-  if (!online) return;
-  const s = JSON.stringify(tasks);
-  if (s === lastSynced) return;
-  clearTimeout(syncTimer);
-  syncTimer = setTimeout(async () => {
-    try {
-      await fetch(API_BASE + '/api/tasks', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: s });
-      lastSynced = s;
-    } catch { online = false; setStatus('offline', 'SERVER LOST'); }
-  }, 400);
-}
-async function connect() {
-  if (!API_BASE) return setStatus('demo', 'DEMO MODE');
-  try {
-    const h = await fetch(API_BASE + '/api/health', { cache: 'no-store' });
-    if (!h.ok) throw 0;
-    const saved = await (await fetch(API_BASE + '/api/tasks')).json();
-    tasks = Array.isArray(saved) ? saved : [];
-    nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
-    lastSynced = JSON.stringify(tasks);
-    online = true;
-    setStatus('online', 'AI ONLINE');
-    render();
-  } catch { setStatus('offline', 'SERVER OFFLINE'); }
 }
 
 // ---- AI chat ----
@@ -364,4 +327,5 @@ $('cmd-form').addEventListener('submit', (e) => {
   toggleChat(true);
   ask(v);
 });
-connect().then(() => trainAI());
+setStatus('demo', 'TRAINING');
+trainAI().then(() => setStatus('online', 'AI READY'));
