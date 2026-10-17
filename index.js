@@ -23,7 +23,7 @@ window.jaltron = { openChat: (o) => toggleChat(o), openAccount: () => $('auth-bt
 const WEIGHT = { high: 3, medium: 2, low: 1 };
 const REPS = ['d', 'wd', 'w'];
 // One place that builds a task, so every field (including repeat and streak data) always exists
-const mkTask = (o) => ({ id: nextId++, title: '', prio: 'medium', tag: 'General', due: '', done: false, r: '', s: 0, b: 0, l: '', h: [], z: '', ...o });
+const mkTask = (o) => ({ id: nextId++, title: '', prio: 'medium', tag: 'General', due: '', done: false, r: '', s: 0, b: 0, l: '', h: [], z: '', i: [], ...o });
 const todayStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -134,11 +134,14 @@ function render() {
             <span class="badge tag">${escapeHtml(t.tag)}</span>
             ${dueBadge(t)}
             ${repBadges(t)}
+            ${upBusy.has(t.id) ? '<span class="badge up"><i class="fa-solid fa-spinner fa-spin"></i> Uploading</span>' : ''}
           </div>
+          ${picsHtml(t)}
         </div>
       </div>
       <div class="task-actions">
         ${t.done ? '' : '<button class="del-btn" data-act="focus" title="Focus on this" aria-label="Focus on this"><i class="fa-solid fa-bullseye"></i></button>'}
+        <button class="del-btn" data-act="attach" title="Add images" aria-label="Add images"><i class="fa-regular fa-image"></i></button>
         <button class="del-btn" data-act="edit" title="Edit" aria-label="Edit"><i class="fa-solid fa-${editingId === t.id ? 'floppy-disk' : 'pen'}"></i></button>
         <button class="del-btn danger" data-act="delete" title="Delete" aria-label="Delete"><i class="fa-solid fa-trash"></i></button>
       </div>
@@ -173,10 +176,13 @@ function commitEdit(id) {
 
 // Task list actions (event delegation)
 $('task-list').addEventListener('click', (e) => {
+  const pic = e.target.closest('[data-pic]');
+  if (pic) { const pt = tasks.find(x => x.id === Number(pic.closest('.task-item').dataset.id)); if (pt) Img.open(pt.i, Number(pic.dataset.pic)); return; }
   const btn = e.target.closest('[data-act]');
   if (!btn) return;
   const id = Number(btn.closest('.task-item').dataset.id);
   const act = btn.dataset.act;
+  if (act === 'attach') { cardTarget = id; $('card-file').click(); return; }
   if (act === 'focus') { const ft = tasks.find(x => x.id === id); if (ft) Extras.startFocus(ft); return render(); }
   if (act === 'toggle') {
     tasks = tasks.map(t => t.id === id ? (t.done ? Habit.reopen(t) : Habit.complete(t)) : t);
@@ -210,10 +216,12 @@ $('task-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const title = $('task-title').value.trim();
   if (!title) return;
-  tasks.unshift(mkTask({ title, prio: $('task-prio').value, tag: $('task-tag').value, due: $('task-due').value || '', r: $('task-rep').value }));
+  if (qa.busy) return toast('Wait for the images to finish uploading.');
+  tasks.unshift(mkTask({ title, prio: $('task-prio').value, tag: $('task-tag').value, due: $('task-due').value || '', r: $('task-rep').value, i: qa.list.slice() }));
   $('task-title').value = '';
   $('task-due').value = '';
   $('task-rep').value = '';
+  qa.list = []; qa.render();
   render();
 });
 
@@ -345,7 +353,8 @@ function renderCats() {
 // Profile icon, email and name come straight from Google sign-in; only the username is ours
 function avatar(user, cls = '') {
   const initial = escapeHtml((profile.n || user.email || '?')[0].toUpperCase());
-  return user.photoURL ? `<img class="avatar ${cls}" src="${escapeHtml(user.photoURL)}" alt="" referrerpolicy="no-referrer">` : `<span class="avatar ${cls}">${initial}</span>`;
+  const src = profile.a ? Img.full(profile.a) : user.photoURL;
+  return src ? `<img class="avatar ${cls}" src="${escapeHtml(src)}" alt="" referrerpolicy="no-referrer">` : `<span class="avatar ${cls}">${initial}</span>`;
 }
 function renderAccount() {
   const user = window.DB && DB.user;
@@ -357,6 +366,7 @@ function renderAccount() {
   $('acct-avatar').outerHTML = avatar(user, 'lg').replace('class="avatar', 'id="acct-avatar" class="avatar');
   $('acct-email').textContent = user.email || user.displayName || '';
   $('acct-name').value = profile.n;
+  $('av-reset').hidden = !profile.a;
   renderCats();
 }
 addEventListener('jaltron:user', (e) => {
@@ -445,6 +455,7 @@ function openEdit(id) {
   $('ed-due').value = t.due || '';
   $('ed-rep').value = t.r || '';
   $('ed-streak').textContent = streakLine(t);
+  ed.list = (t.i || []).slice(); ed.busy = 0; ed.render();
   $('ed-reset').style.display = t.r ? '' : 'none';
   $('edit-dlg').showModal();
   $('ed-title').focus();
@@ -453,10 +464,11 @@ $('edit-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const title = $('ed-title').value.trim();
   if (!title) return;
+  if (ed.busy) return toast('Wait for the images to finish uploading.');
   tasks = tasks.map(t => {
     if (t.id !== editTaskId) return t;
     const r = $('ed-rep').value;
-    let n = { ...t, title, prio: $('ed-prio').value, tag: $('ed-tag').value || t.tag, due: $('ed-due').value || '', r };
+    let n = { ...t, title, prio: $('ed-prio').value, tag: $('ed-tag').value || t.tag, due: $('ed-due').value || '', r, i: ed.list.slice() };
     if (r && !t.r) { const day = t.z || Habit.today(); n = { ...n, s: t.done ? 1 : 0, b: t.done ? 1 : 0, l: t.done ? day : '', h: t.done ? [day] : [] }; }
     if (!r) n = { ...n, s: 0, b: 0, l: '', h: [] };
     return n;
@@ -564,6 +576,97 @@ function dayCheck() {
 }
 setInterval(dayCheck, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) dayCheck(); });
+
+// ---- Images (ImgBB, see upload.js). Stored as short "path|thumb" strings in task.i ----
+let cardTarget = null;
+const upBusy = new Map(); // task id -> pictures still uploading
+const picsHtml = (t) => (t.i && t.i.length
+  ? `<div class="pics">${t.i.map((p, k) => `<button class="pic" data-pic="${k}" aria-label="View image ${k + 1}"><img src="${escapeHtml(Img.parts(p).t)}" alt="" loading="lazy"></button>`).join('')}</div>` : '');
+const thumbsHtml = (list, busy) => list.map((p, k) =>
+  `<div class="thumb"><button type="button" class="pv" data-pv="${k}" aria-label="View image ${k + 1}"><img src="${escapeHtml(Img.parts(p).t)}" alt=""></button><button type="button" class="x" data-rm="${k}" aria-label="Remove image ${k + 1}"><i class="fa-solid fa-xmark"></i></button></div>`).join('')
+  + '<div class="thumb busy" aria-label="Uploading"><i class="fa-solid fa-spinner fa-spin"></i></div>'.repeat(busy);
+const mkStore = (thumbsId, dropId) => ({ list: [], busy: 0,
+  render() { $(thumbsId).innerHTML = thumbsHtml(this.list, this.busy); $(dropId).disabled = this.list.length + this.busy >= Img.MAX; } });
+const qa = mkStore('qa-thumbs', 'qa-drop'), ed = mkStore('ed-thumbs', 'ed-drop');
+
+async function attachFiles(files, store) {
+  files = [...files].filter(f => f.type.startsWith('image/'));
+  if (!files.length) return toast('Choose image files (JPG, PNG, GIF or WebP).');
+  const room = Img.MAX - store.list.length - store.busy;
+  if (room <= 0) return toast(`A task can hold up to ${Img.MAX} images.`);
+  if (files.length > room) toast(`Only ${room} more fit. The rest were skipped.`);
+  await Promise.all(files.slice(0, room).map(async (f) => {
+    store.busy++; store.render();
+    try { store.list.push(await Img.upload(f)); } catch (err) { toast(err.message || 'Upload failed. Try again.'); }
+    store.busy--; store.render();
+  }));
+}
+async function attachToTask(id, files) {
+  files = [...files].filter(f => f.type.startsWith('image/'));
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  if (!files.length) return toast('Choose image files (JPG, PNG, GIF or WebP).');
+  const room = Img.MAX - (t.i || []).length - (upBusy.get(id) || 0);
+  if (room <= 0) return toast(`A task can hold up to ${Img.MAX} images.`);
+  files = files.slice(0, room);
+  upBusy.set(id, (upBusy.get(id) || 0) + files.length); render();
+  const got = [];
+  await Promise.all(files.map(async (f) => { try { got.push(await Img.upload(f)); } catch (err) { toast(err.message || 'Upload failed. Try again.'); } }));
+  const left = (upBusy.get(id) || 0) - files.length;
+  left > 0 ? upBusy.set(id, left) : upBusy.delete(id);
+  if (got.length) { tasks = tasks.map(x => x.id === id ? { ...x, i: [...(x.i || []), ...got].slice(0, Img.MAX) } : x); toast(`${got.length} image${got.length > 1 ? 's' : ''} added`); }
+  render();
+}
+function bindStore(store, dropId, fileId, thumbsId) {
+  $(dropId).addEventListener('click', () => $(fileId).click());
+  $(fileId).addEventListener('change', (e) => { const f = [...e.target.files]; e.target.value = ''; attachFiles(f, store); });
+  const dz = $(dropId);
+  dz.addEventListener('dragover', (e) => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); dz.classList.add('over'); } });
+  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+  dz.addEventListener('drop', (e) => { e.preventDefault(); dz.classList.remove('over'); attachFiles(e.dataTransfer.files, store); });
+  $(thumbsId).addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-rm]'), pv = e.target.closest('[data-pv]');
+    if (rm) { store.list.splice(Number(rm.dataset.rm), 1); store.render(); }
+    else if (pv) Img.open(store.list, Number(pv.dataset.pv));
+  });
+}
+bindStore(qa, 'qa-drop', 'qa-file', 'qa-thumbs');
+bindStore(ed, 'ed-drop', 'ed-file', 'ed-thumbs');
+$('card-file').addEventListener('change', (e) => { const f = [...e.target.files], id = cardTarget; e.target.value = ''; if (id != null) attachToTask(id, f); });
+// Drop pictures straight onto a task card
+$('task-list').addEventListener('dragover', (e) => {
+  const it = e.target.closest('.task-item');
+  if (!it || ![...e.dataTransfer.types].includes('Files')) return;
+  e.preventDefault();
+  $('task-list').querySelectorAll('.file-over').forEach(x => x.classList.remove('file-over'));
+  it.classList.add('file-over');
+});
+$('task-list').addEventListener('dragleave', (e) => { const it = e.target.closest('.task-item'); if (it && !it.contains(e.relatedTarget)) it.classList.remove('file-over'); });
+$('task-list').addEventListener('drop', (e) => {
+  const it = e.target.closest('.task-item');
+  $('task-list').querySelectorAll('.file-over').forEach(x => x.classList.remove('file-over'));
+  if (!it || !e.dataTransfer.files.length) return;
+  e.preventDefault();
+  attachToTask(Number(it.dataset.id), e.dataTransfer.files);
+});
+// Paste a screenshot or copied picture
+document.addEventListener('paste', (e) => {
+  const files = [...(e.clipboardData ? e.clipboardData.files : [])].filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+  if ($('edit-dlg').open) { e.preventDefault(); attachFiles(files, ed); }
+  else if (document.activeElement === $('task-title')) { e.preventDefault(); attachFiles(files, qa); }
+});
+// Profile picture (square, 256 px)
+$('av-change').addEventListener('click', () => $('av-file').click());
+$('av-file').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  setMsg('Uploading picture...', true);
+  try { profile.a = (await Img.upload(f, { square: 256 })).split('|')[0]; DB.setAvatar(profile.a); renderAccount(); setMsg('Picture updated.', true); }
+  catch (err) { setMsg(err.message || 'Upload failed. Try again.'); }
+});
+$('av-reset').addEventListener('click', () => { profile.a = ''; DB.setAvatar(''); renderAccount(); setMsg('Using your Google photo.', true); });
+
 // Paint the last session's tasks immediately, before Firebase has even finished loading
 try {
   const last = localStorage.getItem('jc:last'), c = last && JSON.parse(localStorage.getItem('jc:' + last));

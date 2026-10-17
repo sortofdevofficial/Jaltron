@@ -1,6 +1,6 @@
 // JALTRON cloud: Google sign-in + Firestore. Email, photo, name and last login come from Auth, so none are stored.
-//   u/<uid>      { k: [custom categories] }
-//   u/<uid>/t/<id> { t: title, p: h|m|l, c: category, d: due, x: done, o: order, r/s/b/l/h: repeat, streak, best, last day, history, z: finished day }
+//   u/<uid>      { k: [custom categories], a: profile picture (short ImgBB path) }
+//   u/<uid>/t/<id> { t: title, p: h|m|l, c: category, d: due, x: done, o: order, r/s/b/l/h: repeat, streak, best, last day, history, z: finished day, i: ["path|thumb"] pictures (ImgBB, host removed) }
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -30,9 +30,10 @@ const P = { high: 'h', medium: 'm', low: 'l' }, PR = { h: 'high', m: 'medium', l
 // Repeat and streak fields (r s b l h) are only stored for repeating tasks; z is the day a one-off task was finished
 const pack = (t, o) => ({ t: t.title, p: P[t.prio] || 'm', c: t.tag, d: t.due || '', x: !!t.done, o,
   ...(t.r ? { r: t.r, s: t.s || 0, b: t.b || 0, l: t.l || '', h: (t.h || []).slice(-90) } : {}),
-  ...(t.z ? { z: t.z } : {}) });
+  ...(t.z ? { z: t.z } : {}),
+  ...(t.i && t.i.length ? { i: t.i.slice(0, 4) } : {}) });
 const unpack = (id, d) => ({ id: Number(id), title: d.t, prio: PR[d.p] || 'medium', tag: d.c || 'General', due: d.d || '', done: !!d.x,
-  r: d.r || '', s: d.s || 0, b: d.b || 0, l: d.l || '', h: Array.isArray(d.h) ? d.h : [], z: d.z || '' });
+  r: d.r || '', s: d.s || 0, b: d.b || 0, l: d.l || '', h: Array.isArray(d.h) ? d.h : [], z: d.z || '', i: Array.isArray(d.i) ? d.i : [] });
 let synced = new Map(), timer = null, loadedUid = null; // loadedUid: saving only starts once the cloud copy has been read
 
 // Tiny local snapshot so the UI can paint instantly before the network answers
@@ -94,6 +95,14 @@ async function setCats(k) {
   } catch (err) { console.error(err); emit('error', 'Could not save categories.'); }
 }
 
+async function setAvatar(a) {
+  try {
+    await setDoc(ref(), { a }, { merge: true });
+    const uid = auth.currentUser.uid, c = readCache(uid);
+    if (c) writeCache(uid, c.tasks, { ...c.profile, a });
+  } catch (err) { console.error(err); emit('error', 'Could not save your picture.'); }
+}
+
 // First login: pick a free username from the Google name or email
 async function claim(user) {
   const base = (user.displayName || user.email?.split('@')[0] || 'user').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 14).padEnd(3, '0');
@@ -110,7 +119,7 @@ async function load(user) {
   const known = readCache(user.uid)?.profile?.n || '';
   const [snap, docs, name] = await Promise.all([getDoc(ref()), getDocs(query(col('t'), orderBy('o'))), known || mine()]);
   const d = snap.exists() ? snap.data() : {};
-  const profile = { n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [] };
+  const profile = { n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '' };
   const tasks = docs.docs.map(x => unpack(x.id, x.data()));
   synced = new Map(tasks.map((t, o) => [String(t.id), JSON.stringify(pack(t, o))]));
   writeCache(user.uid, tasks, profile);
@@ -135,7 +144,8 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 window.DB = {
-  save, u, setUsername, setCats,
+  save, u, setUsername, setCats, setAvatar,
+  token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),
   get user() { return auth.currentUser; },
   signIn: () => signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver).catch(e => { if (e.code !== 'auth/popup-closed-by-user') emit('error', 'Sign-in failed: ' + e.code); }),
   signOut: () => signOut(auth)

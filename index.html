@@ -155,6 +155,12 @@
             <select id="task-rep"><option value="">Never</option><option value="d">Daily</option><option value="wd">Weekdays</option><option value="w">Weekly</option></select>
           </div>
         </div>
+        <div class="field">
+          <label>Images (optional)</label>
+          <button type="button" class="drop" id="qa-drop"><i class="fa-regular fa-image"></i><span>Add images</span><small>click, drop or paste</small></button>
+          <input type="file" id="qa-file" accept="image/*" multiple hidden>
+          <div class="thumbs" id="qa-thumbs"></div>
+        </div>
         <button type="submit" class="btn primary full"><i class="fa-solid fa-plus"></i> Add to plan</button>
       </form>
 
@@ -219,6 +225,11 @@
       <button class="icon-btn sm" id="acct-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="field">
+      <label>Profile picture</label>
+      <div class="avatar-row"><button type="button" class="btn" id="av-change"><i class="fa-solid fa-camera"></i> Change picture</button><button type="button" class="btn" id="av-reset" hidden>Use Google photo</button></div>
+      <input type="file" id="av-file" accept="image/*" hidden>
+    </div>
+    <div class="field">
       <label for="acct-name">Username (unique, 3 to 20 letters, numbers or _)</label>
       <form class="cmd-form" id="name-form"><input id="acct-name" maxlength="20" autocomplete="off"><button class="btn primary">Save</button></form>
     </div>
@@ -247,6 +258,12 @@
       <div class="two-col">
         <div class="field"><label for="ed-due">Due date</label><input type="date" id="ed-due"></div>
         <div class="field"><label for="ed-rep">Repeat</label><select id="ed-rep"><option value="">Never</option><option value="d">Daily</option><option value="wd">Weekdays</option><option value="w">Weekly</option></select></div>
+      </div>
+      <div class="field">
+        <label>Images</label>
+        <button type="button" class="drop" id="ed-drop"><i class="fa-regular fa-image"></i><span>Add images</span><small>click, drop or paste</small></button>
+        <input type="file" id="ed-file" accept="image/*" multiple hidden>
+        <div class="thumbs" id="ed-thumbs"></div>
       </div>
       <p class="sub" id="ed-streak"></p>
       <div class="ed-actions">
@@ -290,10 +307,20 @@
     </div>
   </dialog>
 
+  <input type="file" id="card-file" accept="image/*" multiple hidden>
+  <dialog id="lightbox" class="lightbox" aria-label="Image viewer">
+    <button class="icon-btn lb-x" id="lb-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    <button class="icon-btn lb-nav prev" id="lb-prev" aria-label="Previous image"><i class="fa-solid fa-chevron-left"></i></button>
+    <img id="lb-img" alt="Attached image">
+    <button class="icon-btn lb-nav next" id="lb-next" aria-label="Next image"><i class="fa-solid fa-chevron-right"></i></button>
+    <div class="lb-bar"><span id="lb-count"></span><a id="lb-open" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-up-right-from-square"></i> Open original</a></div>
+  </dialog>
+
   <canvas id="fx" aria-hidden="true"></canvas>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="ai.js"></script>
   <script src="habits.js"></script>
+  <script src="upload.js"></script>
   <script src="extras.js"></script>
   <script src="index.js"></script>
 </body>
