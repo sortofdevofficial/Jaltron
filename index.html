@@ -7,7 +7,7 @@
   <link id="favicon" rel="icon" type="image/png" href="favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -22,13 +22,39 @@
       </div>
     </div>
     <div class="top-actions">
+      <button class="btn cmdk" id="open-palette" title="Command palette (Ctrl K)"><i class="fa-solid fa-terminal"></i> <kbd>Ctrl K</kbd></button>
       <button class="btn" id="auth-btn"><i class="fa-brands fa-google"></i> <span>Sign in</span></button>
       <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i></button>
       <div class="status" id="status" data-state="demo"><span class="dot"></span><span id="status-text">STARTING</span></div>
     </div>
   </header>
 
-  <div class="notice"><i class="fa-solid fa-circle-info"></i><span id="notice-text">Sign in with Google to save your tasks. Until then they only live in this page and refreshing clears them.</span></div>
+  <section class="hud hero" id="hero">
+    <div class="hero-main">
+      <p class="hero-hello" id="hero-hello">Hello</p>
+      <h2 id="hero-title">Let's plan your day</h2>
+      <p class="hero-sub" id="hero-sub"></p>
+      <div class="hero-actions">
+        <button class="btn primary" id="hero-focus"><i class="fa-solid fa-bullseye"></i> Start focus</button>
+        <button class="btn" id="hero-signin" hidden><i class="fa-brands fa-google"></i> Sign in to sync</button>
+        <button class="btn" id="hero-keys"><i class="fa-regular fa-keyboard"></i> Shortcuts</button>
+      </div>
+    </div>
+    <svg class="ring" viewBox="0 0 160 160" role="img" aria-label="Today's progress" id="hero-ring">
+      <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
+      <circle class="ring-ticks" cx="80" cy="80" r="73"/>
+      <circle class="ring-track" cx="80" cy="80" r="58"/>
+      <circle class="ring-fill" id="ring-fill" cx="80" cy="80" r="58" stroke-dasharray="364.4" stroke-dashoffset="364.4"/>
+      <text class="ring-n" id="ring-n" x="80" y="82" text-anchor="middle">0</text>
+      <text class="ring-l" id="ring-l" x="80" y="100" text-anchor="middle">done today</text>
+    </svg>
+    <div class="next"><h3>Up next</h3><ol id="next-list"></ol></div>
+    <div class="level">
+      <span class="level-badge" id="lv-badge">Level 1</span>
+      <div class="level-bar" role="progressbar" aria-label="Level progress"><div id="lv-fill"></div></div>
+      <span class="level-xp" id="lv-xp">0 XP</span>
+    </div>
+  </section>
 
   <section class="stats-grid">
     <div class="hud card"><div class="card-title"><i class="fa-solid fa-list-check"></i> Total Tasks</div><div class="card-value" id="stat-total">0</div></div>
@@ -101,6 +127,7 @@
           <div class="field">
             <label for="task-due">Due date (optional)</label>
             <input type="date" id="task-due">
+            <div class="due-chips" id="due-chips"><button type="button" data-d="0">Today</button><button type="button" data-d="1">Tomorrow</button><button type="button" data-d="we">Weekend</button><button type="button" data-d="7">Next week</button></div>
           </div>
           <div class="field">
             <label for="task-rep">Repeat</label>
@@ -131,10 +158,20 @@
         </div>
       </div>
 
+      <div class="views" id="views">
+        <button class="view-btn active" data-view="all">All <b>0</b></button>
+        <button class="view-btn" data-view="today"><i class="fa-regular fa-sun"></i> Today <b>0</b></button>
+        <button class="view-btn" data-view="upcoming"><i class="fa-regular fa-calendar"></i> Upcoming <b>0</b></button>
+        <button class="view-btn" data-view="overdue"><i class="fa-solid fa-triangle-exclamation"></i> Overdue <b>0</b></button>
+      </div>
+
       <div class="toolbar">
         <div class="search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="search" placeholder="Search tasks  ( / )" aria-label="Search tasks"></div>
         <select id="cat-filter" aria-label="Filter by category">
           <option value="all">All categories</option><option>Dev</option><option>Bug</option><option>Study</option><option>General</option>
+        </select>
+        <select id="sort-mode" aria-label="Sort tasks">
+          <option value="manual">Manual order</option><option value="smart">Smart order</option><option value="due">Due date</option><option value="prio">Priority</option><option value="az">A to Z</option>
         </select>
         <button class="btn" id="clear-done"><i class="fa-solid fa-broom"></i> Clear completed</button>
       </div>
@@ -196,10 +233,42 @@
     </form>
   </dialog>
 
+  <div class="focus-dock" id="focus-dock" hidden>
+    <svg class="fd-ring" viewBox="0 0 64 64" aria-hidden="true"><circle class="t" cx="32" cy="32" r="27"/><circle class="f" id="fd-fill" cx="32" cy="32" r="27" stroke-dasharray="169.6" stroke-dashoffset="0"/></svg>
+    <div class="fd-info"><div class="fd-time" id="fd-time">25:00</div><small id="fd-task">Free focus</small></div>
+    <div class="fd-btns">
+      <button class="icon-btn" id="fd-toggle" aria-label="Pause or resume"><i class="fa-solid fa-pause"></i></button>
+      <button class="icon-btn" id="fd-add" aria-label="Add 5 minutes" title="+5 min"><i class="fa-solid fa-plus"></i></button>
+      <button class="icon-btn" id="fd-done" aria-label="Mark task done" title="Mark task done"><i class="fa-solid fa-check"></i></button>
+      <button class="icon-btn" id="fd-close" aria-label="Stop focus"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <dialog id="palette" class="palette" aria-label="Command palette">
+    <div class="pal-top"><i class="fa-solid fa-terminal"></i><input id="pal-input" placeholder="Type a command, or a task to add" autocomplete="off" aria-label="Command"></div>
+    <ul class="pal-list" id="pal-list" role="listbox"></ul>
+    <div class="pal-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>Enter</kbd> run</span><span><kbd>Esc</kbd> close</span></div>
+  </dialog>
+
+  <dialog id="keys-dlg" class="acct" aria-label="Keyboard shortcuts">
+    <div class="acct-head"><div class="acct-id"><i class="fa-regular fa-keyboard ed-ico"></i><div><strong>Keyboard shortcuts</strong><div class="sub">Work without the mouse</div></div></div><button type="button" class="icon-btn sm" id="keys-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="keys">
+      <kbd>Ctrl K</kbd><span>Command palette</span>
+      <kbd>N</kbd><span>New task</span>
+      <kbd>/</kbd><span>Search tasks</span>
+      <kbd>C</kbd><span>Open the AI chat</span>
+      <kbd>F</kbd><span>Start a focus session</span>
+      <kbd>T</kbd><span>Switch theme</span>
+      <kbd>?</kbd><span>Show this list</span>
+    </div>
+  </dialog>
+
+  <canvas id="fx" aria-hidden="true"></canvas>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="db.js"></script>
   <script src="ai.js"></script>
   <script src="habits.js"></script>
+  <script src="extras.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

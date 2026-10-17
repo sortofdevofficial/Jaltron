@@ -9,12 +9,15 @@ let currentFilter = 'all';
 let currentCat = 'all';
 let query = '';
 let editingId = null;
+let view = 'all', sortMode = 'manual';
 let lastDeleted = null;
 let toastTimer = null;
 const DEFAULT_CATS = ['Dev', 'Bug', 'Study', 'General'];
 let custom = [];
 const catList = () => [...DEFAULT_CATS, ...custom];
-window.CATS = catList; // ai.js reads this so the chat knows your own categories
+window.CATS = catList;
+window.catReply = () => `Categories group your tasks. Built in: ${DEFAULT_CATS.join(', ')}.` + (custom.length ? ` Yours: ${custom.join(', ')}.` : ' Create your own with the New button in Quick Add.');
+window.jaltron = { openChat: (o) => toggleChat(o), openAccount: () => $('auth-btn').click(), clearDone: () => $('clear-done').click() }; // ai.js reads this so the chat knows your own categories
 
 const WEIGHT = { high: 3, medium: 2, low: 1 };
 const REPS = ['d', 'wd', 'w'];
@@ -93,14 +96,20 @@ function render() {
   $('progress-bar').style.width = pct + '%';
   $('progress-text').textContent = `${pct}% (${done}/${total})`;
   renderInsights();
+  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user), score, dayDiff, view });
 
   const q = query.toLowerCase();
   const filtered = tasks.filter(t => {
     if (currentFilter === 'pending' && t.done) return false;
     if (currentFilter === 'done' && !t.done) return false;
     if (currentCat !== 'all' && t.tag !== currentCat) return false;
+    if (view === 'today' && !(t.due && dayDiff(t.due) === 0)) return false;
+    if (view === 'upcoming' && !(!t.done && t.due && dayDiff(t.due) > 0)) return false;
+    if (view === 'overdue' && !(!t.done && t.due && dayDiff(t.due) < 0)) return false;
     return !q || t.title.toLowerCase().includes(q);
   });
+  if (sortMode !== 'manual') filtered.sort((a, b) => (a.done !== b.done) ? (a.done ? 1 : -1) : sortMode === 'smart' ? score(b) - score(a)
+    : sortMode === 'due' ? (a.due || '9999').localeCompare(b.due || '9999') : sortMode === 'prio' ? WEIGHT[b.prio] - WEIGHT[a.prio] : a.title.localeCompare(b.title));
 
   const listEl = $('task-list');
   if (!filtered.length) {
@@ -108,13 +117,13 @@ function render() {
     return;
   }
 
-  const canDrag = currentFilter === 'all' && currentCat === 'all' && !q && !editingId;
+  const canDrag = currentFilter === 'all' && currentCat === 'all' && view === 'all' && sortMode === 'manual' && !q && !editingId;
   listEl.innerHTML = filtered.map(t => {
     const body = editingId === t.id
       ? `<input class="edit-input" data-edit="${t.id}" value="${escapeHtml(t.title)}" maxlength="140" aria-label="Edit task">`
       : `<div class="task-title">${escapeHtml(t.title)}</div>`;
     return `
-    <div class="task-item p-${t.prio} ${t.done ? 'completed' : ''}" data-id="${t.id}" ${canDrag ? 'draggable="true"' : ''}>
+    <div class="task-item p-${t.prio} ${t.done ? 'completed' : ''} ${window.Extras && Extras.focusId() === t.id ? 'focusing' : ''}" data-id="${t.id}" ${canDrag ? 'draggable="true"' : ''}>
       <div class="task-left">
         <button class="check-btn" data-act="toggle" aria-label="Toggle complete"><i class="fa-solid fa-check"></i></button>
         <div class="task-main">
@@ -128,6 +137,7 @@ function render() {
         </div>
       </div>
       <div class="task-actions">
+        ${t.done ? '' : '<button class="del-btn" data-act="focus" title="Focus on this" aria-label="Focus on this"><i class="fa-solid fa-bullseye"></i></button>'}
         <button class="del-btn" data-act="edit" title="Edit" aria-label="Edit"><i class="fa-solid fa-${editingId === t.id ? 'floppy-disk' : 'pen'}"></i></button>
         <button class="del-btn danger" data-act="delete" title="Delete" aria-label="Delete"><i class="fa-solid fa-trash"></i></button>
       </div>
@@ -166,9 +176,11 @@ $('task-list').addEventListener('click', (e) => {
   if (!btn) return;
   const id = Number(btn.closest('.task-item').dataset.id);
   const act = btn.dataset.act;
+  if (act === 'focus') { const ft = tasks.find(x => x.id === id); if (ft) Extras.startFocus(ft); return render(); }
   if (act === 'toggle') {
     tasks = tasks.map(t => t.id === id ? (t.done ? Habit.reopen(t) : Habit.complete(t)) : t);
     const t = tasks.find(x => x.id === id), st = t && t.done ? Habit.streak(t) : 0;
+    if (t && t.done && window.Extras) Extras.celebrate(btn, tasks.every(x => x.done));
     if (t && t.r && st >= 2) toast(`${st} in a row for "${t.title}". Keep it going!`);
   }
   else if (act === 'delete') {
@@ -232,6 +244,14 @@ $('filters').addEventListener('click', (e) => {
   currentFilter = b.dataset.filter;
   render();
 });
+$('views').addEventListener('click', (e) => {
+  const b = e.target.closest('.view-btn');
+  if (!b) return;
+  view = b.dataset.view;
+  document.querySelectorAll('.view-btn').forEach(x => x.classList.toggle('active', x === b));
+  render();
+});
+$('sort-mode').addEventListener('change', (e) => { sortMode = e.target.value; render(); });
 $('search').addEventListener('input', (e) => { query = e.target.value.trim(); render(); });
 $('cat-filter').addEventListener('change', (e) => { currentCat = e.target.value; render(); });
 $('clear-done').addEventListener('click', () => {
@@ -340,7 +360,6 @@ addEventListener('jaltron:user', (e) => {
   const { user, tasks: saved, profile: p } = e.detail;
   tasks = Habit.rollover(saved).tasks; profile = p; custom = p.k;
   nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
-  document.querySelector('.notice').style.display = user ? 'none' : '';
   fillCats(); renderAccount(); render();
   if (aiReady) ready();
   if (user && !e.detail.cached) toast('Signed in');
