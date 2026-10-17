@@ -9,6 +9,7 @@ let currentFilter = 'all';
 let currentCat = 'all';
 let query = '';
 let editingId = null;
+let bootName = '', syncing = false; // bootName: shown from the last visit before Firebase has loaded
 let view = 'all', sortMode = 'manual';
 let lastDeleted = null;
 let toastTimer = null;
@@ -96,7 +97,7 @@ function render() {
   $('progress-bar').style.width = pct + '%';
   $('progress-text').textContent = `${pct}% (${done}/${total})`;
   renderInsights();
-  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user), score, dayDiff, view });
+  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, score, dayDiff, view });
 
   const q = query.toLowerCase();
   const filtered = tasks.filter(t => {
@@ -113,7 +114,7 @@ function render() {
 
   const listEl = $('task-list');
   if (!filtered.length) {
-    listEl.innerHTML = `<div class="empty"><i class="fa-regular fa-clipboard"></i><p>${total ? 'No tasks match this view.' : 'Your plan is empty. Add a task to get started.'}</p></div>`;
+    listEl.innerHTML = `<div class="empty"><i class="fa-regular fa-clipboard"></i><p>${syncing ? 'Loading your tasks...' : total ? 'No tasks match this view.' : 'Your plan is empty. Add a task to get started.'}</p></div>`;
     return;
   }
 
@@ -323,7 +324,7 @@ function setStatus(state, text) {
 
 // ---- Cloud account (db.js) ----
 let aiReady = false, profile = { n: '', k: [] };
-const ready = () => setStatus('online', DB.user ? 'SYNCED' : 'AI READY');
+const ready = () => setStatus('online', DB.user ? 'SYNCED' : 'ONLINE');
 const setMsg = (text, ok) => { $('acct-msg').textContent = text; $('acct-msg').dataset.ok = ok ? '1' : ''; };
 
 // Rebuild the category dropdowns (defaults + this user's own categories)
@@ -348,7 +349,9 @@ function avatar(user, cls = '') {
 }
 function renderAccount() {
   const user = window.DB && DB.user;
-  $('auth-btn').innerHTML = user ? `${avatar(user)}<span>@${escapeHtml(profile.n)}</span>` : '<i class="fa-brands fa-google"></i><span>Sign in</span>';
+  $('auth-btn').innerHTML = user ? `${avatar(user)}<span>@${escapeHtml(profile.n || '...')}</span>`
+    : bootName ? `<span class="avatar">${escapeHtml(bootName[0].toUpperCase())}</span><span>@${escapeHtml(bootName)}</span>`
+    : '<i class="fa-brands fa-google"></i><span>Sign in</span>';
   $('auth-btn').title = user ? (user.email || '') : '';
   if (!user) return;
   $('acct-avatar').outerHTML = avatar(user, 'lg').replace('class="avatar', 'id="acct-avatar" class="avatar');
@@ -358,16 +361,18 @@ function renderAccount() {
 }
 addEventListener('jaltron:user', (e) => {
   const { user, tasks: saved, profile: p } = e.detail;
+  bootName = ''; syncing = !!e.detail.loading;
   tasks = Habit.rollover(saved).tasks; profile = p; custom = p.k;
   nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
   fillCats(); renderAccount(); render();
-  if (aiReady) ready();
+  ready();
   if (user && !e.detail.cached) toast('Signed in');
 });
 addEventListener('jaltron:error', (e) => toast(e.detail));
 $('auth-btn').addEventListener('click', () => {
   if (!window.DB) return toast('Cloud is still loading, try again');
-  if (!DB.user) return DB.signIn();
+  if (!DB.user && bootName) return toast('Still connecting to your account...');
+  if (!DB.user) { toast('Opening Google sign-in...'); return DB.signIn(); }
   setMsg(''); renderAccount(); $('acct').showModal();
 });
 $('acct-close').addEventListener('click', () => $('acct').close());
@@ -517,6 +522,9 @@ function addMsg(cls, text) {
 }
 // ---- AI (everything lives in ai.js) ----
 function setNn(text) { const el = $('nn-state'); if (el) el.textContent = text; }
+let aiTraining = null;
+// The neural net trains only when someone opens the chat, so normal visits never pay for it
+const ensureAI = () => aiTraining || (aiTraining = trainAI());
 async function trainAI() {
   if (typeof JaltronAI === 'undefined') return setNn('ai.js did not load. Upload ai.js next to index.html.');
   setNn('Training neural AI...');
@@ -534,7 +542,7 @@ async function ask(text) {
   chatMsgs.push({ role: 'assistant', content: res.reply });
   if (res.actions && res.actions.length) applyActions(res.actions);
 }
-const toggleChat = (open) => { $('chat').hidden = !open; $('chat-fab').hidden = open; if (open) $('chat-input').focus(); };
+const toggleChat = (open) => { $('chat').hidden = !open; $('chat-fab').hidden = open; if (open) { $('chat-input').focus(); ensureAI(); } };
 $('chat-fab').addEventListener('click', () => toggleChat(true));
 $('chat-close').addEventListener('click', () => toggleChat(false));
 $('chips').addEventListener('click', (e) => { if (e.target.matches('button')) ask(e.target.textContent); });
@@ -556,6 +564,15 @@ function dayCheck() {
 }
 setInterval(dayCheck, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) dayCheck(); });
+// Paint the last session's tasks immediately, before Firebase has even finished loading
+try {
+  const last = localStorage.getItem('jc:last'), c = last && JSON.parse(localStorage.getItem('jc:' + last));
+  if (c && Array.isArray(c.tasks)) {
+    tasks = Habit.rollover(c.tasks).tasks; profile = c.profile || profile; custom = profile.k || []; bootName = profile.n || '';
+    nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
+    fillCats(); renderAccount();
+  }
+} catch {}
 render();
 // Sidebar AI command bar: opens the chat and runs the command
 $('cmd-form').addEventListener('submit', (e) => {
@@ -566,5 +583,6 @@ $('cmd-form').addEventListener('submit', (e) => {
   toggleChat(true);
   ask(v);
 });
-setStatus('demo', 'TRAINING');
-trainAI().then(() => { aiReady = true; if (window.DB) ready(); else setStatus('online', 'AI READY'); });
+setStatus('demo', 'CONNECTING');
+setNn('The neural AI warms up when you open the chat. Exact commands work right away.');
+setTimeout(() => { if (!window.DB) setStatus('offline', 'OFFLINE'); }, 8000);

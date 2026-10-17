@@ -1,12 +1,11 @@
 'use strict';
-// JALTRON extras: hero dashboard, level system, focus timer, command palette, shortcuts, confetti.
-// Nothing here is saved anywhere. Levels come from your completed-task history (habits.js), so they follow your account.
+// JALTRON extras: hero dashboard, focus timer, command palette, shortcuts, confetti.
+// Nothing here is saved anywhere.
 (function () {
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
-  const RANKS = ['Rookie', 'Operator', 'Planner', 'Strategist', 'Architect', 'Specialist', 'Mastermind', 'Legend'];
-  const RING = 2 * Math.PI * 58, DOCK = 2 * Math.PI * 27;
-  let tasks = [], ctx = {}, prevLevel = 0, next3 = [];
+    const RING = 2 * Math.PI * 58, DOCK = 2 * Math.PI * 27;
+  let tasks = [], ctx = {}, next3 = [];
   const toast = (m) => { $('toast').innerHTML = `<span>${esc(m)}</span>`; $('toast').classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => $('toast').classList.remove('show'), 3500); };
 
   // ---------- Hero, ring, level ----------
@@ -39,16 +38,6 @@
     $('next-list').innerHTML = next3.length
       ? next3.map(t => `<li class="p-${t.prio}" data-id="${t.id}"><span title="${esc(t.title)}">${esc(t.title)}</span>${t.due ? `<small>${esc(t.due.slice(5))}</small>` : ''}<button data-focus="${t.id}" aria-label="Focus on ${esc(t.title)}"><i class="fa-solid fa-bullseye"></i></button></li>`).join('')
       : '<li class="none" style="border:none;background:none">Nothing waiting. Nice.</li>';
-
-    // Level: 10 XP per finished task, 5 per day of your best streak
-    const total = [...map.values()].reduce((a, n) => a + n, 0);
-    const xp = total * 10 + H.bestActive(map) * 5;
-    const lv = Math.floor(Math.sqrt(xp / 60)) + 1, lo = 60 * (lv - 1) ** 2, hi = 60 * lv ** 2;
-    $('lv-badge').textContent = `Level ${lv} ${RANKS[Math.min(lv - 1, RANKS.length - 1)]}`;
-    $('lv-fill').style.width = `${Math.round((xp - lo) / (hi - lo) * 100)}%`;
-    $('lv-xp').textContent = `${xp - lo} / ${hi - lo} XP`;
-    if (prevLevel && lv > prevLevel) { toast(`Level up! You are now ${RANKS[Math.min(lv - 1, RANKS.length - 1)]}.`); burst(innerWidth / 2, 160, 90); }
-    prevLevel = lv;
 
     const pending = list.filter(t => !t.done).length;
     $('nav-tasks-n').textContent = pending; $('nav-tasks-n').classList.toggle('hot', overdue > 0);

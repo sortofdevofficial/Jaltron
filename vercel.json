@@ -1,5 +1,19 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "http://78.154.103.47:11903/api/:path*" }
+    {
+      "source": "/api/:path*",
+      "destination": "http://78.154.103.47:11903/api/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)\\.(js|css|png)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300, stale-while-revalidate=604800"
+        }
+      ]
+    }
   ]
 }

@@ -3,7 +3,7 @@
 //   u/<uid>/t/<id> { t: title, p: h|m|l, c: category, d: due, x: done, o: order, r/s/b/l/h: repeat, streak, best, last day, history, z: finished day }
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, writeBatch, runTransaction, query, orderBy, where, limit } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const app = initializeApp({
@@ -14,9 +14,11 @@ const app = initializeApp({
   messagingSenderId: '934608488435',
   appId: '1:934608488435:web:6247557aea521bad96f486'
 });
-const auth = getAuth(app);
+// initializeAuth without a popup resolver skips Google's auth iframe at startup, so the signed-in state is known much sooner.
+const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
 // Local IndexedDB cache: repeat visits and flaky networks don't block on the server
-const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+// Auto-detect long polling: on networks that stall the streaming connection, Firestore switches quickly instead of waiting
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 
 // Short paths: u() -> "u/<uid>", u('t', 5) -> "u/<uid>/t/5"
 const u = (...p) => ['u', auth.currentUser.uid, ...p].join('/');
@@ -31,17 +33,17 @@ const pack = (t, o) => ({ t: t.title, p: P[t.prio] || 'm', c: t.tag, d: t.due ||
   ...(t.z ? { z: t.z } : {}) });
 const unpack = (id, d) => ({ id: Number(id), title: d.t, prio: PR[d.p] || 'medium', tag: d.c || 'General', due: d.d || '', done: !!d.x,
   r: d.r || '', s: d.s || 0, b: d.b || 0, l: d.l || '', h: Array.isArray(d.h) ? d.h : [], z: d.z || '' });
-let synced = new Map(), timer = null;
+let synced = new Map(), timer = null, loadedUid = null; // loadedUid: saving only starts once the cloud copy has been read
 
 // Tiny local snapshot so the UI can paint instantly before the network answers
 const CK = (uid) => 'jc:' + uid;
 const readCache = (uid) => { try { return JSON.parse(localStorage.getItem(CK(uid))); } catch { return null; } };
-const writeCache = (uid, tasks, profile) => { try { localStorage.setItem(CK(uid), JSON.stringify({ tasks, profile })); } catch {} };
+const writeCache = (uid, tasks, profile) => { try { localStorage.setItem(CK(uid), JSON.stringify({ tasks, profile })); localStorage.setItem('jc:last', uid); } catch {} };
 
 // Write only what changed (new, edited, reordered, deleted tasks), debounced
 function save(tasks) {
   const user = auth.currentUser;
-  if (!user) return;
+  if (!user || loadedUid !== user.uid) return;
   clearTimeout(timer);
   timer = setTimeout(async () => {
     if (auth.currentUser?.uid !== user.uid) return;
@@ -104,25 +106,30 @@ async function claim(user) {
 
 async function load(user) {
   // Profile and tasks are fetched at the same time instead of one after the other
-  const [snap, docs, name] = await Promise.all([getDoc(ref()), getDocs(query(col('t'), orderBy('o'))), mine()]);
+  // The username is remembered from the last visit, which skips an extra server query on every load
+  const known = readCache(user.uid)?.profile?.n || '';
+  const [snap, docs, name] = await Promise.all([getDoc(ref()), getDocs(query(col('t'), orderBy('o'))), known || mine()]);
   const d = snap.exists() ? snap.data() : {};
   const profile = { n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [] };
   const tasks = docs.docs.map(x => unpack(x.id, x.data()));
   synced = new Map(tasks.map((t, o) => [String(t.id), JSON.stringify(pack(t, o))]));
   writeCache(user.uid, tasks, profile);
+  loadedUid = user.uid;
   return { tasks, profile };
 }
 
 onAuthStateChanged(auth, async (user) => {
-  synced = new Map();
-  if (!user) return emit('user', { user: null, tasks: [], profile: { n: '', k: [] } });
+  synced = new Map(); loadedUid = null;
+  if (!user) { try { localStorage.removeItem('jc:last'); } catch {} return emit('user', { user: null, tasks: [], profile: { n: '', k: [] } }); }
   // Paint from the local snapshot right away, then refresh from Firestore
   const cached = readCache(user.uid);
-  if (cached) emit('user', { user, ...cached, cached: true });
+  // Show the signed-in state at once; the tasks follow when Firestore answers
+  emit('user', cached ? { user, ...cached, cached: true } : { user, tasks: [], profile: { n: '', k: [] }, cached: true, loading: true });
   try { emit('user', { user, ...await load(user) }); }
   catch (err) {
     console.error(err);
     if (!cached) emit('user', { user, tasks: [], profile: { n: '', k: [] } });
+    loadedUid = null;
     emit('error', 'Could not load your data. Check Firestore rules.');
   }
 });
@@ -130,7 +137,9 @@ onAuthStateChanged(auth, async (user) => {
 window.DB = {
   save, u, setUsername, setCats,
   get user() { return auth.currentUser; },
-  signIn: () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => { if (e.code !== 'auth/popup-closed-by-user') emit('error', 'Sign-in failed: ' + e.code); }),
+  signIn: () => signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver).catch(e => { if (e.code !== 'auth/popup-closed-by-user') emit('error', 'Sign-in failed: ' + e.code); }),
   signOut: () => signOut(auth)
 };
 emit('ready', {});
+// Warm up the sign-in popup helper while the browser is idle, so clicking Sign in opens the window instantly
+(window.requestIdleCallback || setTimeout)(() => { try { browserPopupRedirectResolver._initialize(auth); } catch {} }, 2500);
