@@ -14,7 +14,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media=\'all\'">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media=\'all\'">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -31,6 +30,7 @@
       <button class="nav-item" data-nav="insights"><i class="fa-solid fa-chart-pie"></i><span>Insights</span></button>
       <button class="nav-item nav-ai" id="nav-ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Ask AI</span></button>
     </div>
+    <button class="side-pet" id="pet-side" aria-label="Your pet, open Home"><span class="pet" id="pet-side-art"></span><span class="sp-t"><b id="pet-side-n">0</b><small>day streak</small></span></button>
     <div class="nav tools">
       <p class="nav-label">Tools</p>
       <button class="nav-item" id="nav-add"><i class="fa-solid fa-plus"></i><span>New task</span><kbd>N</kbd></button>
@@ -59,6 +59,9 @@
       <div class="hero-actions">
         <button class="btn primary" id="hero-focus"><i class="fa-solid fa-bullseye"></i> Start focus</button>
         <button class="btn" id="hero-signin" hidden><i class="fa-brands fa-google"></i> Sign in to sync</button>
+        <button class="btn" id="cover-btn"><i class="fa-regular fa-image"></i> Cover</button>
+        <button class="btn" id="cover-reset" title="Remove cover picture" aria-label="Remove cover picture" hidden><i class="fa-regular fa-trash-can"></i></button>
+        <input type="file" id="cover-file" accept="image/*" hidden>
         <button class="btn" id="hero-keys"><i class="fa-regular fa-keyboard"></i> Shortcuts</button>
       </div>
     </div>
@@ -71,6 +74,15 @@
       <text class="ring-l" id="ring-l" x="80" y="100" text-anchor="middle">done today</text>
     </svg>
     <div class="next"><h3>Up next</h3><ol id="next-list"></ol></div>
+    <div class="pet-strip">
+      <button class="pet" id="pet-btn" aria-label="Your pet. Tap to say hi" title="Say hi"><span id="pet-art"></span></button>
+      <div class="pet-info">
+        <strong id="pet-title">Jalty the Egg</strong>
+        <span id="pet-msg">Finish a task to hatch your pet.</span>
+        <div class="pet-bar" role="progressbar" aria-label="Growth to next stage"><div id="pet-fill"></div></div>
+        <small id="pet-next"></small>
+      </div>
+    </div>
   </section>
 
   <section class="stats-grid">
@@ -179,14 +191,14 @@
       <div class="panel-title">
         <span><i class="fa-solid fa-layer-group"></i> Active Execution Plan</span>
         <div class="filter-group" id="filters">
-          <button class="filter-btn active" data-filter="all">All</button>
-          <button class="filter-btn" data-filter="pending">Pending</button>
-          <button class="filter-btn" data-filter="done">Completed</button>
+          <button class="filter-btn active" data-filter="all"><i class="fa-solid fa-layer-group"></i> All</button>
+          <button class="filter-btn" data-filter="pending"><i class="fa-regular fa-clock"></i> Pending</button>
+          <button class="filter-btn" data-filter="done"><i class="fa-solid fa-check"></i> Completed</button>
         </div>
       </div>
 
       <div class="views" id="views">
-        <button class="view-btn active" data-view="all">All <b>0</b></button>
+        <button class="view-btn active" data-view="all"><i class="fa-solid fa-layer-group"></i> All <b>0</b></button>
         <button class="view-btn" data-view="today"><i class="fa-regular fa-sun"></i> Today <b>0</b></button>
         <button class="view-btn" data-view="upcoming"><i class="fa-regular fa-calendar"></i> Upcoming <b>0</b></button>
         <button class="view-btn" data-view="overdue"><i class="fa-solid fa-triangle-exclamation"></i> Overdue <b>0</b></button>
@@ -313,11 +325,12 @@
     <button class="icon-btn lb-nav prev" id="lb-prev" aria-label="Previous image"><i class="fa-solid fa-chevron-left"></i></button>
     <img id="lb-img" alt="Attached image">
     <button class="icon-btn lb-nav next" id="lb-next" aria-label="Next image"><i class="fa-solid fa-chevron-right"></i></button>
-    <div class="lb-bar"><span id="lb-count"></span><a id="lb-open" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-up-right-from-square"></i> Open original</a></div>
+    <div class="lb-bar"><span id="lb-count"></span><button class="lb-del" id="lb-del" hidden><i class="fa-regular fa-trash-can"></i> Remove image</button><a id="lb-open" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-up-right-from-square"></i> Open original</a></div>
   </dialog>
 
   <canvas id="fx" aria-hidden="true"></canvas>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="icons.js"></script>
   <script src="ai.js"></script>
   <script src="habits.js"></script>
   <script src="upload.js"></script>

@@ -60,7 +60,9 @@
 
   // ---- Lightbox ----
   const $ = (id) => document.getElementById(id);
-  const LB = { list: [], i: 0 };
+  const LB = { list: [], i: 0, onDel: null };
+  let delTimer;
+  const resetDel = () => { clearTimeout(delTimer); const b = $('lb-del'); b.classList.remove('sure'); b.innerHTML = '<i class="fa-regular fa-trash-can"></i> Remove image'; };
   function show() {
     const p = parts(LB.list[LB.i]);
     $('lb-img').src = p.u;
@@ -69,7 +71,16 @@
     $('lb-prev').hidden = $('lb-next').hidden = LB.list.length < 2;
   }
   const step = (d) => { LB.i = (LB.i + d + LB.list.length) % LB.list.length; show(); };
-  function open(list, i = 0) { if (!list.length) return; LB.list = list; LB.i = i; show(); $('lightbox').showModal(); }
+  // open(list, index, onRemove): pass onRemove(index) -> the new list, to show a Remove button
+  function open(list, i = 0, onDel = null) { if (!list.length) return; LB.list = list; LB.i = i; LB.onDel = onDel; $('lb-del').hidden = !onDel; resetDel(); show(); $('lightbox').showModal(); }
+  $('lb-del').addEventListener('click', () => {
+    const b = $('lb-del');
+    if (!b.classList.contains('sure')) { b.classList.add('sure'); b.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Click again to confirm'; delTimer = setTimeout(resetDel, 3000); return; }
+    resetDel();
+    const next = LB.onDel(LB.i);
+    if (!next || !next.length) return $('lightbox').close();
+    LB.list = next; LB.i = Math.min(LB.i, next.length - 1); show();
+  });
   $('lb-close').addEventListener('click', () => $('lightbox').close());
   $('lb-prev').addEventListener('click', () => step(-1));
   $('lb-next').addEventListener('click', () => step(1));

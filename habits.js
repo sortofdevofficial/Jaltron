@@ -23,7 +23,7 @@
   function complete(t, day = today()) {
     if (!t.r) return { ...t, done: true, z: day };
     if (t.l === day) return { ...t, done: true };
-    const s = t.l && t.l >= prevDay(t.r, day) ? (t.s || 0) + 1 : 1;
+    const s = (t.s || 0) + 1; // streaks never reset: a missed day just pauses them
     return { ...t, done: true, s, b: Math.max(t.b || 0, s), l: day, z: day, h: [...(t.h || []), day].slice(-90) };
   }
 
@@ -37,11 +37,8 @@
     return { ...t, done: false, z: '' };
   }
 
-  // Streak as shown to the user: it drops to 0 once a scheduled day has been missed
-  function streak(t, day = today()) {
-    if (!t.r || !t.s) return 0;
-    return t.l && t.l >= prevDay(t.r, day) ? t.s : 0;
-  }
+  // Streak as shown to the user. It never drops back to 0 when a day is missed.
+  function streak(t) { return t.r && t.s ? t.s : 0; }
 
   // Has a finished repeating task started a new round?
   function needsReset(t, day) {

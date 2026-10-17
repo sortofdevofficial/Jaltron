@@ -97,7 +97,8 @@ function render() {
   $('progress-bar').style.width = pct + '%';
   $('progress-text').textContent = `${pct}% (${done}/${total})`;
   renderInsights();
-  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, score, dayDiff, view });
+  applyCover();
+  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, canSavePet: !syncing, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
 
   const q = query.toLowerCase();
   const filtered = tasks.filter(t => {
@@ -130,8 +131,8 @@ function render() {
         <div class="task-main">
           ${body}
           <div class="badges">
-            <span class="badge ${t.prio}">${t.prio}</span>
-            <span class="badge tag">${escapeHtml(t.tag)}</span>
+            <span class="badge ${t.prio}"><i class="fa-solid fa-flag"></i> ${t.prio}</span>
+            <span class="badge tag"><i class="fa-solid fa-${CAT_ICON[t.tag] || 'tag'}"></i> ${escapeHtml(t.tag)}</span>
             ${dueBadge(t)}
             ${repBadges(t)}
             ${upBusy.has(t.id) ? '<span class="badge up"><i class="fa-solid fa-spinner fa-spin"></i> Uploading</span>' : ''}
@@ -152,6 +153,8 @@ function render() {
   if (ed) { ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length); }
 }
 
+const CAT_ICON = { Dev: 'code', Bug: 'bug', Study: 'book-open', General: 'layer-group' };
+let lastImg = null;
 function toast(msg, undo) {
   const el = $('toast');
   el.innerHTML = `<span>${escapeHtml(msg)}</span>${undo ? '<button id="undo-btn">Undo</button>' : ''}`;
@@ -159,7 +162,11 @@ function toast(msg, undo) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 5000);
   if (undo) $('undo-btn').onclick = () => {
-    if (lastDeleted) { tasks.splice(Math.min(lastDeleted.index, tasks.length), 0, lastDeleted.task); lastDeleted = null; render(); }
+    if (undo === 'img' && lastImg) {
+      const L = lastImg; lastImg = null;
+      tasks = tasks.map(x => { if (x.id !== L.id) return x; const i = [...(x.i || [])]; i.splice(Math.min(L.k, i.length), 0, L.s); return { ...x, i }; });
+      render();
+    } else if (lastDeleted) { tasks.splice(Math.min(lastDeleted.index, tasks.length), 0, lastDeleted.task); lastDeleted = null; render(); }
     el.classList.remove('show');
   };
 }
@@ -176,8 +183,10 @@ function commitEdit(id) {
 
 // Task list actions (event delegation)
 $('task-list').addEventListener('click', (e) => {
+  const pdel = e.target.closest('[data-picdel]');
+  if (pdel) { removeTaskImage(Number(pdel.closest('.task-item').dataset.id), Number(pdel.dataset.picdel)); return; }
   const pic = e.target.closest('[data-pic]');
-  if (pic) { const pt = tasks.find(x => x.id === Number(pic.closest('.task-item').dataset.id)); if (pt) Img.open(pt.i, Number(pic.dataset.pic)); return; }
+  if (pic) { const tid = Number(pic.closest('.task-item').dataset.id), pt = tasks.find(x => x.id === tid); if (pt) Img.open(pt.i, Number(pic.dataset.pic), (n) => removeTaskImage(tid, n)); return; }
   const btn = e.target.closest('[data-act]');
   if (!btn) return;
   const id = Number(btn.closest('.task-item').dataset.id);
@@ -581,7 +590,16 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) dayC
 let cardTarget = null;
 const upBusy = new Map(); // task id -> pictures still uploading
 const picsHtml = (t) => (t.i && t.i.length
-  ? `<div class="pics">${t.i.map((p, k) => `<button class="pic" data-pic="${k}" aria-label="View image ${k + 1}"><img src="${escapeHtml(Img.parts(p).t)}" alt="" loading="lazy"></button>`).join('')}</div>` : '');
+  ? `<div class="pics">${t.i.map((p, k) => `<span class="pic-wrap"><button class="pic" data-pic="${k}" aria-label="View image ${k + 1}"><img src="${escapeHtml(Img.parts(p).t)}" alt="" loading="lazy"></button><button class="pic-x" data-picdel="${k}" title="Remove image" aria-label="Remove image ${k + 1}"><i class="fa-solid fa-xmark"></i></button></span>`).join('')}</div>` : '');
+function removeTaskImage(id, k) {
+  const t = tasks.find(x => x.id === id);
+  if (!t || !t.i || !t.i[k]) return t ? t.i : [];
+  lastImg = { id, k, s: t.i[k] };
+  const list = t.i.filter((_, n) => n !== k);
+  tasks = tasks.map(x => x.id === id ? { ...x, i: list } : x);
+  toast('Image removed', 'img'); render();
+  return list;
+}
 const thumbsHtml = (list, busy) => list.map((p, k) =>
   `<div class="thumb"><button type="button" class="pv" data-pv="${k}" aria-label="View image ${k + 1}"><img src="${escapeHtml(Img.parts(p).t)}" alt=""></button><button type="button" class="x" data-rm="${k}" aria-label="Remove image ${k + 1}"><i class="fa-solid fa-xmark"></i></button></div>`).join('')
   + '<div class="thumb busy" aria-label="Uploading"><i class="fa-solid fa-spinner fa-spin"></i></div>'.repeat(busy);
@@ -627,7 +645,7 @@ function bindStore(store, dropId, fileId, thumbsId) {
   $(thumbsId).addEventListener('click', (e) => {
     const rm = e.target.closest('[data-rm]'), pv = e.target.closest('[data-pv]');
     if (rm) { store.list.splice(Number(rm.dataset.rm), 1); store.render(); }
-    else if (pv) Img.open(store.list, Number(pv.dataset.pv));
+    else if (pv) Img.open(store.list, Number(pv.dataset.pv), (n) => { store.list.splice(n, 1); store.render(); return store.list; });
   });
 }
 bindStore(qa, 'qa-drop', 'qa-file', 'qa-thumbs');
@@ -656,6 +674,22 @@ document.addEventListener('paste', (e) => {
   if ($('edit-dlg').open) { e.preventDefault(); attachFiles(files, ed); }
   else if (document.activeElement === $('task-title')) { e.preventDefault(); attachFiles(files, qa); }
 });
+// Home cover picture
+function applyCover() {
+  const hero = $('hero'), c = profile && profile.c ? Img.full(profile.c) : '';
+  hero.style.setProperty('--cover', c ? `url("${encodeURI(c)}")` : 'none');
+  hero.classList.toggle('has-cover', !!c);
+  $('cover-reset').hidden = !c;
+}
+$('cover-btn').addEventListener('click', () => { if (!(window.DB && DB.user)) return toast('Sign in to set a cover picture.'); $('cover-file').click(); });
+$('cover-file').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  toast('Uploading cover...');
+  try { profile.c = (await Img.upload(f)).split('|')[0]; DB.setCover(profile.c); applyCover(); toast('Cover updated'); }
+  catch (err) { toast(err.message || 'Upload failed. Try again.'); }
+});
+$('cover-reset').addEventListener('click', () => { profile.c = ''; DB.setCover(''); applyCover(); toast('Cover removed'); });
 // Profile picture (square, 256 px)
 $('av-change').addEventListener('click', () => $('av-file').click());
 $('av-file').addEventListener('change', async (e) => {
