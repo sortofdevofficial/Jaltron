@@ -22,6 +22,7 @@
       </div>
     </div>
     <div class="top-actions">
+      <button class="btn script-open" id="script-btn" title="Generate a script"><i class="fa-solid fa-clapperboard"></i> <span>Script</span></button>
       <button class="btn" id="auth-btn"><i class="fa-brands fa-google"></i> <span>Sign in</span></button>
       <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i></button>
       <div class="status" id="status" data-state="demo"><span class="dot"></span><span id="status-text">STARTING</span></div>
@@ -119,7 +120,7 @@
     <div class="chat-head"><span><i class="fa-solid fa-wand-magic-sparkles"></i> Ask JALTRON</span><button class="icon-btn sm" id="chat-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="ai-bar"><span class="sub" id="nn-state">Starting neural AI...</span></div>
     <div class="chat-log" id="chat-log"></div>
-    <div class="chips" id="chips"><button>Wsp</button><button>Add a study task</button><button>Plan my day</button><button>Summary</button><button>What can you do?</button></div>
+    <div class="chips" id="chips"><button>Wsp</button><button>Add a study task</button><button>Write a script</button><button>Plan my day</button><button>Summary</button><button>What can you do?</button></div>
     <form class="chat-form" id="chat-form"><input id="chat-input" placeholder="Ask about your plan" autocomplete="off"><button class="btn primary" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
   </section>
 
@@ -141,9 +142,57 @@
     <button class="btn full" id="acct-signout"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
   </dialog>
 
+
+  <dialog id="script-dlg" class="acct script-dlg" aria-label="Script generator">
+    <div class="acct-head">
+      <div class="acct-id"><i class="fa-solid fa-clapperboard sg-ico"></i><div><strong>Script generator</strong><div class="sub">YouTube, shorts, movies, podcasts, ads and more</div></div></div>
+      <button class="icon-btn sm" id="script-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="script-form" class="script-form">
+      <div class="field">
+        <label for="sg-topic">Topic or idea</label>
+        <input id="sg-topic" maxlength="120" required autocomplete="off" placeholder="e.g., how to learn coding in 30 days">
+      </div>
+      <div class="two-col">
+        <div class="field"><label for="sg-type">Type</label>
+          <select id="sg-type">
+            <option value="youtube">YouTube video</option>
+            <option value="short">Short / Reel / TikTok</option>
+            <option value="movie">Movie / short film</option>
+            <option value="podcast">Podcast episode</option>
+            <option value="ad">Ad / promo</option>
+            <option value="explainer">Explainer video</option>
+          </select></div>
+        <div class="field"><label for="sg-tone">Tone</label>
+          <select id="sg-tone">
+            <option value="casual">Casual</option><option value="funny">Funny</option><option value="serious">Serious</option>
+            <option value="inspiring">Inspiring</option><option value="dramatic">Dramatic</option><option value="educational">Educational</option>
+          </select></div>
+      </div>
+      <div class="two-col">
+        <div class="field"><label for="sg-len">Length</label>
+          <select id="sg-len"><option value="short">Short</option><option value="medium" selected>Medium</option><option value="long">Long</option></select></div>
+        <div class="field"><label for="sg-who" id="sg-who-label">Audience (optional)</label>
+          <input id="sg-who" maxlength="60" autocomplete="off" placeholder="e.g., beginners"></div>
+      </div>
+      <button type="submit" class="btn primary full"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate script</button>
+    </form>
+    <div id="sg-out" hidden>
+      <textarea id="sg-text" rows="14" spellcheck="false" aria-label="Generated script"></textarea>
+      <div class="sg-actions">
+        <button class="btn" id="sg-copy"><i class="fa-solid fa-copy"></i> Copy</button>
+        <button class="btn" id="sg-dl"><i class="fa-solid fa-download"></i> Download</button>
+        <button class="btn" id="sg-again"><i class="fa-solid fa-rotate"></i> Regenerate</button>
+        <button class="btn" id="sg-tasks"><i class="fa-solid fa-list-check"></i> Add as tasks</button>
+      </div>
+      <p class="sub">This is a template draft you can edit above. Swap in your own facts, examples and jokes.</p>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="db.js"></script>
   <script src="ai.js"></script>
+  <script src="script.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

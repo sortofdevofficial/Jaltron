@@ -444,6 +444,11 @@ function respond(msg, tasksIn, history) {
   if (/^(?:cancel|never ?mind|forget it|no)$/.test(l) && /^(What should the task|This will delete all)/.test(lastAi)) return say('Okay, cancelled.');
   if (/^(?:yes|y|confirm|do it|sure)$/.test(l) && /^This will delete all/.test(lastAi)) return say('All tasks deleted.', [{ type: 'clear_all' }]);
   const pendingAdd = /^What should the task/.test(lastAi) && l.split(/\s+/).length <= 10 && !/^(plan|show|what|how|summary|help|overdue|break|optimi|complete|delete)/.test(l);
+  if ((r = m.match(/^(?:please\s+)?(?:(?:write|generate|make|create|draft|give)\s+(?:me\s+)?)?(?:a\s+|an\s+)?(?:new\s+)?(youtube|yt|video|short|reel|tiktok|movie|film|podcast|ad|explainer)?\s*(?:video\s+|scene\s+)?script(?:\s+(?:for|about|on|of)\s+(.+))?$/i)) && /\b(write|generate|make|create|draft|give|script)\b/i.test(m)) {
+    const kinds = { youtube: 'youtube', yt: 'youtube', video: 'youtube', short: 'short', reel: 'short', tiktok: 'short', movie: 'movie', film: 'movie', podcast: 'podcast', ad: 'ad', explainer: 'explainer' };
+    const topic = (r[2] || '').trim().replace(/^(?:a|an|the)\s+/i, '');
+    return say(topic ? `Opening the script generator for "${topic}". You can change the type and tone there.` : 'Opening the script generator. Pick a type and tone, then press Generate.', [{ type: 'script', topic, kind: kinds[(r[1] || '').toLowerCase()] || '' }]);
+  }
   if (GREET_RE.test(l0.replace(/[^a-z' ]/g, ' ').replace(/\s+/g, ' ').trim()) && l0.split(/\s+/).length <= 6) {
     const open1 = open[0] ? ` You have ${open.length} open task${open.length > 1 ? 's' : ''}, and "${open[0].title}" is up first.` : ' Your plan is empty, so tell me what to add.';
     if (/how (are|r) (you|u)|hru|how is it going|hows it going|how you doing/.test(l0)) return say('Doing great, thanks for asking!' + open1);
@@ -540,7 +545,7 @@ function respond(msg, tasksIn, history) {
   if (/\b(first|next|start|focus|priorit)/.test(l))
     return open.length ? say(`Do this first: "${open[0].title}" (${why(open[0])}).` + (open[1] ? `\nThen: "${open[1].title}".` : '')) : say('Your plan is empty. Add a task and I will tell you what to do first.');
   if (/\b(help|what can you|commands|features|how do you work)\b/.test(l))
-    return say('I can:\n- add tasks: "add task for my study", "add fix login bug tomorrow high", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "delete old task"\n- edit: "rename login to fix auth", "move login to friday", "make login low priority", "tag docs as study"\n- find and filter: "find login", "show pending", "show bugs", "clear filters"\n- think: "plan my day", "what\'s due today", "summary", "overdue", "break down login"\n- explain the site: drag, edit, themes, saving, status');
+    return say('I can:\n- add tasks: "add task for my study", "add fix login bug tomorrow high", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "delete old task"\n- edit: "rename login to fix auth", "move login to friday", "make login low priority", "tag docs as study"\n- find and filter: "find login", "show pending", "show bugs", "clear filters"\n- think: "plan my day", "what\'s due today", "summary", "overdue", "break down login"\n- scripts: \"write a youtube script about space\", \"movie script about a heist\"\n- explain the site: drag, edit, themes, saving, status');
   for (const [re, ans] of FAQ) if (re.test(l)) return say(typeof ans === 'function' ? ans() : ans);
 
   return Object.assign(say('I did not get that. Try "add physics exam tomorrow urgent", "complete login", "plan my day" or ask "what do you know".'), { unknown: true });

@@ -226,3 +226,15 @@ h1 { background: linear-gradient(90deg, var(--primary), var(--ok)); -webkit-back
 .quick-cat { display: none; gap: 8px; align-items: center; padding: 10px; border: 1px dashed var(--primary); border-radius: 10px; background: var(--panel-2); margin: -4px 0 4px; }
 .quick-cat.open { display: flex; }
 .quick-cat input { flex: 1; min-width: 0; }
+
+/* Script generator */
+.script-open i { color: var(--primary); }
+.script-dlg { width: min(680px, 94vw); max-height: 90vh; overflow-y: auto; }
+.script-dlg .script-form { display: flex; flex-direction: column; gap: 12px; }
+.sg-ico { font-size: 22px; color: var(--primary); }
+#sg-out { display: flex; flex-direction: column; gap: 10px; }
+#sg-out[hidden] { display: none; }
+#sg-text { width: 100%; min-height: 260px; resize: vertical; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.55; padding: 12px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; white-space: pre; overflow: auto; }
+#sg-text:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.18); }
+.sg-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 520px) { .script-open span { display: none; } }

@@ -357,6 +357,70 @@ $('acct-cats').addEventListener('click', (e) => {
   fillCats(); renderCats(); render(); setMsg(`Removed "${c}". Its tasks moved to General.`, true);
 });
 
+
+// ---- Script generator (engine in script.js) ----
+let lastScript = null;
+const SG_HINT = {
+  youtube: ['Audience (optional)', 'e.g., beginners', 'e.g., how to learn coding in 30 days'],
+  explainer: ['Audience (optional)', 'e.g., school students', 'e.g., how the internet works'],
+  short: ['Audience (optional)', 'e.g., gamers', 'e.g., 3 mistakes new coders make'],
+  podcast: ['Audience (optional)', 'e.g., startup founders', 'e.g., the future of remote work'],
+  ad: ['Audience (optional)', 'e.g., busy students', 'e.g., a reusable bottle that keeps drinks cold'],
+  movie: ['Characters (optional, comma separated)', 'e.g., Rhea, Kabir', 'e.g., two friends find a locked door in their school']
+};
+function syncScriptForm() {
+  const h = SG_HINT[$('sg-type').value] || SG_HINT.youtube;
+  $('sg-who-label').textContent = h[0];
+  $('sg-who').placeholder = h[1];
+  $('sg-topic').placeholder = h[2];
+}
+function openScript(topic, type) {
+  if (type && [...$('sg-type').options].some(o => o.value === type)) $('sg-type').value = type;
+  if (topic) $('sg-topic').value = String(topic).slice(0, 120);
+  syncScriptForm();
+  if (!$('script-dlg').open) $('script-dlg').showModal();
+  if (topic) runScript(); else $('sg-topic').focus();
+}
+function runScript() {
+  if (!window.ScriptGen) return toast('script.js did not load. Upload it next to index.html.');
+  const topic = $('sg-topic').value.trim();
+  if (!topic) return $('sg-topic').focus();
+  lastScript = ScriptGen.generate({ topic, type: $('sg-type').value, tone: $('sg-tone').value, length: $('sg-len').value, who: $('sg-who').value });
+  $('sg-text').value = lastScript.text;
+  $('sg-out').hidden = false;
+  $('sg-text').scrollTop = 0;
+  $('sg-out').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+$('script-btn').addEventListener('click', () => openScript());
+$('script-close').addEventListener('click', () => $('script-dlg').close());
+$('script-dlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+$('sg-type').addEventListener('change', syncScriptForm);
+$('script-form').addEventListener('submit', (e) => { e.preventDefault(); runScript(); });
+$('sg-again').addEventListener('click', runScript);
+$('sg-copy').addEventListener('click', async () => {
+  const text = $('sg-text').value;
+  try { await navigator.clipboard.writeText(text); }
+  catch { $('sg-text').select(); document.execCommand('copy'); }
+  toast('Script copied');
+});
+$('sg-dl').addEventListener('click', () => {
+  const name = (lastScript ? lastScript.topic : 'script').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'script';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([$('sg-text').value], { type: 'text/plain' }));
+  a.download = name + '-script.txt';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+$('sg-tasks').addEventListener('click', () => {
+  if (!lastScript) return;
+  const short = lastScript.topic.length > 40 ? lastScript.topic.slice(0, 40) + '...' : lastScript.topic;
+  const items = lastScript.sections.filter(s => s !== 'Titles and thumbnail' && s !== 'Title and logline');
+  items.slice().reverse().forEach(s => tasks.unshift({ id: nextId++, title: `Script: ${short} - ${s}`.slice(0, 140), prio: 'medium', tag: 'General', due: '', done: false }));
+  render();
+  $('script-dlg').close();
+  toast(`Added ${items.length} script tasks`);
+});
+
 // ---- AI chat ----
 // Run actions the assistant returns (add, complete, delete, prio, clear, optimize, filter)
 function applyActions(actions) {
@@ -373,6 +437,7 @@ function applyActions(actions) {
     else if (a.type === 'due') tasks = tasks.map(t => t.id === a.id ? { ...t, due: a.due || '' } : t);
     else if (a.type === 'tag' && catList().includes(a.tag)) tasks = tasks.map(t => t.id === a.id ? { ...t, tag: a.tag } : t);
     else if (a.type === 'search') { query = String(a.q || ''); $('search').value = query; }
+    else if (a.type === 'script') openScript(a.topic, a.kind);
     else if (a.type === 'optimize') tasks.sort((x, y) => (x.done !== y.done) ? (x.done ? 1 : -1) : score(y) - score(x));
     else if (a.type === 'filter') {
       if (a.status) currentFilter = a.status;
