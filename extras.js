@@ -50,6 +50,8 @@
     if (prevLevel && lv > prevLevel) { toast(`Level up! You are now ${RANKS[Math.min(lv - 1, RANKS.length - 1)]}.`); burst(innerWidth / 2, 160, 90); }
     prevLevel = lv;
 
+    const pending = list.filter(t => !t.done).length;
+    $('nav-tasks-n').textContent = pending; $('nav-tasks-n').classList.toggle('hot', overdue > 0);
     // view counters
     const cnt = { all: list.length, today: list.filter(t => t.due && c.dayDiff(t.due) === 0).length, upcoming: list.filter(t => !t.done && t.due && c.dayDiff(t.due) > 0).length, overdue };
     document.querySelectorAll('.view-btn').forEach(b => { b.querySelector('b').textContent = cnt[b.dataset.view]; b.classList.toggle('has', b.dataset.view === 'overdue' && overdue > 0); });
@@ -63,6 +65,41 @@
   $('hero-keys').addEventListener('click', () => $('keys-dlg').showModal());
   $('keys-close').addEventListener('click', () => $('keys-dlg').close());
   $('keys-dlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+
+  // ---------- Navigation ----------
+  const PAGES = { home: 'Home', tasks: 'Tasks', insights: 'Insights' };
+  function go(p, quiet) {
+    if (!PAGES[p]) p = 'home';
+    document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
+    document.querySelectorAll('[data-nav]').forEach(x => { const on = x.dataset.nav === p; x.classList.toggle('active', on); on ? x.setAttribute('aria-current', 'page') : x.removeAttribute('aria-current'); });
+    $('page-title').textContent = PAGES[p];
+    F.orig = `${PAGES[p]} | JALTRON`; if (!F.running) document.title = F.orig;
+    if (location.hash !== '#' + p) history.replaceState(null, '', '#' + p);
+    if (!quiet) scrollTo({ top: 0 });
+  }
+  const clickEl = (q) => document.querySelector(q).click();
+  const newTask = () => { go('tasks'); setTimeout(() => { $('task-title').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('task-title').focus(); }, 30); };
+  document.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => go(b.dataset.nav)));
+  addEventListener('hashchange', () => go(location.hash.slice(1), true));
+  $('nav-ai').addEventListener('click', () => jaltron.openChat(true));
+  $('nav-add').addEventListener('click', newTask);
+  $('top-add').addEventListener('click', newTask);
+  $('nav-focus').addEventListener('click', () => startFocus(next3[0] || null));
+  $('nav-keys').addEventListener('click', () => $('keys-dlg').showModal());
+  // Stat cards jump to the matching filtered task list
+  const jump = [
+    () => { clickEl('[data-view="all"]'); clickEl('[data-filter="all"]'); },
+    () => { clickEl('[data-view="all"]'); clickEl('[data-filter="pending"]'); },
+    () => { clickEl('[data-view="all"]'); clickEl('[data-filter="done"]'); },
+    () => { clickEl('[data-view="all"]'); clickEl('[data-filter="pending"]'); $('sort-mode').value = 'prio'; $('sort-mode').dispatchEvent(new Event('change')); },
+    () => { clickEl('[data-filter="all"]'); clickEl('[data-view="overdue"]'); }
+  ];
+  document.querySelectorAll('.stats-grid .card').forEach((c, i) => {
+    c.tabIndex = 0; c.setAttribute('role', 'button');
+    const run = () => { go('tasks'); jump[i](); };
+    c.addEventListener('click', run);
+    c.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); run(); } });
+  });
 
   // ---------- Quick due chips ----------
   $('due-chips').addEventListener('click', (e) => {
@@ -168,15 +205,18 @@
   let items = [], sel = 0;
   const click = (sel_) => () => document.querySelector(sel_).click();
   const COMMANDS = () => [
-    { i: 'plus', l: 'New task', k: 'add create', run: () => { $('task-title').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('task-title').focus(); } },
+    { i: 'house', l: 'Go to Home', k: 'dashboard', run: () => go('home') },
+    { i: 'list-check', l: 'Go to Tasks', k: 'board list', run: () => go('tasks') },
+    { i: 'chart-pie', l: 'Go to Insights', k: 'charts streaks', run: () => go('insights') },
+    { i: 'plus', l: 'New task', k: 'add create', run: newTask },
     { i: 'comment-dots', l: 'Open AI chat', k: 'ask assistant', run: () => jaltron.openChat(true) },
     { i: 'bullseye', l: 'Start focus session', k: 'timer pomodoro', run: () => startFocus(next3[0] || null) },
-    { i: 'bolt', l: 'Smart sort my plan', k: 'optimize order', run: click('#ai-sort-btn') },
-    { i: 'sun', l: 'Show today', k: 'view', run: click('[data-view="today"]') },
-    { i: 'calendar', l: 'Show upcoming', k: 'view', run: click('[data-view="upcoming"]') },
-    { i: 'triangle-exclamation', l: 'Show overdue', k: 'view late', run: click('[data-view="overdue"]') },
-    { i: 'layer-group', l: 'Show everything', k: 'view all reset', run: click('[data-view="all"]') },
-    { i: 'chart-pie', l: 'Show or hide insights', k: 'charts stats', run: click('#insights-toggle') },
+    { i: 'bolt', l: 'Smart sort my plan', k: 'optimize order', run: () => { go('tasks'); clickEl('#ai-sort-btn'); } },
+    { i: 'sun', l: 'Show today', k: 'view', run: () => { go('tasks'); clickEl('[data-view="today"]'); } },
+    { i: 'calendar', l: 'Show upcoming', k: 'view', run: () => { go('tasks'); clickEl('[data-view="upcoming"]'); } },
+    { i: 'triangle-exclamation', l: 'Show overdue', k: 'view late', run: () => { go('tasks'); clickEl('[data-view="overdue"]'); } },
+    { i: 'layer-group', l: 'Show everything', k: 'view all reset', run: () => { go('tasks'); clickEl('[data-view="all"]'); } },
+    { i: 'chart-pie', l: 'Show or hide insights', k: 'charts stats', run: () => { go('insights'); clickEl('#insights-toggle'); } },
     { i: 'broom', l: 'Clear completed tasks', k: 'clean', run: click('#clear-done') },
     { i: 'circle-half-stroke', l: 'Switch theme', k: 'dark light', run: click('#theme-btn') },
     { i: 'user', l: window.DB && DB.user ? 'Open account' : 'Sign in with Google', k: 'login profile', run: click('#auth-btn') },
@@ -188,8 +228,8 @@
     if (lq) {
       tasks.filter(t => !t.done && t.title.toLowerCase().includes(lq)).slice(0, 4)
         .forEach(t => items.push({ i: 'bullseye', l: `Focus: ${t.title}`, run: () => startFocus(t) }));
-      items.push({ i: 'magnifying-glass', l: `Search tasks for "${q}"`, run: () => { $('search').value = q; $('search').dispatchEvent(new Event('input')); } });
-      items.unshift({ i: 'plus', l: `Add task "${q}"`, run: () => { $('task-title').value = q; $('task-form').requestSubmit(); } });
+      items.push({ i: 'magnifying-glass', l: `Search tasks for "${q}"`, run: () => { go('tasks'); $('search').value = q; $('search').dispatchEvent(new Event('input')); } });
+      items.unshift({ i: 'plus', l: `Add task "${q}"`, run: () => { go('tasks'); $('task-title').value = q; $('task-form').requestSubmit(); } });
       items.push({ i: 'wand-magic-sparkles', l: `Ask AI: "${q}"`, run: () => { $('cmd-input').value = q; $('cmd-form').requestSubmit(); } });
     }
     sel = 0; paintList();
@@ -217,12 +257,15 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); return pal.open ? pal.close() : openPalette(); }
     if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]') || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
     const k = e.key.toLowerCase();
-    if (k === 'n') { e.preventDefault(); $('task-title').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('task-title').focus(); }
+    if (k === 'n') { e.preventDefault(); newTask(); }
+    else if (k === '1') go('home'); else if (k === '2') go('tasks'); else if (k === '3') go('insights');
     else if (k === 'c') { e.preventDefault(); jaltron.openChat(true); }
     else if (k === 'f') { e.preventDefault(); startFocus(next3[0] || null); }
     else if (k === 't') $('theme-btn').click();
     else if (e.key === '?') $('keys-dlg').showModal();
   });
 
-  window.Extras = { update, startFocus, celebrate, focusId: () => (F.task && !$('focus-dock').hidden ? F.task.id : null) };
+  go(location.hash.slice(1) || 'home', true);
+  window.Extras = { go, update, startFocus, celebrate, focusId: () => (F.task && !$('focus-dock').hidden ? F.task.id : null) };
 })();
+document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && !document.querySelector('dialog[open]')) Extras.go('tasks', true); }, true);

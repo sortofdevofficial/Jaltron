@@ -13,22 +13,38 @@
 </head>
 <body>
 
-  <header class="hud top">
+  <div class="shell">
+  <nav class="side" aria-label="Main navigation">
     <div class="brand">
       <div class="logo-wrapper"><img src="favicon.png" alt="JALTRON Logo" width="30" height="30"></div>
-      <div>
-        <h1>JALTRON</h1>
-        <p class="sub">AI Task &amp; Context Planner</p>
-      </div>
+      <div><h1>JALTRON</h1><p class="sub">AI Plan Manager</p></div>
     </div>
+    <div class="nav">
+      <button class="nav-item active" data-nav="home"><i class="fa-solid fa-house"></i><span>Home</span></button>
+      <button class="nav-item" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span><b id="nav-tasks-n">0</b></button>
+      <button class="nav-item" data-nav="insights"><i class="fa-solid fa-chart-pie"></i><span>Insights</span></button>
+      <button class="nav-item nav-ai" id="nav-ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Ask AI</span></button>
+    </div>
+    <div class="nav tools">
+      <p class="nav-label">Tools</p>
+      <button class="nav-item" id="nav-add"><i class="fa-solid fa-plus"></i><span>New task</span><kbd>N</kbd></button>
+      <button class="nav-item" id="nav-focus"><i class="fa-solid fa-bullseye"></i><span>Focus timer</span><kbd>F</kbd></button>
+      <button class="nav-item" id="nav-keys"><i class="fa-regular fa-keyboard"></i><span>Shortcuts</span><kbd>?</kbd></button>
+    </div>
+  </nav>
+  <div class="content">
+  <header class="topbar">
+    <h2 id="page-title">Home</h2>
+    <button class="search-pill" id="open-palette" title="Search or run a command"><i class="fa-solid fa-magnifying-glass"></i><span>Search or run a command</span><kbd>Ctrl K</kbd></button>
     <div class="top-actions">
-      <button class="btn cmdk" id="open-palette" title="Command palette (Ctrl K)"><i class="fa-solid fa-terminal"></i> <kbd>Ctrl K</kbd></button>
+      <button class="btn primary" id="top-add"><i class="fa-solid fa-plus"></i> <span>New task</span></button>
       <button class="btn" id="auth-btn"><i class="fa-brands fa-google"></i> <span>Sign in</span></button>
       <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i></button>
       <div class="status" id="status" data-state="demo"><span class="dot"></span><span id="status-text">STARTING</span></div>
     </div>
   </header>
 
+  <div class="page active" data-page="home">
   <section class="hud hero" id="hero">
     <div class="hero-main">
       <p class="hero-hello" id="hero-hello">Hello</p>
@@ -69,6 +85,8 @@
     <div class="progress"><div id="progress-bar"></div></div>
   </div>
 
+  </div>
+  <div class="page" data-page="insights">
   <section class="hud insights" id="insights">
     <div class="panel-title">
       <span><i class="fa-solid fa-chart-pie"></i> Insights</span>
@@ -92,6 +110,8 @@
     </div>
   </section>
 
+  </div>
+  <div class="page" data-page="tasks">
   <main class="grid">
     <aside class="hud panel">
       <div class="panel-title">
@@ -179,6 +199,9 @@
       <div id="task-list" class="task-list"></div>
     </section>
   </main>
+  </div>
+  </div>
+  </div>
 
   <button class="fab" id="chat-fab" aria-label="Open AI assistant"><i class="fa-solid fa-comment-dots"></i></button>
   <section class="chat" id="chat" aria-label="JALTRON AI assistant" hidden>
@@ -254,6 +277,9 @@
     <div class="acct-head"><div class="acct-id"><i class="fa-regular fa-keyboard ed-ico"></i><div><strong>Keyboard shortcuts</strong><div class="sub">Work without the mouse</div></div></div><button type="button" class="icon-btn sm" id="keys-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="keys">
       <kbd>Ctrl K</kbd><span>Command palette</span>
+      <kbd>1</kbd><span>Home</span>
+      <kbd>2</kbd><span>Tasks</span>
+      <kbd>3</kbd><span>Insights</span>
       <kbd>N</kbd><span>New task</span>
       <kbd>/</kbd><span>Search tasks</span>
       <kbd>C</kbd><span>Open the AI chat</span>
