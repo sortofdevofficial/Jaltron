@@ -1,6 +1,6 @@
 // JALTRON cloud: Google sign-in + Firestore. Email, photo, name and last login come from Auth, so none are stored.
 //   u/<uid>      { k: [custom categories] }
-//   u/<uid>/t/<id> { t: title, p: h|m|l, c: category, d: due, x: done, o: order }
+//   u/<uid>/t/<id> { t: title, p: h|m|l, c: category, d: due, x: done, o: order, r/s/b/l/h: repeat, streak, best, last day, history, z: finished day }
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -25,8 +25,12 @@ const col = (name) => collection(db, u(name));
 
 const emit = (type, detail) => dispatchEvent(new CustomEvent('jaltron:' + type, { detail }));
 const P = { high: 'h', medium: 'm', low: 'l' }, PR = { h: 'high', m: 'medium', l: 'low' };
-const pack = (t, o) => ({ t: t.title, p: P[t.prio] || 'm', c: t.tag, d: t.due || '', x: !!t.done, o });
-const unpack = (id, d) => ({ id: Number(id), title: d.t, prio: PR[d.p] || 'medium', tag: d.c || 'General', due: d.d || '', done: !!d.x });
+// Repeat and streak fields (r s b l h) are only stored for repeating tasks; z is the day a one-off task was finished
+const pack = (t, o) => ({ t: t.title, p: P[t.prio] || 'm', c: t.tag, d: t.due || '', x: !!t.done, o,
+  ...(t.r ? { r: t.r, s: t.s || 0, b: t.b || 0, l: t.l || '', h: (t.h || []).slice(-90) } : {}),
+  ...(t.z ? { z: t.z } : {}) });
+const unpack = (id, d) => ({ id: Number(id), title: d.t, prio: PR[d.p] || 'medium', tag: d.c || 'General', due: d.d || '', done: !!d.x,
+  r: d.r || '', s: d.s || 0, b: d.b || 0, l: d.l || '', h: Array.isArray(d.h) ? d.h : [], z: d.z || '' });
 let synced = new Map(), timer = null;
 
 // Tiny local snapshot so the UI can paint instantly before the network answers

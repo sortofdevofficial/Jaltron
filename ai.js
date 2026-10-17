@@ -329,7 +329,8 @@ const clean = (t) => ({
   id: Number(t.id) || 0, title: String(t.title || '').slice(0, 140),
   prio: W[t.prio] ? t.prio : 'medium',
   tag: (window.CATS ? CATS() : ['Dev', 'Bug', 'Study', 'General']).includes(t.tag) ? t.tag : 'General',
-  due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : '', done: !!t.done
+  due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : '', done: !!t.done,
+  r: ['d', 'wd', 'w'].includes(t.r) ? t.r : '', s: Number(t.s) || 0, b: Number(t.b) || 0, l: /^\d{4}-\d{2}-\d{2}$/.test(t.l || '') ? t.l : ''
 });
 
 function score(t) {
@@ -384,6 +385,11 @@ function parseTask(raw) {
   s = s.replace(/^\s*(?:(?:a|an|new|the)\s+)?(?:task|todo|reminder|item)\b\s*/i, ' ');
   s = s.replace(/^\s*(?:to|for|about|on|called|named|:)\s+/i, ' ');
   s = ' ' + stripLead(s.trim()) + ' ';
+  let rep = '';
+  if ((m = s.match(/\b(?:every|each)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i))) { rep = 'w'; due = nextDay(m[1]); s = s.replace(m[0], ' '); }
+  else if (/\b(?:every\s*day|each\s*day|everyday|daily)\b/i.test(s)) { rep = 'd'; s = s.replace(/\b(?:every\s*day|each\s*day|everyday|daily)\b/ig, ' '); }
+  else if (/\b(?:every\s+week\s*day|on\s+weekdays|week\s*days?)\b/i.test(s)) { rep = 'wd'; s = s.replace(/\b(?:every\s+week\s*day|on\s+weekdays|week\s*days?)\b/ig, ' '); }
+  else if (/\b(?:every\s+week|each\s+week|weekly)\b/i.test(s)) { rep = 'w'; s = s.replace(/\b(?:every\s+week|each\s+week|weekly)\b/ig, ' '); }
   const pre = '(?:by|due|before|until|till|for|on)?\\s*';
   if ((m = s.match(/\b(\d{4}-\d{2}-\d{2})\b/))) { due = m[1]; s = s.replace(m[0], ' '); }
   else if (/\b(?:tomorrow|tmrw|tmr|tmw)\b/i.test(s)) { due = dateStr(1); s = s.replace(new RegExp('\\b' + pre + '(?:tomorrow|tmrw|tmr|tmw)\\b', 'i'), ' '); }
@@ -406,7 +412,7 @@ function parseTask(raw) {
   t = t.replace(/^(?:a\s+|new\s+)?(?:task\s+)?(?:for|about|on|regarding)\s+(?:my\s+|the\s+)?/i, '').replace(/^my\s+/i, '').replace(/\s+tasks?$/i, '').replace(/^[^\w]+|[^\w)]+$/g, '').trim();
   const g = GEN[t.toLowerCase()];
   if (g) { t = g[0]; tag = g[1]; }
-  return { title: cap(t).slice(0, 140), prio, tag: tag || 'General', due };
+  return { title: cap(t).slice(0, 140), prio, tag: tag || 'General', due, rep };
 }
 
 const FAQ = [
@@ -419,6 +425,7 @@ const FAQ = [
   [/dark|light|theme|mode/, 'Use the moon or sun button in the header to switch themes.'],
   [/save|persist|lost|refresh|storage|backup/, 'Sign in with Google and tasks save to your account. Signed out, they reset on refresh.'],
   [/status|online|offline|demo/, 'Header status: TRAINING means the neural AI is still learning in your browser. AI READY means it is trained.'],
+  [/repeat|recurring|habit|streak/, 'Pick Repeat (Daily, Weekdays or Weekly) when you add or edit a task, or say "add gym daily". Finish it each scheduled day to grow its streak; it reopens by itself for the next round, and missing a day resets the streak. Charts and streaks are in Insights.'],
   [/categor|tag/, () => window.catReply()],
   [/due|deadline|date/, 'Set a due date when adding a task. Badges show Due today, Due tomorrow or how many days overdue. You can tell me too: "add pay hosting tomorrow".']
 ];
@@ -444,11 +451,6 @@ function respond(msg, tasksIn, history) {
   if (/^(?:cancel|never ?mind|forget it|no)$/.test(l) && /^(What should the task|This will delete all)/.test(lastAi)) return say('Okay, cancelled.');
   if (/^(?:yes|y|confirm|do it|sure)$/.test(l) && /^This will delete all/.test(lastAi)) return say('All tasks deleted.', [{ type: 'clear_all' }]);
   const pendingAdd = /^What should the task/.test(lastAi) && l.split(/\s+/).length <= 10 && !/^(plan|show|what|how|summary|help|overdue|break|optimi|complete|delete)/.test(l);
-  if ((r = m.match(/^(?:please\s+)?(?:(?:write|generate|make|create|draft|give)\s+(?:me\s+)?)?(?:a\s+|an\s+)?(?:new\s+)?(youtube|yt|video|short|reel|tiktok|movie|film|podcast|ad|explainer)?\s*(?:video\s+|scene\s+)?script(?:\s+(?:for|about|on|of)\s+(.+))?$/i)) && /\b(write|generate|make|create|draft|give|script)\b/i.test(m)) {
-    const kinds = { youtube: 'youtube', yt: 'youtube', video: 'youtube', short: 'short', reel: 'short', tiktok: 'short', movie: 'movie', film: 'movie', podcast: 'podcast', ad: 'ad', explainer: 'explainer' };
-    const topic = (r[2] || '').trim().replace(/^(?:a|an|the)\s+/i, '');
-    return say(topic ? `Opening the script generator for "${topic}". You can change the type and tone there.` : 'Opening the script generator. Pick a type and tone, then press Generate.', [{ type: 'script', topic, kind: kinds[(r[1] || '').toLowerCase()] || '' }]);
-  }
   if (GREET_RE.test(l0.replace(/[^a-z' ]/g, ' ').replace(/\s+/g, ' ').trim()) && l0.split(/\s+/).length <= 6) {
     const open1 = open[0] ? ` You have ${open.length} open task${open.length > 1 ? 's' : ''}, and "${open[0].title}" is up first.` : ' Your plan is empty, so tell me what to add.';
     if (/how (are|r) (you|u)|hru|how is it going|hows it going|how you doing/.test(l0)) return say('Doing great, thanks for asking!' + open1);
@@ -461,8 +463,8 @@ function respond(msg, tasksIn, history) {
   }
 
   if (/\b(clear|remove|delete)\b.*\b(completed|done|finished)\b/.test(l)) {
-    const n = tasks.filter(t => t.done).length;
-    return n ? say(`Cleared ${n} completed task${n > 1 ? 's' : ''}.`, [{ type: 'clear_done' }]) : say('There are no completed tasks to clear.');
+    const n = tasks.filter(t => t.done && !t.r).length;
+    return n ? say(`Cleared ${n} completed task${n > 1 ? 's' : ''}. Repeating tasks are kept.`, [{ type: 'clear_done' }]) : say('There are no completed tasks to clear.');
   }
   if ((r = m.match(/^(?:please\s+)?(?:make|set|change|mark)\s+(.+?)\s+(?:as\s+|to\s+)?(high|medium|low)(?:\s+priority)?$/i))) {
     const t = find(tasks, r[1]);
@@ -493,12 +495,18 @@ function respond(msg, tasksIn, history) {
   if (/^(?:clear|reset)\s+(?:the\s+)?(?:filters?|search)$/.test(l)) return say('Filters cleared.', [{ type: 'filter', status: 'all', cat: 'all' }, { type: 'search', q: '' }]);
   if (/^(thanks|thank you|thx|ty)\b/.test(l)) return say('Anytime. Tell me when you want the next step.');
 
+  if (/\b(?:streaks?|habits?)\b/.test(l) && !/\b(?:how|explain|what is|why)\b/.test(l) && !ADD_RE.test(m)) {
+    const hs = tasks.filter(t => t.r).map(t => ({ t, s: window.Habit ? Habit.streak(t) : t.s })).sort((a, b) => b.s - a.s);
+    if (!hs.length) return say('You have no repeating tasks yet. Try \"add gym daily\" or \"add read every weekday\".');
+    return say('Your streaks:\n' + hs.slice(0, 6).map(x => `- ${x.t.title}: ${x.s} in a row (best ${Math.max(x.t.b, x.s)})`).join('\n'));
+  }
   if ((r = m.match(ADD_RE)) || pendingAdd) {
     const text = (r ? r[1] : m).replace(LIST_TAIL, '').trim();
     if (!text || /^(?:a\s+|new\s+)?tasks?$/i.test(text)) return say(ASK_TITLE);
     const added = text.split(SPLIT_RE).filter(x => x && x.trim().length > 1).slice(0, 8).map(parseTask).filter(p => p.title);
     if (!added.length) return say(ASK_TITLE);
-    const fmt = (p) => `"${p.title}" (${p.prio}, ${p.tag}${p.due ? ', due ' + p.due : ''})`;
+    const REPW = { d: 'daily', wd: 'on weekdays', w: 'weekly' };
+    const fmt = (p) => `"${p.title}" (${p.prio}, ${p.tag}${p.due ? ', due ' + p.due : ''}${p.rep ? ', repeats ' + REPW[p.rep] : ''})`;
     return say(added.length === 1 ? `Added ${fmt(added[0])}.` : `Added ${added.length} tasks:\n` + added.map(p => '- ' + fmt(p)).join('\n'), added.map(p => ({ type: 'add', ...p })));
   }
   if ((r = m.match(/^(?:please\s+)?(?:i\s+)?(?:complete|completed|finish|finished|done with|check off|tick off|mark)\s+(.+?)(?:\s+(?:as\s+)?(?:done|complete|completed|finished))?$/i))) {
@@ -545,7 +553,7 @@ function respond(msg, tasksIn, history) {
   if (/\b(first|next|start|focus|priorit)/.test(l))
     return open.length ? say(`Do this first: "${open[0].title}" (${why(open[0])}).` + (open[1] ? `\nThen: "${open[1].title}".` : '')) : say('Your plan is empty. Add a task and I will tell you what to do first.');
   if (/\b(help|what can you|commands|features|how do you work)\b/.test(l))
-    return say('I can:\n- add tasks: "add task for my study", "add fix login bug tomorrow high", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "delete old task"\n- edit: "rename login to fix auth", "move login to friday", "make login low priority", "tag docs as study"\n- find and filter: "find login", "show pending", "show bugs", "clear filters"\n- think: "plan my day", "what\'s due today", "summary", "overdue", "break down login"\n- scripts: \"write a youtube script about space\", \"movie script about a heist\"\n- explain the site: drag, edit, themes, saving, status');
+    return say('I can:\n- add tasks: "add task for my study", "add fix login bug tomorrow high", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "delete old task"\n- edit: "rename login to fix auth", "move login to friday", "make login low priority", "tag docs as study"\n- find and filter: "find login", "show pending", "show bugs", "clear filters"\n- think: "plan my day", "what\'s due today", "summary", "overdue", "break down login"\n- repeat and streaks: \"add gym daily\", \"add read every weekday\", \"show my streaks\"\n- explain the site: drag, edit, themes, saving, status');
   for (const [re, ans] of FAQ) if (re.test(l)) return say(typeof ans === 'function' ? ans() : ans);
 
   return Object.assign(say('I did not get that. Try "add physics exam tomorrow urgent", "complete login", "plan my day" or ask "what do you know".'), { unknown: true });

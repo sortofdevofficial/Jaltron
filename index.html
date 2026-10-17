@@ -22,7 +22,6 @@
       </div>
     </div>
     <div class="top-actions">
-      <button class="btn script-open" id="script-btn" title="Generate a script"><i class="fa-solid fa-clapperboard"></i> <span>Script</span></button>
       <button class="btn" id="auth-btn"><i class="fa-brands fa-google"></i> <span>Sign in</span></button>
       <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i></button>
       <div class="status" id="status" data-state="demo"><span class="dot"></span><span id="status-text">STARTING</span></div>
@@ -43,6 +42,29 @@
     <div class="progress-label"><span>Overall progress</span><span id="progress-text">0%</span></div>
     <div class="progress"><div id="progress-bar"></div></div>
   </div>
+
+  <section class="hud insights" id="insights">
+    <div class="panel-title">
+      <span><i class="fa-solid fa-chart-pie"></i> Insights</span>
+      <button class="btn" id="insights-toggle" aria-expanded="true"><i class="fa-solid fa-chevron-up"></i> <span>Hide</span></button>
+    </div>
+    <div id="insights-body">
+      <div class="streak-row">
+        <div class="streak-card"><i class="fa-solid fa-fire"></i><div><b id="sk-now">0</b><span>day streak</span></div></div>
+        <div class="streak-card"><i class="fa-solid fa-trophy"></i><div><b id="sk-best">0</b><span>best streak</span></div></div>
+        <div class="streak-card"><i class="fa-solid fa-calendar-check"></i><div><b id="sk-week">0</b><span>done this week</span></div></div>
+        <div class="streak-card"><i class="fa-solid fa-repeat"></i><div><b id="sk-habits">0</b><span>repeating tasks</span></div></div>
+      </div>
+      <div class="charts">
+        <div class="chart-box"><h3>By category</h3><div id="ch-cat"></div></div>
+        <div class="chart-box"><h3>By priority</h3><div id="ch-prio"></div></div>
+        <div class="chart-box"><h3>Status</h3><div id="ch-status"></div></div>
+        <div class="chart-box"><h3>Completed, last 7 days</h3><div id="ch-week"></div></div>
+        <div class="chart-box wide"><h3>Activity, last 12 weeks</h3><div id="ch-heat"></div><div class="heat-legend">Less <i class="heat h0"></i><i class="heat h1"></i><i class="heat h2"></i><i class="heat h3"></i><i class="heat h4"></i> More</div></div>
+        <div class="chart-box wide"><h3>Habit streaks</h3><div id="habit-list"></div></div>
+      </div>
+    </div>
+  </section>
 
   <main class="grid">
     <aside class="hud panel">
@@ -75,9 +97,15 @@
           <input type="text" id="quick-cat" maxlength="20" placeholder="New category, e.g. Gym" autocomplete="off" aria-label="New category name">
           <button type="button" class="btn primary" id="quick-cat-add"><i class="fa-solid fa-check"></i> Create</button>
         </div>
-        <div class="field">
-          <label for="task-due">Due date (optional)</label>
-          <input type="date" id="task-due">
+        <div class="two-col">
+          <div class="field">
+            <label for="task-due">Due date (optional)</label>
+            <input type="date" id="task-due">
+          </div>
+          <div class="field">
+            <label for="task-rep">Repeat</label>
+            <select id="task-rep"><option value="">Never</option><option value="d">Daily</option><option value="wd">Weekdays</option><option value="w">Weekly</option></select>
+          </div>
         </div>
         <button type="submit" class="btn primary full"><i class="fa-solid fa-plus"></i> Add to plan</button>
       </form>
@@ -120,7 +148,7 @@
     <div class="chat-head"><span><i class="fa-solid fa-wand-magic-sparkles"></i> Ask JALTRON</span><button class="icon-btn sm" id="chat-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="ai-bar"><span class="sub" id="nn-state">Starting neural AI...</span></div>
     <div class="chat-log" id="chat-log"></div>
-    <div class="chips" id="chips"><button>Wsp</button><button>Add a study task</button><button>Write a script</button><button>Plan my day</button><button>Summary</button><button>What can you do?</button></div>
+    <div class="chips" id="chips"><button>Wsp</button><button>Add a study task</button><button>Plan my day</button><button>Summary</button><button>My streaks</button><button>What can you do?</button></div>
     <form class="chat-form" id="chat-form"><input id="chat-input" placeholder="Ask about your plan" autocomplete="off"><button class="btn primary" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
   </section>
 
@@ -143,56 +171,35 @@
   </dialog>
 
 
-  <dialog id="script-dlg" class="acct script-dlg" aria-label="Script generator">
+
+  <dialog id="edit-dlg" class="acct" aria-label="Edit task">
     <div class="acct-head">
-      <div class="acct-id"><i class="fa-solid fa-clapperboard sg-ico"></i><div><strong>Script generator</strong><div class="sub">YouTube, shorts, movies, podcasts, ads and more</div></div></div>
-      <button class="icon-btn sm" id="script-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      <div class="acct-id"><i class="fa-solid fa-pen ed-ico"></i><div><strong>Edit task</strong><div class="sub">Change anything, or make it repeat</div></div></div>
+      <button type="button" class="icon-btn sm" id="ed-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <form id="script-form" class="script-form">
-      <div class="field">
-        <label for="sg-topic">Topic or idea</label>
-        <input id="sg-topic" maxlength="120" required autocomplete="off" placeholder="e.g., how to learn coding in 30 days">
+    <form id="edit-form" class="edit-form">
+      <div class="field"><label for="ed-title">Task</label><input id="ed-title" maxlength="140" required autocomplete="off"></div>
+      <div class="two-col">
+        <div class="field"><label for="ed-prio">Priority</label><select id="ed-prio"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+        <div class="field"><label for="ed-tag">Category</label><select id="ed-tag"><option>Dev</option><option>Bug</option><option>Study</option><option>General</option></select></div>
       </div>
       <div class="two-col">
-        <div class="field"><label for="sg-type">Type</label>
-          <select id="sg-type">
-            <option value="youtube">YouTube video</option>
-            <option value="short">Short / Reel / TikTok</option>
-            <option value="movie">Movie / short film</option>
-            <option value="podcast">Podcast episode</option>
-            <option value="ad">Ad / promo</option>
-            <option value="explainer">Explainer video</option>
-          </select></div>
-        <div class="field"><label for="sg-tone">Tone</label>
-          <select id="sg-tone">
-            <option value="casual">Casual</option><option value="funny">Funny</option><option value="serious">Serious</option>
-            <option value="inspiring">Inspiring</option><option value="dramatic">Dramatic</option><option value="educational">Educational</option>
-          </select></div>
+        <div class="field"><label for="ed-due">Due date</label><input type="date" id="ed-due"></div>
+        <div class="field"><label for="ed-rep">Repeat</label><select id="ed-rep"><option value="">Never</option><option value="d">Daily</option><option value="wd">Weekdays</option><option value="w">Weekly</option></select></div>
       </div>
-      <div class="two-col">
-        <div class="field"><label for="sg-len">Length</label>
-          <select id="sg-len"><option value="short">Short</option><option value="medium" selected>Medium</option><option value="long">Long</option></select></div>
-        <div class="field"><label for="sg-who" id="sg-who-label">Audience (optional)</label>
-          <input id="sg-who" maxlength="60" autocomplete="off" placeholder="e.g., beginners"></div>
+      <p class="sub" id="ed-streak"></p>
+      <div class="ed-actions">
+        <button type="button" class="btn danger" id="ed-del"><i class="fa-solid fa-trash"></i> Delete</button>
+        <button type="button" class="btn" id="ed-reset"><i class="fa-solid fa-rotate-left"></i> Reset streak</button>
+        <button type="submit" class="btn primary"><i class="fa-solid fa-check"></i> Save</button>
       </div>
-      <button type="submit" class="btn primary full"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate script</button>
     </form>
-    <div id="sg-out" hidden>
-      <textarea id="sg-text" rows="14" spellcheck="false" aria-label="Generated script"></textarea>
-      <div class="sg-actions">
-        <button class="btn" id="sg-copy"><i class="fa-solid fa-copy"></i> Copy</button>
-        <button class="btn" id="sg-dl"><i class="fa-solid fa-download"></i> Download</button>
-        <button class="btn" id="sg-again"><i class="fa-solid fa-rotate"></i> Regenerate</button>
-        <button class="btn" id="sg-tasks"><i class="fa-solid fa-list-check"></i> Add as tasks</button>
-      </div>
-      <p class="sub">This is a template draft you can edit above. Swap in your own facts, examples and jokes.</p>
-    </div>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="db.js"></script>
   <script src="ai.js"></script>
-  <script src="script.js"></script>
+  <script src="habits.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

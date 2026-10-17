@@ -2,7 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 
-// Signed out: tasks live only in memory. Signed in: they sync to Firestore at u/<uid>/t (see db.js).
+// Signed out: tasks live only in memory. Signed in: they sync to Firestore at u/<uid>/t (see db.js). Repeating tasks and streaks live in habits.js.
 let tasks = [];
 let nextId = 1;
 let currentFilter = 'all';
@@ -17,6 +17,9 @@ const catList = () => [...DEFAULT_CATS, ...custom];
 window.CATS = catList; // ai.js reads this so the chat knows your own categories
 
 const WEIGHT = { high: 3, medium: 2, low: 1 };
+const REPS = ['d', 'wd', 'w'];
+// One place that builds a task, so every field (including repeat and streak data) always exists
+const mkTask = (o) => ({ id: nextId++, title: '', prio: 'medium', tag: 'General', due: '', done: false, r: '', s: 0, b: 0, l: '', h: [], z: '', ...o });
 const todayStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -38,6 +41,44 @@ function dueBadge(t) {
   return `<span class="badge due ${cls}"><i class="fa-regular fa-calendar"></i> ${label}</span>`;
 }
 
+function repBadges(t) {
+  if (!t.r) return '';
+  const s = Habit.streak(t);
+  return `<span class="badge rep"><i class="fa-solid fa-repeat"></i> ${Habit.REP[t.r]}</span>`
+    + (s ? `<span class="badge streak" title="Best streak: ${t.b || s}"><i class="fa-solid fa-fire"></i> ${s}</span>` : '');
+}
+
+// ---- Insights: streak cards, pie charts, weekly bars, heatmap, habit list ----
+const setHtml = (id, html) => { const el = $(id); if (el._h !== html) { el.innerHTML = html; el._h = html; } };
+function renderInsights() {
+  if (!window.Habit) return;
+  const H = Habit, map = H.completions(tasks), week = H.lastDays(map, 7);
+  const done = tasks.filter(t => t.done).length;
+  const overdue = tasks.filter(t => !t.done && t.due && dayDiff(t.due) < 0).length;
+  $('sk-now').textContent = H.activeStreak(map);
+  $('sk-best').textContent = Math.max(H.bestActive(map), ...tasks.map(t => t.b || 0));
+  $('sk-week').textContent = week.reduce((a, d) => a + d.count, 0);
+  $('sk-habits').textContent = tasks.filter(t => t.r).length;
+  setHtml('ch-cat', H.donut(H.group(tasks, 'tag'), 'tasks'));
+  setHtml('ch-prio', H.donut(H.group(tasks, 'prio').map(x => ({ label: x.label[0].toUpperCase() + x.label.slice(1), value: x.value })), 'tasks', { High: '#ef4444', Medium: '#f59e0b', Low: '#10b981' }));
+  setHtml('ch-status', H.donut([
+    { label: 'Done', value: done, color: '#10b981' },
+    { label: 'In progress', value: tasks.length - done - overdue, color: '#3b82f6' },
+    { label: 'Overdue', value: overdue, color: '#ef4444' }], 'tasks'));
+  setHtml('ch-week', H.bars(week));
+  setHtml('ch-heat', H.heatmap(map, 12));
+  const habits = tasks.filter(t => t.r).map(t => ({ t, s: H.streak(t) })).sort((a, b) => b.s - a.s);
+  setHtml('habit-list', habits.length
+    ? habits.map(({ t, s }) => `<div class="habit-row"><span class="h-name">${escapeHtml(t.title)}</span><span class="h-rep">${H.REP[t.r]}</span><span class="dots" title="Last 7 days">${H.week7(t)}</span><span class="h-st"><i class="fa-solid fa-fire"></i> ${s}<small>best ${Math.max(t.b || 0, s)}</small></span></div>`).join('')
+    : '<p class="sub">No repeating tasks yet. Use the Repeat option when you add or edit a task, or tell the AI: "add gym daily".</p>');
+}
+$('insights-toggle').addEventListener('click', () => {
+  const body = $('insights-body'), hide = !body.hidden;
+  body.hidden = hide;
+  $('insights-toggle').setAttribute('aria-expanded', String(!hide));
+  $('insights-toggle').innerHTML = `<i class="fa-solid fa-chevron-${hide ? 'down' : 'up'}"></i> <span>${hide ? 'Show' : 'Hide'}</span>`;
+});
+
 function render() {
   if (window.DB) DB.save(tasks);
   const total = tasks.length;
@@ -51,6 +92,7 @@ function render() {
   const pct = total ? Math.round(done / total * 100) : 0;
   $('progress-bar').style.width = pct + '%';
   $('progress-text').textContent = `${pct}% (${done}/${total})`;
+  renderInsights();
 
   const q = query.toLowerCase();
   const filtered = tasks.filter(t => {
@@ -81,6 +123,7 @@ function render() {
             <span class="badge ${t.prio}">${t.prio}</span>
             <span class="badge tag">${escapeHtml(t.tag)}</span>
             ${dueBadge(t)}
+            ${repBadges(t)}
           </div>
         </div>
       </div>
@@ -123,7 +166,11 @@ $('task-list').addEventListener('click', (e) => {
   if (!btn) return;
   const id = Number(btn.closest('.task-item').dataset.id);
   const act = btn.dataset.act;
-  if (act === 'toggle') tasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+  if (act === 'toggle') {
+    tasks = tasks.map(t => t.id === id ? (t.done ? Habit.reopen(t) : Habit.complete(t)) : t);
+    const t = tasks.find(x => x.id === id), st = t && t.done ? Habit.streak(t) : 0;
+    if (t && t.r && st >= 2) toast(`${st} in a row for "${t.title}". Keep it going!`);
+  }
   else if (act === 'delete') {
     const index = tasks.findIndex(t => t.id === id);
     lastDeleted = { task: tasks[index], index };
@@ -131,7 +178,7 @@ $('task-list').addEventListener('click', (e) => {
     toast('Task deleted', true);
   } else if (act === 'edit') {
     if (editingId === id) return commitEdit(id);
-    editingId = id;
+    return openEdit(id);
   }
   render();
 });
@@ -150,9 +197,10 @@ $('task-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const title = $('task-title').value.trim();
   if (!title) return;
-  tasks.unshift({ id: nextId++, title, prio: $('task-prio').value, tag: $('task-tag').value, due: $('task-due').value || '', done: false });
+  tasks.unshift(mkTask({ title, prio: $('task-prio').value, tag: $('task-tag').value, due: $('task-due').value || '', r: $('task-rep').value }));
   $('task-title').value = '';
   $('task-due').value = '';
+  $('task-rep').value = '';
   render();
 });
 
@@ -187,11 +235,11 @@ $('filters').addEventListener('click', (e) => {
 $('search').addEventListener('input', (e) => { query = e.target.value.trim(); render(); });
 $('cat-filter').addEventListener('change', (e) => { currentCat = e.target.value; render(); });
 $('clear-done').addEventListener('click', () => {
-  const n = tasks.filter(t => t.done).length;
-  if (!n) return toast('No completed tasks to clear');
-  tasks = tasks.filter(t => !t.done);
+  const n = tasks.filter(t => t.done && !t.r).length;
+  if (!n) return toast('No completed tasks to clear (repeating tasks are kept)');
+  tasks = tasks.filter(t => !(t.done && !t.r));
   render();
-  toast(`Cleared ${n} completed task${n > 1 ? 's' : ''}`);
+  toast(`Cleared ${n} completed task${n > 1 ? 's' : ''}. Repeating tasks are kept.`);
 });
 
 // Theme (in-memory only; follows system preference on load)
@@ -263,6 +311,7 @@ function fillCats() {
   const opts = catList().map(c => `<option>${escapeHtml(c)}</option>`).join('');
   const tv = $('task-tag').value, fv = $('cat-filter').value;
   $('task-tag').innerHTML = opts;
+  $('ed-tag').innerHTML = opts;
   $('cat-filter').innerHTML = '<option value="all">All categories</option>' + opts;
   $('task-tag').value = catList().includes(tv) ? tv : 'General';
   $('cat-filter').value = catList().includes(fv) ? fv : 'all';
@@ -289,7 +338,7 @@ function renderAccount() {
 }
 addEventListener('jaltron:user', (e) => {
   const { user, tasks: saved, profile: p } = e.detail;
-  tasks = saved; profile = p; custom = p.k;
+  tasks = Habit.rollover(saved).tasks; profile = p; custom = p.k;
   nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
   document.querySelector('.notice').style.display = user ? 'none' : '';
   fillCats(); renderAccount(); render();
@@ -358,86 +407,74 @@ $('acct-cats').addEventListener('click', (e) => {
 });
 
 
-// ---- Script generator (engine in script.js) ----
-let lastScript = null;
-const SG_HINT = {
-  youtube: ['Audience (optional)', 'e.g., beginners', 'e.g., how to learn coding in 30 days'],
-  explainer: ['Audience (optional)', 'e.g., school students', 'e.g., how the internet works'],
-  short: ['Audience (optional)', 'e.g., gamers', 'e.g., 3 mistakes new coders make'],
-  podcast: ['Audience (optional)', 'e.g., startup founders', 'e.g., the future of remote work'],
-  ad: ['Audience (optional)', 'e.g., busy students', 'e.g., a reusable bottle that keeps drinks cold'],
-  movie: ['Characters (optional, comma separated)', 'e.g., Rhea, Kabir', 'e.g., two friends find a locked door in their school']
-};
-function syncScriptForm() {
-  const h = SG_HINT[$('sg-type').value] || SG_HINT.youtube;
-  $('sg-who-label').textContent = h[0];
-  $('sg-who').placeholder = h[1];
-  $('sg-topic').placeholder = h[2];
+
+// ---- Full task editor (title, priority, category, due date, repeat, streak) ----
+let editTaskId = null;
+function streakLine(t) { return t.r ? `Current streak: ${Habit.streak(t)}   Best: ${t.b || 0}   Times done: ${(t.h || []).length}` : ''; }
+function openEdit(id) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  editTaskId = id;
+  $('ed-title').value = t.title;
+  $('ed-prio').value = t.prio;
+  $('ed-tag').value = catList().includes(t.tag) ? t.tag : 'General';
+  $('ed-due').value = t.due || '';
+  $('ed-rep').value = t.r || '';
+  $('ed-streak').textContent = streakLine(t);
+  $('ed-reset').style.display = t.r ? '' : 'none';
+  $('edit-dlg').showModal();
+  $('ed-title').focus();
 }
-function openScript(topic, type) {
-  if (type && [...$('sg-type').options].some(o => o.value === type)) $('sg-type').value = type;
-  if (topic) $('sg-topic').value = String(topic).slice(0, 120);
-  syncScriptForm();
-  if (!$('script-dlg').open) $('script-dlg').showModal();
-  if (topic) runScript(); else $('sg-topic').focus();
-}
-function runScript() {
-  if (!window.ScriptGen) return toast('script.js did not load. Upload it next to index.html.');
-  const topic = $('sg-topic').value.trim();
-  if (!topic) return $('sg-topic').focus();
-  lastScript = ScriptGen.generate({ topic, type: $('sg-type').value, tone: $('sg-tone').value, length: $('sg-len').value, who: $('sg-who').value });
-  $('sg-text').value = lastScript.text;
-  $('sg-out').hidden = false;
-  $('sg-text').scrollTop = 0;
-  $('sg-out').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-$('script-btn').addEventListener('click', () => openScript());
-$('script-close').addEventListener('click', () => $('script-dlg').close());
-$('script-dlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-$('sg-type').addEventListener('change', syncScriptForm);
-$('script-form').addEventListener('submit', (e) => { e.preventDefault(); runScript(); });
-$('sg-again').addEventListener('click', runScript);
-$('sg-copy').addEventListener('click', async () => {
-  const text = $('sg-text').value;
-  try { await navigator.clipboard.writeText(text); }
-  catch { $('sg-text').select(); document.execCommand('copy'); }
-  toast('Script copied');
-});
-$('sg-dl').addEventListener('click', () => {
-  const name = (lastScript ? lastScript.topic : 'script').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'script';
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([$('sg-text').value], { type: 'text/plain' }));
-  a.download = name + '-script.txt';
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-});
-$('sg-tasks').addEventListener('click', () => {
-  if (!lastScript) return;
-  const short = lastScript.topic.length > 40 ? lastScript.topic.slice(0, 40) + '...' : lastScript.topic;
-  const items = lastScript.sections.filter(s => s !== 'Titles and thumbnail' && s !== 'Title and logline');
-  items.slice().reverse().forEach(s => tasks.unshift({ id: nextId++, title: `Script: ${short} - ${s}`.slice(0, 140), prio: 'medium', tag: 'General', due: '', done: false }));
+$('edit-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const title = $('ed-title').value.trim();
+  if (!title) return;
+  tasks = tasks.map(t => {
+    if (t.id !== editTaskId) return t;
+    const r = $('ed-rep').value;
+    let n = { ...t, title, prio: $('ed-prio').value, tag: $('ed-tag').value || t.tag, due: $('ed-due').value || '', r };
+    if (r && !t.r) { const day = t.z || Habit.today(); n = { ...n, s: t.done ? 1 : 0, b: t.done ? 1 : 0, l: t.done ? day : '', h: t.done ? [day] : [] }; }
+    if (!r) n = { ...n, s: 0, b: 0, l: '', h: [] };
+    return n;
+  });
+  $('edit-dlg').close();
   render();
-  $('script-dlg').close();
-  toast(`Added ${items.length} script tasks`);
+  toast('Task updated');
 });
+$('ed-reset').addEventListener('click', () => {
+  tasks = tasks.map(t => t.id === editTaskId ? { ...t, s: 0, b: 0 } : t);
+  $('ed-streak').textContent = streakLine(tasks.find(t => t.id === editTaskId));
+  render();
+  toast('Streak reset');
+});
+$('ed-del').addEventListener('click', () => {
+  const index = tasks.findIndex(t => t.id === editTaskId);
+  if (index < 0) return;
+  lastDeleted = { task: tasks[index], index };
+  tasks.splice(index, 1);
+  $('edit-dlg').close();
+  render();
+  toast('Task deleted', true);
+});
+$('ed-close').addEventListener('click', () => $('edit-dlg').close());
+$('edit-dlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 
 // ---- AI chat ----
 // Run actions the assistant returns (add, complete, delete, prio, clear, optimize, filter)
 function applyActions(actions) {
   for (const a of actions) {
-    if (a.type === 'add' && a.title) tasks.unshift({ id: nextId++, title: String(a.title).slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: a.tag || 'General', due: a.due || '', done: false });
-    else if (a.type === 'complete') tasks = tasks.map(t => t.id === a.id ? { ...t, done: true } : t);
+    if (a.type === 'add' && a.title) tasks.unshift(mkTask({ title: String(a.title).slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: a.tag || 'General', due: a.due || '', r: REPS.includes(a.rep) ? a.rep : '' }));
+    else if (a.type === 'complete') tasks = tasks.map(t => t.id === a.id ? Habit.complete(t) : t);
     else if (a.type === 'delete') tasks = tasks.filter(t => t.id !== a.id);
     else if (a.type === 'prio' && WEIGHT[a.prio]) tasks = tasks.map(t => t.id === a.id ? { ...t, prio: a.prio } : t);
-    else if (a.type === 'clear_done') tasks = tasks.filter(t => !t.done);
-    else if (a.type === 'complete_all') tasks = tasks.map(t => ({ ...t, done: true }));
+    else if (a.type === 'clear_done') tasks = tasks.filter(t => !(t.done && !t.r));
+    else if (a.type === 'complete_all') tasks = tasks.map(t => t.done ? t : Habit.complete(t));
     else if (a.type === 'clear_all') tasks = [];
-    else if (a.type === 'reopen') tasks = tasks.map(t => t.id === a.id ? { ...t, done: false } : t);
+    else if (a.type === 'reopen') tasks = tasks.map(t => t.id === a.id ? Habit.reopen(t) : t);
     else if (a.type === 'rename' && a.title) tasks = tasks.map(t => t.id === a.id ? { ...t, title: String(a.title).slice(0, 140) } : t);
     else if (a.type === 'due') tasks = tasks.map(t => t.id === a.id ? { ...t, due: a.due || '' } : t);
     else if (a.type === 'tag' && catList().includes(a.tag)) tasks = tasks.map(t => t.id === a.id ? { ...t, tag: a.tag } : t);
     else if (a.type === 'search') { query = String(a.q || ''); $('search').value = query; }
-    else if (a.type === 'script') openScript(a.topic, a.kind);
     else if (a.type === 'optimize') tasks.sort((x, y) => (x.done !== y.done) ? (x.done ? 1 : -1) : score(y) - score(x));
     else if (a.type === 'filter') {
       if (a.status) currentFilter = a.status;
@@ -489,8 +526,17 @@ $('chat-form').addEventListener('submit', (e) => {
 });
 addMsg('ai', 'Hi, I am JALTRON. I can add, complete and delete tasks for you, plan your day, or explain the site. Try: add fix login bug tomorrow high');
 
-// Keep due-date labels fresh
-setInterval(render, 60000 * 30);
+// New day: reopen finished repeating tasks, refresh due labels and streaks
+let lastDay = Habit.today();
+function dayCheck() {
+  const d = Habit.today();
+  if (d === lastDay) return;
+  lastDay = d;
+  tasks = Habit.rollover(tasks).tasks;
+  render();
+}
+setInterval(dayCheck, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) dayCheck(); });
 render();
 // Sidebar AI command bar: opens the chat and runs the command
 $('cmd-form').addEventListener('submit', (e) => {
