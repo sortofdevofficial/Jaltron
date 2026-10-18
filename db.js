@@ -71,6 +71,8 @@ function save(tasks) {
   }, 500);
 }
 
+// Firestore turns "no such doc" into permission-denied when a rule checks a field (u/<name> needs 'u' in resource.data)
+const isPerm = (e) => !!e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
 // Claim a username atomically: fails with "taken" if another account owns it
 const NAME_RE = /^[a-z0-9_]{3,20}$/;
 // Find the username this account owns (usernames live only in u/<name>; the uid doc has no 'u' field so it never matches)
@@ -82,12 +84,15 @@ async function setUsername(name) {
   name = String(name).trim().toLowerCase();
   if (!NAME_RE.test(name)) throw new Error('invalid');
   const uid = auth.currentUser.uid, nref = doc(db, 'u', name), old = await mine();
-  await runTransaction(db, async (tx) => {
-    const n = await tx.get(nref);
-    if (n.exists() && n.data().u !== uid) throw new Error('taken');
-    if (old && old !== name) tx.delete(doc(db, 'u', old));
-    tx.set(nref, { u: uid });
-  });
+  if (old === name) return name;
+  // Reading a free name can be refused by the rules (no doc, so no 'u' field to check): that just means it is free.
+  const owner = await getDoc(nref).then((s) => (s.exists() ? s.data().u : null)).catch((e) => { if (isPerm(e)) return null; throw e; });
+  if (owner && owner !== uid) throw new Error('taken');
+  // The rules only allow creating a claim, never overwriting one, so a race for the same name fails here instead of stealing it
+  const b = writeBatch(db);
+  if (old) b.delete(doc(db, 'u', old));
+  b.set(nref, { u: uid });
+  try { await b.commit(); } catch (e) { throw new Error(isPerm(e) ? 'taken' : e.message || 'failed'); }
   const c = readCache(uid);
   if (c) writeCache(uid, c.tasks, { ...c.profile, n: name });
   return name;
@@ -163,9 +168,7 @@ async function bankMoney(delta, cur) {
 // The workspace pot: w/<your uid>, you are the owner. Members are uids; names come from nameOf.
 const wsRef = () => doc(db, 'w', auth.currentUser.uid);
 async function wsCreate() { await setDoc(wsRef(), { m: [auth.currentUser.uid], b: 0, l: [] }); }
-// Firestore turns "no such doc" into permission-denied when a rule checks a field (u/<name> needs 'u' in resource.data),
-// so a claim read failing that way just means the username is unknown.
-const isPerm = (e) => !!e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
+// A claim read failing with permission-denied just means the username is unknown.
 async function wsAdd(name) {
   name = String(name).trim().toLowerCase();
   if (!NAME_RE.test(name)) throw new Error('invalid');
@@ -242,12 +245,19 @@ onAuthStateChanged(auth, async (user) => {
   const cached = readCache(user.uid);
   // Show the signed-in state at once; the tasks follow when Firestore answers
   emit('user', cached ? { user, ...cached, cached: true } : { user, tasks: [], profile: { n: '', k: [] }, cached: true, loading: true });
-  try { emit('user', { user, ...await load(user) }); }
-  catch (err) {
-    console.error(err);
-    if (!cached) emit('user', { user, tasks: [], profile: { n: '', k: [] } });
-    loadedUid = null;
-    emit('error', 'Could not load your data. Check Firestore rules.');
+  for (let tries = 0; ; tries++) {
+    try { emit('user', { user, ...await load(user) }); break; }
+    catch (err) {
+      console.error(err);
+      if (auth.currentUser?.uid !== user.uid) break;           // signed out or switched account meanwhile
+      loadedUid = null;
+      if (tries >= 2) {
+        if (!cached) emit('user', { user, tasks: [], profile: { n: '', k: [] } });
+        emit('error', isPerm(err) ? 'Could not load your data. Publish the latest firestore.rules in the Firebase console.' : 'Could not load your data. Check your connection.');
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 2500 * (tries + 1))); // try again a couple of times before giving up
+    }
   }
 });
 
@@ -255,7 +265,7 @@ onAuthStateChanged(auth, async (user) => {
 const isAdmin = async () => !!auth.currentUser && (await getDoc(doc(db, 'admins', auth.currentUser.uid))).exists();
 async function adminFind(q) {
   q = String(q).trim();
-  const n = q.toLowerCase(), byName = NAME_RE.test(n) ? await getDoc(doc(db, 'u', n)) : null;
+  const n = q.toLowerCase(), byName = NAME_RE.test(n) ? await getDoc(doc(db, 'u', n)).catch((e) => { if (isPerm(e)) return null; throw e; }) : null;
   const uid = byName && byName.exists() && byName.data().u ? byName.data().u : q;
   const [plan, nm] = await Promise.all([getDoc(doc(db, 's', uid)), getDocs(query(collection(db, 'u'), where('u', '==', uid), limit(1)))]);
   return { uid, name: nm.empty ? '' : nm.docs[0].id, plan: plan.exists() ? plan.data() : null };
@@ -273,4 +283,5 @@ window.DB = {
 };
 emit('ready', {});
 // Warm up the sign-in popup helper while the browser is idle, so clicking Sign in opens the window instantly
-(window.requestIdleCallback || setTimeout)(() => { try { browserPopupRedirectResolver._initialize(auth); } catch {} }, 2500);
+const warm = () => { try { browserPopupRedirectResolver._initialize(auth); } catch {} };
+if (window.requestIdleCallback) requestIdleCallback(warm, { timeout: 4000 }); else setTimeout(warm, 2500);

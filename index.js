@@ -9,7 +9,8 @@ let currentFilter = 'all';
 let currentCat = 'all';
 let query = '';
 let editingId = null;
-let bootName = '', syncing = false; // bootName: shown from the last visit before Firebase has loaded
+// canSavePet (below) stays false until the cloud answers, so pet and focus numbers are never saved from an old offline copy
+let bootName = '', syncing = false, fromCache = false; // fromCache: showing last visit's copy, the cloud has not answered yet // bootName: shown from the last visit before Firebase has loaded
 let view = 'all', sortMode = 'manual';
 let lastDeleted = null;
 let toastTimer = null;
@@ -104,7 +105,7 @@ function render() {
   renderInsights();
   applyCover();
   trackImages();
-  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, art: profile.y && Plan.can('pet') ? Img.parts(profile.y).u : '', focus: profile.f || {}, setFocus: (f) => { profile.f = f; if (window.DB && DB.user && DB.setFocus) DB.setFocus(f); }, canSavePet: !syncing, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
+  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, art: profile.y && Plan.can('pet') ? Img.parts(profile.y).u : '', focus: profile.f || {}, setFocus: (f) => { profile.f = f; if (window.DB && DB.user && DB.setFocus) DB.setFocus(f); }, canSavePet: !syncing && !fromCache && !bootName, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
 
   const q = query.toLowerCase();
   const filtered = tasks.filter(t => {
@@ -387,7 +388,7 @@ function renderAccount() {
 }
 addEventListener('jaltron:user', (e) => {
   const { user, tasks: saved, profile: p } = e.detail;
-  bootName = ''; syncing = !!e.detail.loading; imgPrev = null; // new data arrived: not a deletion
+  bootName = ''; syncing = !!e.detail.loading; fromCache = !!e.detail.cached; imgPrev = null; // new data arrived: not a deletion
   tasks = Habit.rollover(saved).tasks; profile = p; custom = p.k; Plan.set(p.s); renderPlan();
   nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
   fillCats(); renderAccount(); render();
