@@ -120,7 +120,7 @@
   setInterval(() => Habit.tickResets(), 20000);
 
   // ---------- Navigation ----------
-  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans', bank: 'Bank' };
+  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans', bank: 'Bank', board: 'Leaderboard' };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
@@ -128,6 +128,7 @@
     $('page-title').textContent = PAGES[p];
     Focus.title(`${PAGES[p]} | JALTRON`); Focus.pageChanged();
     window.Bank && Bank.pageChanged();
+    window.Board && Board.pageChanged();
     if (location.hash !== '#' + p) history.replaceState(null, '', '#' + p);
     if (!quiet) scrollTo({ top: 0 });
   }
@@ -205,6 +206,7 @@
     { i: 'house', l: 'Go to Home', k: 'dashboard', run: () => go('home') },
     { i: 'list-check', l: 'Go to Tasks', k: 'board list', run: () => go('tasks') },
     { i: 'chart-pie', l: 'Go to Insights', k: 'charts streaks', run: () => go('insights') },
+    { i: 'trophy', l: 'Go to Leaderboard', k: 'streak ranking top', run: () => go('board') },
     { i: 'piggy-bank', l: 'Go to Bank', k: 'money workspace pot', run: () => go('bank') },
     { i: 'plus', l: 'New task', k: 'add create', run: newTask },
     { i: 'comment-dots', l: 'Open AI chat', k: 'ask assistant', run: () => jaltron.openChat(true) },
@@ -360,7 +362,7 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
   function onPots(snap) {
     const prev = new Set(pots.map(p => p.id));
     pots = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (snap.metadata.fromCache) return renderPots(); // wait for the server before claiming "no pots"
+    if (snap.metadata.fromCache && !pots.length) return renderPots(); // an empty cached answer is not proof: wait for the server before claiming "no pots"
     const gone = [...prev].filter(id => !pots.some(p => p.id === id));
     potsReady = true; potErr = false;
     renderPots();
@@ -462,4 +464,63 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     withdraw: (n) => amount(n) ? money(-amount(n)) : toast(AMT_MSG)
   };
   paint();
+})();
+
+// ================= leaderboard =================
+// Streak leaderboard: lb/<uid> entries read through DB.lbTop (db.js). Ranked by streak days, the same number the pet and sidebar show.
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+  let rows = null, at = 0, busy = false;
+  const note = (t) => { $('bd-list').innerHTML = `<li class="bd-note">${t}</li>`; };
+  function paint() {
+    const me = window.DB && DB.user ? DB.user.uid : '';
+    if (!me) return note('Sign in to see the leaderboard.');
+    if (!rows) return note(busy ? 'Loading...' : 'Could not load the leaderboard. Publish the latest firestore.rules, then press Refresh.');
+    if (!rows.length) return note('Nobody is on the board yet. Finish a task today to be the first.');
+    const live = (d) => d && d >= Habit.addDays(Habit.today(), -1);
+    $('bd-list').innerHTML = rows.map((r, i) => `<li class="bd-row${r.id === me ? ' me' : ''}${i < 3 ? ' top' + (i + 1) : ''}">
+      <span class="bd-rank">${i + 1}</span>
+      <span class="bd-name"><span>@${esc(r.n)}${r.id === me ? ' <em>you</em>' : ''}</span><small>${live(r.d) ? '<i class="bd-on"></i>active' : r.d ? 'last active ' + esc(r.d.slice(5)) : ''}${r.b ? ` · best run ${r.b}` : ''}</small></span>
+      <span class="bd-n"><i class="fa-solid fa-fire"></i> ${r.t}<small>days</small></span></li>`).join('');
+  }
+  async function load() {
+    if (busy || !window.DB || !DB.user) return paint();
+    busy = true; paint();
+    try { rows = await DB.lbTop(25); at = Date.now(); } catch (e) { console.error(e); rows = null; }
+    busy = false; paint();
+  }
+  $('bd-refresh').addEventListener('click', load);
+  addEventListener('jaltron:user', () => { rows = null; at = 0; if (document.querySelector('.page.active')?.dataset.page === 'board') setTimeout(load, 400); });
+  window.Board = { pageChanged: () => { if (document.querySelector('.page.active')?.dataset.page === 'board' && Date.now() - at > 30000) load(); else paint(); } };
+})();
+
+// ---------- Menu drawer (tablet and phone), tab bar and back to top ----------
+(function () {
+  const $ = (id) => document.getElementById(id), side = $('side'), scrim = $('scrim');
+  const isDrawer = () => matchMedia('(max-width: 1000px)').matches;
+  const isOpen = () => side.classList.contains('open');
+  function setOpen(on) {
+    side.classList.toggle('open', on); scrim.hidden = !on; document.body.classList.toggle('menu-open', on);
+    ['menu-btn', 'tab-more'].forEach((id) => $(id).setAttribute('aria-expanded', on));
+    side.inert = isDrawer() && !on;   // keep keyboard users out of the hidden drawer
+    if (on) { const a = side.querySelector('.nav-item.active') || side.querySelector('.nav-item'); if (a) a.focus({ preventScroll: true }); }
+  }
+  $('menu-btn').addEventListener('click', () => setOpen(!isOpen()));
+  $('tab-more').addEventListener('click', () => setOpen(true));
+  $('side-close').addEventListener('click', () => setOpen(false));
+  scrim.addEventListener('click', () => setOpen(false));
+  side.addEventListener('click', (e) => { if (isDrawer() && e.target.closest('.nav-item, .side-pet')) setTimeout(() => setOpen(false), 0); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) setOpen(false); });
+  addEventListener('resize', () => { if (!isDrawer() && isOpen()) setOpen(false); side.inert = isDrawer() && !isOpen(); });
+  $('tab-add').addEventListener('click', () => $('top-add').click());
+  side.inert = isDrawer();
+
+  const up = document.createElement('button');
+  up.className = 'to-top'; up.id = 'to-top'; up.hidden = true; up.setAttribute('aria-label', 'Back to top'); up.title = 'Back to top';
+  up.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+  up.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+  document.body.appendChild(up);
+  let tick = false;
+  addEventListener('scroll', () => { if (tick) return; tick = true; requestAnimationFrame(() => { tick = false; up.hidden = scrollY < 700; }); }, { passive: true });
 })();

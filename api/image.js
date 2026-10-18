@@ -4,7 +4,18 @@
 // The ImgBB key lives only in the Vercel environment variable IMGBB_KEY, never in the browser.
 // Only signed-in users can call it: the Firebase login token is checked on every request.
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDlqQYIPue53vx1tpm7-DYYKMZB4OatiDg'; // public web key, same as db.js
+const PROJECT = process.env.FIREBASE_PROJECT || 'jaltron0';
 const MAX_BYTES = 4.4e6; // Vercel functions accept bodies up to 4.5 MB
+
+// Uploads are a Lite feature. Staff write s/<uid>; the rules let you read your own, so the user's own token is enough to check it here.
+async function isLite(token, uid) {
+  try {
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/s/${uid}`, { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) return false;
+    const f = (await r.json()).fields || {}, e = Number((f.e && (f.e.integerValue || f.e.doubleValue)) || 0);
+    return !!f.p && f.p.stringValue === 'lite' && (!e || e > Date.now());
+  } catch { return false; }
+}
 
 // Reads the request body, or returns null when it is bigger than max
 async function readBody(req, max) {
@@ -29,11 +40,13 @@ module.exports = async (req, res) => {
 
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!token) return fail(401, isDelete ? 'Sign in first.' : 'Sign in to upload images.');
+  let uid = '';
   try {
     const v = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + FIREBASE_API_KEY, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: token })
     });
     if (!v.ok) return fail(401, 'Your login expired. Refresh the page and try again.');
+    uid = (((await v.json()).users || [])[0] || {}).localId || '';
   } catch { return fail(502, 'Could not check your login. Try again.'); }
 
   // ---- delete ----
@@ -50,6 +63,7 @@ module.exports = async (req, res) => {
   }
 
   // ---- upload ----
+  if (!uid || !(await isLite(token, uid))) return fail(403, 'Pictures are a Lite feature. Talk to staff on Discord to get Lite.');
   const body = await readBody(req, MAX_BYTES);
   if (!body) return fail(413, 'That picture is too big (max 4 MB).');
   if (!body.length) return fail(400, 'Empty upload.');

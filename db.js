@@ -4,11 +4,12 @@
 //                 The whole account is one doc: one read loads it, one update saves only the tasks that changed ("q.<id>" field paths). Order comes from o, sorted in JS.
 //   u/<uid>/t/<id>  legacy one-doc-per-task layout, replaced by q. Kept readable while old accounts self-migrate (migrate() below); the rules block can go once they are all on v: 2.
 //   s/<uid>      { p: 'lite', e: expiry ms }  the subscription, written only by staff (rules block clients)
+//   lb/<uid>     { n: username, t: streak days, b: best run, d: last active day }  the public streak leaderboard (self-reported; rules tie n to your own username claim; o: true on u/<uid> hides you)
 //   w/<ownerUid> { m: [member uids, owner always included], b: shared pot balance, l: same log format }  one workspace pot per owner; the rules let members change only b and l, names are never stored here (resolved from the claims below)
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyDlqQYIPue53vx1tpm7-DYYKMZB4OatiDg',
@@ -80,6 +81,25 @@ async function mine() {
   const s = await getDocs(query(collection(db, 'u'), where('u', '==', auth.currentUser.uid), limit(1)));
   return s.empty ? '' : s.docs[0].id;
 }
+// Leaderboard entry for this account (skipped when hidden or empty; the last sent copy is remembered so unchanged data costs no write)
+async function pushLb(profile) {
+  const user = auth.currentUser, p = (profile && profile.p) || {};
+  if (!user || !profile || !profile.n || profile.o || !p.n) return;
+  const e = { n: profile.n, t: p.n, b: Math.max(p.b || 0, p.r || 0), d: p.d || '' }, j = JSON.stringify(e), k = 'jl:' + user.uid;
+  try { if (localStorage.getItem(k) === j) return; } catch {}
+  try { await setDoc(doc(db, 'lb', user.uid), e); try { localStorage.setItem(k, j); } catch {} } catch (err) { console.error(err); }
+}
+async function setLbOptOut(o) {
+  const uid = auth.currentUser.uid, c = readCache(uid);
+  try {
+    await setDoc(ref(), { o }, { merge: true });
+    if (c) writeCache(uid, c.tasks, { ...c.profile, o });
+    if (o) { await deleteDoc(doc(db, 'lb', uid)); try { localStorage.removeItem('jl:' + uid); } catch {} }
+    else pushLb({ ...(c && c.profile), o });
+  } catch (err) { console.error(err); emit('error', 'Could not change the leaderboard setting.'); }
+}
+const lbTop = async (n = 25) => (await getDocs(query(collection(db, 'lb'), orderBy('t', 'desc'), limit(n)))).docs.map((x) => ({ id: x.id, ...x.data() }));
+
 async function setUsername(name) {
   name = String(name).trim().toLowerCase();
   if (!NAME_RE.test(name)) throw new Error('invalid');
@@ -94,7 +114,7 @@ async function setUsername(name) {
   b.set(nref, { u: uid });
   try { await b.commit(); } catch (e) { throw new Error(isPerm(e) ? 'taken' : e.message || 'failed'); }
   const c = readCache(uid);
-  if (c) writeCache(uid, c.tasks, { ...c.profile, n: name });
+  if (c) { writeCache(uid, c.tasks, { ...c.profile, n: name }); pushLb({ ...c.profile, n: name }); }
   return name;
 }
 
@@ -126,7 +146,7 @@ async function setPet(p) {
   try {
     await setDoc(ref(), { p }, { merge: true });
     const uid = auth.currentUser.uid, cc = readCache(uid);
-    if (cc) writeCache(uid, cc.tasks, { ...cc.profile, p });
+    if (cc) { writeCache(uid, cc.tasks, { ...cc.profile, p }); pushLb({ ...cc.profile, p }); }
   } catch (err) { console.error(err); }
 }
 
@@ -184,7 +204,7 @@ async function wsMoney(id, delta, cur) {
   return next;
 }
 // Every pot whose member list contains you, live (member add/remove shows up here too). Returns the unsubscribe.
-const wsWatch = (onNext, onErr) => onSnapshot(query(collection(db, 'w'), where('m', 'array-contains', auth.currentUser.uid)), onNext, onErr);
+const wsWatch = (onNext, onErr) => onSnapshot(query(collection(db, 'w'), where('m', 'array-contains', auth.currentUser.uid)), { includeMetadataChanges: true }, onNext, onErr); // metadata changes on: the cache-to-server confirmation must fire even when nothing changed
 
 // Username for a uid: claims store only name -> uid, so run the reverse query once per uid and keep the answer
 const names = new Map();
@@ -230,11 +250,12 @@ async function load(user) {
   let d = snap.exists() ? snap.data() : {};
   if (d.v !== 2) { await migrate(); d = (await getDoc(ref())).data() || {}; }
   const s = plan && plan.exists() ? { p: plan.data().p, e: plan.data().e || 0 } : null;
-  const profile = { s, n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? d.p : {}, f: d.f && typeof d.f === 'object' ? d.f : {}, y: typeof d.y === 'string' ? d.y : '', b: d.b && typeof d.b === 'object' ? d.b : { m: 0, l: [] } };
+  const profile = { s, n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? d.p : {}, f: d.f && typeof d.f === 'object' ? d.f : {}, y: typeof d.y === 'string' ? d.y : '', o: !!d.o, b: d.b && typeof d.b === 'object' ? d.b : { m: 0, l: [] } };
   const tasks = Object.entries(d.q || {}).sort((a, b) => (a[1].o || 0) - (b[1].o || 0)).map(([id, td]) => unpack(id, td));
   synced = new Map(tasks.map((t, o) => [String(t.id), JSON.stringify(pack(t, o))]));
   writeCache(user.uid, tasks, profile);
   loadedUid = user.uid;
+  pushLb(profile);
   return { tasks, profile };
 }
 
@@ -273,7 +294,7 @@ async function adminFind(q) {
 const adminSet = (uid, days) => setDoc(doc(db, 's', uid), days === 0 ? { p: 'free' } : { p: 'lite', e: days < 0 ? 0 : Date.now() + days * 864e5 });
 
 window.DB = {
-  isAdmin, adminFind, adminSet,
+  isAdmin, adminFind, adminSet, lbTop, setLbOptOut,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt,
   bankMoney, wsCreate, wsAdd, wsDel, wsMoney, wsWatch, nameOf,
   token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),

@@ -65,8 +65,6 @@ function renderInsights() {
   const H = Habit, map = H.completions(tasks), week = H.lastDays(map, 7);
   const done = tasks.filter(t => t.done).length;
   const overdue = tasks.filter(t => !t.done && t.due && dayDiff(t.due) < 0).length;
-  $('sk-now').textContent = H.activeStreak(map);
-  $('sk-best').textContent = Math.max(H.bestActive(map), ...tasks.map(t => t.b || 0));
   $('sk-week').textContent = week.reduce((a, d) => a + d.count, 0);
   $('sk-habits').textContent = tasks.filter(t => t.r).length;
   setHtml('ch-cat', H.donut(H.group(tasks, 'tag'), 'tasks'));
@@ -291,7 +289,7 @@ $('clear-done').addEventListener('click', () => {
 // Theme (in-memory only; follows system preference on load)
 function setTheme(dark) {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  $('theme-btn').innerHTML = `<i class="fa-solid fa-${dark ? 'sun' : 'moon'}"></i>`;
+  $('theme-btn').innerHTML = `<i class="fa-solid fa-${dark ? 'sun' : 'moon'}"></i><span class="lbl">${dark ? 'Light' : 'Dark'}</span>`;
 }
 setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
 $('theme-btn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme !== 'dark'));
@@ -384,6 +382,7 @@ function renderAccount() {
   $('acct-email').textContent = user.email || user.displayName || '';
   $('acct-name').value = profile.n;
   $('av-reset').hidden = !profile.a;
+  $('acct-lb').checked = !profile.o;
   renderCats();
 }
 addEventListener('jaltron:user', (e) => {
@@ -402,6 +401,7 @@ $('auth-btn').addEventListener('click', () => {
   if (!DB.user) { toast('Opening Google sign-in...'); return DB.signIn(); }
   setMsg(''); renderAccount(); $('acct').showModal();
 });
+$('acct-lb').addEventListener('change', (e) => { profile.o = !e.target.checked; DB.setLbOptOut(profile.o); setMsg(profile.o ? 'You are hidden from the leaderboard.' : 'You are on the leaderboard.', true); });
 $('acct-close').addEventListener('click', () => $('acct').close());
 $('acct').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('acct-signout').addEventListener('click', () => { $('acct').close(); DB.signOut(); });
@@ -484,7 +484,7 @@ $('edit-form').addEventListener('submit', (e) => {
   if (ed.busy) return toast('Wait for the images to finish uploading.');
   tasks = tasks.map(t => {
     if (t.id !== editTaskId) return t;
-    const r = $('ed-rep').value;
+    const r = $('ed-rep').disabled ? t.r : $('ed-rep').value; // Free accounts keep the repeat a task already has
     let n = { ...t, title, prio: $('ed-prio').value, tag: $('ed-tag').value || t.tag, due: $('ed-due').value || '', r, i: ed.list.slice() };
     ed.saved = true;
     if (r && !t.r) { const day = t.z || Habit.today(); n = { ...n, s: t.done ? 1 : 0, b: t.done ? 1 : 0, l: t.done ? day : '', h: t.done ? [day] : [] }; }
@@ -518,6 +518,7 @@ $('edit-dlg').addEventListener('click', (e) => { if (e.target === e.currentTarge
 function applyActions(actions) {
   for (const a of actions) {
     if (a.type === 'add' && a.title && tasks.length < Plan.limit('tasks')) tasks.unshift(mkTask({ title: String(a.title).slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: a.tag || 'General', due: a.due || '', r: REPS.includes(a.rep) ? a.rep : '' }));
+    else if (a.type === 'add' && a.title) toast(Plan.msg('tasks'));
     else if (a.type === 'complete') tasks = tasks.map(t => t.id === a.id ? Habit.complete(t) : t);
     else if (a.type === 'delete') tasks = tasks.filter(t => t.id !== a.id);
     else if (a.type === 'prio' && WEIGHT[a.prio]) tasks = tasks.map(t => t.id === a.id ? { ...t, prio: a.prio } : t);

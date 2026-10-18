@@ -23,6 +23,7 @@ service cloud.firestore {
       // resource == null: a free name has no doc yet, so the check must not fail on it (that was the 403 on sign-up)
       allow read: if request.auth != null && (resource == null || 'u' in resource.data);
       allow create: if request.auth != null
+        && id.matches('[a-z0-9_]{3,20}')   // usernames only, so nobody can pre-create someone's uid doc
         && request.resource.data.keys().hasOnly(['u'])
         && request.resource.data.u == request.auth.uid;
       allow delete: if request.auth != null && resource.data.u == request.auth.uid;
@@ -32,6 +33,17 @@ service cloud.firestore {
       match /t/{taskId} {
         allow read, write: if request.auth != null && request.auth.uid == id;
       }
+    }
+
+    // Streak leaderboard: lb/<uid>. Anyone signed in can read; you write only your own entry, and its name must be your own username claim.
+    match /lb/{id} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == id
+        && request.resource.data.keys().hasOnly(['n', 't', 'b', 'd'])
+        && request.resource.data.n is string && request.resource.data.t is int && request.resource.data.b is int && request.resource.data.d is string
+        && request.resource.data.t >= 0 && request.resource.data.t <= 20000 && request.resource.data.b >= 0 && request.resource.data.b <= 20000
+        && get(/databases/$(database)/documents/u/$(request.resource.data.n)).data.u == request.auth.uid;
+      allow delete: if request.auth != null && request.auth.uid == id;
     }
 
     // Workspaces: w/<ownerUid> = { m: member uids, b: balance, l: log }. Owner runs it;

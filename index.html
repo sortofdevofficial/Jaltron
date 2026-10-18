@@ -13,23 +13,30 @@
   <script type="module" src="db.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media=\'all\'">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <div class="shell">
-  <nav class="side" aria-label="Main navigation">
-    <div class="brand">
-      <div class="logo-wrapper"><img src="favicon.png" alt="JALTRON Logo" width="30" height="30"></div>
-      <div><h1>JALTRON</h1><p class="sub">AI Plan Manager</p></div>
+  <nav class="side" id="side" aria-label="Main navigation">
+    <div class="side-head">
+      <div class="brand">
+        <div class="logo-wrapper"><img src="favicon.png" alt="JALTRON Logo" width="30" height="30"></div>
+        <div><h1>JALTRON</h1><p class="sub">AI Plan Manager</p></div>
+      </div>
+      <button class="icon-btn sm side-close" id="side-close" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="nav">
+      <p class="nav-label">Main</p>
       <button class="nav-item active" data-nav="home"><i class="fa-solid fa-house"></i><span>Home</span></button>
       <button class="nav-item" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span><b id="nav-tasks-n">0</b></button>
       <button class="nav-item" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span><b class="live" id="nav-focus-t" hidden>25:00</b></button>
+      <p class="nav-label">Grow</p>
       <button class="nav-item" data-nav="insights"><i class="fa-solid fa-chart-pie"></i><span>Insights</span></button>
+      <button class="nav-item" data-nav="board"><i class="fa-solid fa-trophy"></i><span>Leaderboard</span></button>
       <button class="nav-item" data-nav="bank"><i class="fa-solid fa-piggy-bank"></i><span>Bank</span></button>
+      <p class="nav-label">Account</p>
       <button class="nav-item" data-nav="plans"><i class="fa-solid fa-bolt"></i><span>Plans</span><b id="nav-plan">Free</b></button>
       <button class="nav-item nav-ai" id="nav-ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Ask AI</span></button>
     </div>
@@ -40,14 +47,23 @@
       <button class="nav-item" id="nav-keys"><i class="fa-regular fa-keyboard"></i><span>Shortcuts</span><kbd>?</kbd></button>
     </div>
   </nav>
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="tabbar" aria-label="Quick navigation">
+    <button class="tab active" data-nav="home"><i class="fa-solid fa-house"></i><span>Home</span></button>
+    <button class="tab" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span></button>
+    <button class="tab tab-add" id="tab-add" aria-label="New task"><i class="fa-solid fa-plus"></i></button>
+    <button class="tab" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span></button>
+    <button class="tab" id="tab-more" aria-label="Open menu" aria-expanded="false"><i class="fa-solid fa-bars"></i><span>Menu</span></button>
+  </nav>
   <div class="content">
   <header class="topbar">
+    <button class="icon-btn menu-btn" id="menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="side"><i class="fa-solid fa-bars"></i></button>
     <h2 id="page-title">Home</h2>
     <button class="search-pill" id="open-palette" title="Search or run a command"><i class="fa-solid fa-magnifying-glass"></i><span>Search or run a command</span><kbd>Ctrl K</kbd></button>
     <div class="top-actions">
       <button class="btn primary" id="top-add"><i class="fa-solid fa-plus"></i> <span>New task</span></button>
       <button class="btn" id="auth-btn"><i class="fa-brands fa-google"></i> <span>Sign in</span></button>
-      <button class="icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i></button>
+      <button class="icon-btn has-lbl" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i><span class="lbl">Dark</span></button>
       <div class="status" id="status" data-state="demo"><span class="dot"></span><span id="status-text">STARTING</span></div>
     </div>
   </header>
@@ -249,6 +265,13 @@
   </section>
 
   </div>
+  <div class="page" data-page="board">
+  <section class="hud panel bd">
+    <div class="panel-title"><span><i class="fa-solid fa-trophy"></i> Streak leaderboard</span><button class="btn" id="bd-refresh"><i class="fa-solid fa-rotate"></i> Refresh</button></div>
+    <p class="sub">Ranked by streak days: the days you finished at least one task. Streaks are self-reported. Hide yourself any time in your account settings.</p>
+    <ol class="bd-list" id="bd-list"></ol>
+  </section>
+  </div>
   <div class="page" data-page="bank">
   <div class="bk-off hud" id="bk-off" hidden>
     <strong>Sign in to use the bank</strong>
@@ -399,6 +422,7 @@
       <div id="acct-cats" class="cat-chips"></div>
       <form class="cmd-form" id="cat-form"><input id="cat-input" maxlength="20" placeholder="New category, e.g. Gym" autocomplete="off"><button class="btn primary">Add</button></form>
     </div>
+    <label class="fp-toggle"><input type="checkbox" id="acct-lb"><span>Show me on the streak leaderboard</span></label>
     <p class="sub dc-note"><span class="dc-logo mini"></span> Subscription? <a data-dc-link href="https://discord.com/channels/1503297362246897694" target="_blank" rel="noopener noreferrer">Talk to staff on Discord</a></p>
     <p class="sub" id="acct-msg" aria-live="polite"></p>
     <button class="btn full" id="acct-signout"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
