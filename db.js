@@ -141,6 +141,52 @@ async function setPetArt(y) {
   } catch (err) { console.error(err); emit('error', 'Could not save your pet.'); }
 }
 
+// ---------- Fake bank + workspaces ----------
+// Log entries "YYYY-MM-DD|+N|<uid>|<ms>": this code adds the uid, so nobody can spend under
+// someone else's name, and the ms tail keeps same-day entries from merging inside arrayUnion.
+// Money moves use increment/arrayUnion (no read of the heavy account doc, they also work offline);
+// once the log is full one plain write lands that also trims it back to the cap.
+const pad = (n) => String(n).padStart(2, '0');
+const isoDay = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const BANK_CAP = 90; // the rules allow 100; 90 matches the history caps elsewhere in the app
+const bankEntry = (delta) => `${isoDay()}|${delta > 0 ? '+' : ''}${delta}|${auth.currentUser.uid}|${Date.now()}`;
+const nextBank = (cur, delta, e) => ({ m: (cur?.m || 0) + delta, l: [...(cur?.l || []).slice(-(BANK_CAP - 1)), e] });
+
+async function bankMoney(delta, cur) {
+  const e = bankEntry(delta), next = nextBank(cur, delta, e);
+  await updateDoc(ref(), (cur?.l || []).length < BANK_CAP ? { 'b.m': increment(delta), 'b.l': arrayUnion(e) } : { b: next });
+  const c = readCache(auth.currentUser.uid);
+  if (c) writeCache(auth.currentUser.uid, c.tasks, { ...c.profile, b: next });
+  return next;
+}
+
+// The workspace pot: w/<your uid>, you are the owner. Members are uids; names come from nameOf.
+const wsRef = () => doc(db, 'w', auth.currentUser.uid);
+async function wsCreate() { await setDoc(wsRef(), { m: [auth.currentUser.uid], b: 0, l: [] }); }
+async function wsAdd(name) {
+  name = String(name).trim().toLowerCase();
+  if (!NAME_RE.test(name)) throw new Error('invalid');
+  const c = await getDoc(doc(db, 'u', name));
+  if (!c.exists() || !c.data().u) throw new Error('unknown');
+  if (c.data().u === auth.currentUser.uid) throw new Error('me');
+  await updateDoc(wsRef(), { m: arrayUnion(c.data().u) });
+}
+async function wsDel(uid) { await updateDoc(wsRef(), { m: arrayRemove(uid) }); }
+async function wsMoney(id, delta, cur) {
+  const e = bankEntry(delta), next = nextBank(cur, delta, e);
+  await updateDoc(doc(db, 'w', id), (cur?.l || []).length < BANK_CAP ? { b: increment(delta), l: arrayUnion(e) } : { b: next.m, l: next.l });
+  return next;
+}
+// Every pot whose member list contains you, live (member add/remove shows up here too). Returns the unsubscribe.
+const wsWatch = (onNext, onErr) => onSnapshot(query(collection(db, 'w'), where('m', 'array-contains', auth.currentUser.uid)), onNext, onErr);
+
+// Username for a uid: claims store only name -> uid, so run the reverse query once per uid and keep the answer
+const names = new Map();
+function nameOf(uid) {
+  if (!names.has(uid)) names.set(uid, getDocs(query(collection(db, 'u'), where('u', '==', uid), limit(1))).then((s) => (s.empty ? '' : s.docs[0].id)).catch(() => ''));
+  return names.get(uid);
+}
+
 // First login: pick a free username from the Google name or email
 async function claim(user) {
   const base = (user.displayName || user.email?.split('@')[0] || 'user').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 14).padEnd(3, '0');
@@ -216,6 +262,7 @@ const adminSet = (uid, days) => setDoc(doc(db, 's', uid), days === 0 ? { p: 'fre
 window.DB = {
   isAdmin, adminFind, adminSet,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt,
+  bankMoney, wsCreate, wsAdd, wsDel, wsMoney, wsWatch, nameOf,
   token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),
   get user() { return auth.currentUser; },
   signIn: () => signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver).catch(e => { if (e.code !== 'auth/popup-closed-by-user') emit('error', 'Sign-in failed: ' + e.code); }),

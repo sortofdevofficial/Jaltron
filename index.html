@@ -29,6 +29,7 @@
       <button class="nav-item" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span><b id="nav-tasks-n">0</b></button>
       <button class="nav-item" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span><b class="live" id="nav-focus-t" hidden>25:00</b></button>
       <button class="nav-item" data-nav="insights"><i class="fa-solid fa-chart-pie"></i><span>Insights</span></button>
+      <button class="nav-item" data-nav="bank"><i class="fa-solid fa-piggy-bank"></i><span>Bank</span></button>
       <button class="nav-item" data-nav="plans"><i class="fa-solid fa-bolt"></i><span>Plans</span><b id="nav-plan">Free</b></button>
       <button class="nav-item nav-ai" id="nav-ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Ask AI</span></button>
     </div>
@@ -247,6 +248,30 @@
     </div>
   </section>
 
+  </div>
+  <div class="page" data-page="bank">
+  <div class="bk-off hud" id="bk-off" hidden>
+    <strong>Sign in to use the bank</strong>
+    <p class="sub">Your fake money and workspace pots live in your account.</p>
+    <button class="btn primary" id="bk-signin"><i class="fa-brands fa-google"></i> Sign in</button>
+  </div>
+  <div class="bk-grid" id="bk-main" hidden>
+    <section class="hud panel">
+      <div class="panel-title"><span><i class="fa-solid fa-piggy-bank"></i> My bank</span><span class="sub">Fake money, just for fun</span></div>
+      <div class="bk-balance"><span class="sub">Balance</span><b id="bk-mine">$0</b></div>
+      <div class="bk-controls">
+        <input type="number" id="bk-amt" min="1" max="1000000" inputmode="numeric" placeholder="Amount" aria-label="Amount">
+        <button class="btn primary" id="bk-add"><i class="fa-solid fa-plus"></i> Add</button>
+        <button class="btn" id="bk-take"><i class="fa-solid fa-minus"></i> Remove</button>
+      </div>
+      <div class="bk-chips" id="bk-chips"><button type="button">+$10</button><button type="button">+$50</button><button type="button">+$100</button><button type="button">-$50</button></div>
+      <div class="bk-log" id="bk-log"></div>
+    </section>
+    <section class="hud panel">
+      <div class="panel-title"><span><i class="fa-solid fa-users"></i> Workspace pot</span><button class="btn primary" id="bk-ws-new" hidden><i class="fa-solid fa-plus"></i> Create pot</button></div>
+      <div id="bk-ws"></div>
+    </section>
+  </div>
   </div>
   <div class="page" data-page="tasks">
   <main class="grid">
@@ -484,6 +509,7 @@
   <script src="ai.js"></script>
   <script src="lib.js"></script>
   <script src="extras.js"></script>
+  <script src="bank.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

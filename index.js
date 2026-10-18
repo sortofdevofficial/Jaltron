@@ -528,6 +528,8 @@ function applyActions(actions) {
     else if (a.type === 'due') tasks = tasks.map(t => t.id === a.id ? { ...t, due: a.due || '' } : t);
     else if (a.type === 'tag' && catList().includes(a.tag)) tasks = tasks.map(t => t.id === a.id ? { ...t, tag: a.tag } : t);
     else if (a.type === 'search') { query = String(a.q || ''); $('search').value = query; }
+    else if (a.type === 'deposit' && a.n && window.Bank) Bank.deposit(Number(a.n));
+    else if (a.type === 'withdraw' && a.n && window.Bank) Bank.withdraw(Number(a.n));
     else if (a.type === 'optimize') tasks.sort((x, y) => (x.done !== y.done) ? (x.done ? 1 : -1) : score(y) - score(x));
     else if (a.type === 'filter') {
       if (a.status) currentFilter = a.status;

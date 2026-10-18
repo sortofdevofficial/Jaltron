@@ -120,13 +120,14 @@
   setInterval(() => Habit.tickResets(), 20000);
 
   // ---------- Navigation ----------
-  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans' };
+  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans', bank: 'Bank' };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
     document.querySelectorAll('[data-nav]').forEach(x => { const on = x.dataset.nav === p; x.classList.toggle('active', on); on ? x.setAttribute('aria-current', 'page') : x.removeAttribute('aria-current'); });
     $('page-title').textContent = PAGES[p];
     Focus.title(`${PAGES[p]} | JALTRON`); Focus.pageChanged();
+    window.Bank && Bank.pageChanged();
     if (location.hash !== '#' + p) history.replaceState(null, '', '#' + p);
     if (!quiet) scrollTo({ top: 0 });
   }
@@ -204,6 +205,7 @@
     { i: 'house', l: 'Go to Home', k: 'dashboard', run: () => go('home') },
     { i: 'list-check', l: 'Go to Tasks', k: 'board list', run: () => go('tasks') },
     { i: 'chart-pie', l: 'Go to Insights', k: 'charts streaks', run: () => go('insights') },
+    { i: 'piggy-bank', l: 'Go to Bank', k: 'money workspace pot', run: () => go('bank') },
     { i: 'plus', l: 'New task', k: 'add create', run: newTask },
     { i: 'comment-dots', l: 'Open AI chat', k: 'ask assistant', run: () => jaltron.openChat(true) },
     { i: 'stopwatch', l: 'Go to Focus timer', k: 'pomodoro timer', run: () => go('focus') },

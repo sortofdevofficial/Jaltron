@@ -149,12 +149,14 @@ root.catReply = () => {
 // Question/answer knowledge lives in knowledge.js. This file covers actions on your tasks.
 // Intents: add complete delete reopen prio due tag search breakdown plan first summary overdue
 //          optimize clear_done complete_all help greet thanks motivate chat unknown
+//          deposit withdraw balance (fake bank — the regex cascade answers exact phrasing, the net catches fuzzy ones)
 (function (root) {
   root.TRAIN = {
     slots: {
       task: ['fix login bug', 'study math', 'read chapter 3', 'call mom', 'write the report', 'deploy the plugin', 'clean my room', 'finish homework', 'update the server', 'buy milk', 'revise biology', 'build the navbar', 'test the api', 'practice guitar', 'pay hosting bill', 'backup the world', 'code the dashboard', 'email the teacher', 'fix lag issue', 'learn javascript', 'submit the assignment', 'prepare the presentation', 'review pull requests', 'set up the database', 'write unit tests', 'design the logo', 'plan the event', 'organize my notes', 'refactor the code', 'update the website', 'renew the domain', 'fix the crash', 'study for the exam', 'do the laundry', 'go to the gym', 'book the appointment', 'make a discord bot', 'add the whitelist', 'configure geyser', 'write the essay', 'clean the desk', 'check the logs', 'reply to messages', 'record the video', 'publish the update', 'fix the spawn bug', 'learn python', 'read the article', 'cook dinner', 'buy groceries', 'walk the dog', 'finish the project', 'practice coding', 'create the poster', 'update the readme', 'test the plugin', 'fix the css', 'solve the worksheet', 'plan the week', 'pay the bills'],
       when: ['tomorrow', 'today', 'friday', 'monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday', 'next week', 'in 3 days', 'in 2 days', 'in 5 days', 'tmrw', 'tmr', '2026-10-25', '2026-11-02'],
       cat: ['study', 'dev', 'bug', 'general'],
+      money: ['5', '10', '20', '25', '50', '75', '100', '250', '500', '1000'],
       subject: ['study', 'work', 'coding', 'homework', 'project', 'exam', 'server']
     },
     templates: {
@@ -174,6 +176,9 @@ root.catReply = () => {
       optimize: ['optimize my plan', 'sort my tasks', 'reorder by priority', 'organize by importance', 'smart sort', 'rank my tasks', 'sort by priority', 'fix the order of my tasks', 'tidy up my list'],
       clear_done: ['clear completed', 'remove all done tasks', 'clean up finished tasks', 'delete completed tasks', 'get rid of done stuff', 'clear finished tasks', 'wipe done tasks'],
       complete_all: ['complete everything', 'mark all as done', 'finish all tasks', 'tick everything off', 'mark every task complete', 'all done'],
+      deposit: ['deposit {money}', 'deposit {money} to the bank', 'add {money} to the bank', 'put {money} in my bank', 'add {money} dollars to bank', 'deposit {money} into my account', 'bank deposit {money}', 'i want to deposit {money}'],
+      withdraw: ['withdraw {money}', 'withdraw {money} from the bank', 'take {money} from the bank', 'remove {money} from bank', 'subtract {money} from the bank', 'take out {money} from my bank', 'bank withdraw {money}', 'i want to withdraw {money}'],
+      balance: ['whats my balance', 'how much money do i have', 'balance', 'bank balance', 'how much is in my bank', 'show my balance', 'how much money', 'my money', 'how much do i have in the bank'],
       help: ['what can you do', 'help', 'how do you work', 'show commands', 'what are your features', 'how do i use you', '?', 'commands', 'help me', 'what do you do'],
       greet: ['hi', 'hello', 'hey bro', 'yo', 'good morning', 'sup', 'hey there', 'hola', 'good evening', 'hey jaltron', 'hii', 'heyy', 'good afternoon', 'whats up', 'wsp', 'wassup', 'wazzup', 'whaddup', 'what is up', "what's up", 'whats good', 'howdy', 'howdy partner', 'hiya', 'heya', 'hey hey', 'yoo', 'yooo', 'yo yo', 'ello', 'hullo', 'greetings', 'salutations', 'g\'day', 'gm', 'good night', 'morning', 'evening', 'afternoon', 'how are you', 'how are you doing', 'how r u', 'hru', 'how is it going', 'hows it going', 'how you doing', 'whats going on', 'wyd', 'what are you up to', 'wsg', 'wsup', 'sup bro', 'sup dude', 'hey buddy', 'hey man', 'hello there', 'namaste', 'namaskar', 'salaam', 'bonjour', 'ciao', 'hey whats up', 'yo whats up', 'well hello', 'oi', 'ayo', 'ayyy', 'hi there', 'hello jaltron', 'long time no see', 'nice to meet you', 'anyone there', 'you there', 'are you there', 'ping'],
       thanks: ['thanks', 'thank you', 'thx', 'ty bro', 'cheers', 'appreciate it', 'nice one', 'great job', 'awesome thanks', 'perfect', 'you are the best', 'thanks a lot'],
@@ -198,7 +203,7 @@ root.catReply = () => {
 (function (root) {
   'use strict';
   const DIM = 4096, HID = 128, EPOCHS = 16;
-  const BASE = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'unknown'];
+  const BASE = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'deposit', 'withdraw', 'balance', 'unknown'];
   let INTENTS = BASE.slice(), K = INTENTS.length;
   let W1, b1, W2, b2, ready = false, seed = 1;
 
@@ -435,6 +440,9 @@ const ADD_RE = /^(?:please\s+|pls\s+|can you\s+|could you\s+)?(?:add|create|put|
 const SPLIT_RE = /\s*(?:,|;|\bthen\b|\balso\b)\s*|\s+and\s+(?=(?:add|fix|study|read|learn|finish|write|build|call|buy|do|make|clean|review|prepare|practice)\b)/i;
 const LIST_TAIL = /\s+(?:to|on|in|into)\s+(?:my\s+)?(?:list|plan|tasks?|to-?do(?: list)?)$/i;
 const ASK_TITLE = 'What should the task say? Try "add fix login bug tomorrow high".';
+// Fake bank phrases. "add N to bank" must die here, or ADD_RE turns it into a task.
+const BANK_DEP_RE = /^(?:deposit\s+\$?\s*([\d,]+)|(?:add|put)\s+\$?\s*([\d,]+)\s*(?:dollars?|bucks?)?\s*(?:(?:to|into|in)\s+(?:the\s+|my\s+)?)?(?:bank|account|wallet))\s*$/i;
+const BANK_WD_RE = /^(?:withdraw\s+\$?\s*([\d,]+)\s*(?:dollars?|bucks?)?\s*(?:(?:from|of)\s+(?:the\s+|my\s+)?)?(?:bank|account|wallet)?|(?:take(?:\s+out)?|remove|subtract)\s+\$?\s*([\d,]+)(?:\s+out)?\s*(?:dollars?|bucks?)?\s*(?:from|of)\s+(?:the\s+|my\s+)?(?:bank|account|wallet))\s*$/i;
 const say = (reply, actions = []) => ({ reply, actions });
 const GREET_RE = /^(?:(?:well|hey|hi|oh|ok|okay|so)\s+)*(?:hi+|hello+|hullo|ello|hey+(?: (?:hey|there|bro|man|buddy|dude|jaltron|whats up|what's up))?|heya|hiya|yo+(?: yo)?|ayo+|ay+|oi|sup|wsp|wsup|wsg|wassup|wazzup|whaddup|whats up|what's up|what is up|whats good|whats going on|howdy(?: partner)?|hola|ciao|bonjour|namaste|namaskar|salaam|greetings|salutations|g'day|gm|morning|evening|afternoon|good (?:morning|afternoon|evening|night)|how (?:are|r) (?:you|u)(?: doing)?|hru|how you doing|how is it going|hows it going|wyd|what are you up to|long time no see|nice to meet you|anyone there|(?:are )?you there|ping)(?: (?:there|bro|man|buddy|dude|mate|jaltron|partner|everyone|all|today))*$/;
 
@@ -461,6 +469,19 @@ function respond(msg, tasksIn, history) {
     const hr = new Date().getHours(), part = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
     const g = [part + '!', 'Hey!', 'Yo!', 'Howdy!', 'Hey there!', 'Hello!'];
     return say(g[Math.floor(Math.random() * g.length)] + open1 + ' Say "what can you do" for the full list.');
+  }
+
+  // Fake bank: matched before the task verbs so "add 50 to bank" moves money, not a new task
+  if (window.Bank && (BANK_DEP_RE.test(m) || BANK_WD_RE.test(m) || /\bbalance\b|\bhow much money\b|\bmy money\b/.test(l))) {
+    if (!window.DB || !DB.user) return say('The fake bank needs an account. Sign in with Google first.');
+    const dep = m.match(BANK_DEP_RE), wd = dep ? null : m.match(BANK_WD_RE);
+    if (dep || wd) {
+      const n = Number(((dep || wd)[1] || (dep || wd)[2] || '').replace(/,/g, ''));
+      if (!n || n > 1e6) return say('Give me a whole number from 1 to 1,000,000, like "add 50 to bank".');
+      return say(`${dep ? 'Added' : 'Withdrew'} $${n.toLocaleString()} ${dep ? 'to' : 'from'} your fake bank.`, [{ type: dep ? 'deposit' : 'withdraw', n }]);
+    }
+    const s = Bank.snapshot();
+    return say(`Your fake bank holds ${s.mine}.${s.pot ? ` A workspace pot you are in holds ${s.pot}.` : ''} Say "add 50 to bank" or "withdraw 20" to move money.`);
   }
 
   if (/\b(clear|remove|delete)\b.*\b(completed|done|finished)\b/.test(l)) {
@@ -597,7 +618,7 @@ function neuralRespond(text, tasks) {
   }
   let intent = p.intent;
   if (intent === 'reopen' && /\b(finished|finish|done|completed)\b/i.test(text) && !/\b(not|didnt|did not|never|still|yet)\b/i.test(text)) intent = 'complete';
-  const canned = { plan: 'plan my day', first: 'what should i do first', summary: 'summary', overdue: "what's overdue", help: 'what can you do', greet: 'hi', thanks: 'thanks', optimize: 'optimize', clear_done: 'clear completed', complete_all: 'complete all' };
+  const canned = { plan: 'plan my day', first: 'what should i do first', summary: 'summary', overdue: "what's overdue", help: 'what can you do', greet: 'hi', thanks: 'thanks', optimize: 'optimize', clear_done: 'clear completed', complete_all: 'complete all', balance: 'balance' };
   const strip = (s, extra) => s.replace(extra, ' ').replace(/\b(?:bro|pls|please|can you|could you|i|im|just|already|the|my|a|an|task|tasks|is|are|was|now|lol|from|list|on|it|me|to|of)\b/gi, ' ').replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
   const known = (t) => t && Brain.find(tasks, t);
   let cmd = canned[intent] || null, res = null, t;
@@ -628,6 +649,8 @@ function neuralRespond(text, tasks) {
       if (!known(t)) return null; cmd = `tag ${t} as ${c}`; break;
     }
     case 'breakdown': t = strip(text, /\b(?:break down|split|steps|how do finish|how should approach|help start|into|how)\b/gi); cmd = 'break down' + (t ? ' ' + t : ''); break;
+    case 'deposit': { const n = (text.match(/\d[\d,]*/) || [])[0]; if (!n) return null; cmd = `deposit ${n}`; break; }
+    case 'withdraw': { const n = (text.match(/\d[\d,]*/) || [])[0]; if (!n) return null; cmd = `withdraw ${n}`; break; }
   }
   if (!res) { if (!cmd) return null; res = Brain.respond(cmd, tasks, []); if (res.unknown) return null; }
   return { ...res, reply: res.reply + `\n(AI read this as "${intent}", ${Math.round(p.conf * 100)}% sure)` };
