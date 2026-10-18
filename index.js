@@ -103,7 +103,8 @@ function render() {
   $('progress-text').textContent = `${pct}% (${done}/${total})`;
   renderInsights();
   applyCover();
-  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, focus: profile.f || {}, setFocus: (f) => { profile.f = f; if (window.DB && DB.user && DB.setFocus) DB.setFocus(f); }, canSavePet: !syncing, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
+  trackImages();
+  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, art: profile.y ? Img.parts(profile.y).u : '', focus: profile.f || {}, setFocus: (f) => { profile.f = f; if (window.DB && DB.user && DB.setFocus) DB.setFocus(f); }, canSavePet: !syncing, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
 
   const q = query.toLowerCase();
   const filtered = tasks.filter(t => {
@@ -367,7 +368,7 @@ function renderCats() {
 // Profile icon, email and name come straight from Google sign-in; only the username is ours
 function avatar(user, cls = '') {
   const initial = escapeHtml((profile.n || user.email || '?')[0].toUpperCase());
-  const src = profile.a ? Img.full(profile.a) : user.photoURL;
+  const src = profile.a ? Img.parts(profile.a).u : user.photoURL;
   return src ? `<img class="avatar ${cls}" src="${escapeHtml(src)}" alt="" referrerpolicy="no-referrer">` : `<span class="avatar ${cls}">${initial}</span>`;
 }
 function renderAccount() {
@@ -385,7 +386,7 @@ function renderAccount() {
 }
 addEventListener('jaltron:user', (e) => {
   const { user, tasks: saved, profile: p } = e.detail;
-  bootName = ''; syncing = !!e.detail.loading;
+  bootName = ''; syncing = !!e.detail.loading; imgPrev = null; // new data arrived: not a deletion
   tasks = Habit.rollover(saved).tasks; profile = p; custom = p.k;
   nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
   fillCats(); renderAccount(); render();
@@ -469,7 +470,7 @@ function openEdit(id) {
   $('ed-due').value = t.due || '';
   $('ed-rep').value = t.r || '';
   $('ed-streak').textContent = streakLine(t);
-  ed.list = (t.i || []).slice(); ed.busy = 0; ed.render();
+  ed.list = (t.i || []).slice(); ed.busy = 0; ed.orig = new Set(ed.list); ed.saved = false; ed.render();
   $('ed-reset').style.display = t.r ? '' : 'none';
   $('edit-dlg').showModal();
   $('ed-title').focus();
@@ -483,6 +484,7 @@ $('edit-form').addEventListener('submit', (e) => {
     if (t.id !== editTaskId) return t;
     const r = $('ed-rep').value;
     let n = { ...t, title, prio: $('ed-prio').value, tag: $('ed-tag').value || t.tag, due: $('ed-due').value || '', r, i: ed.list.slice() };
+    ed.saved = true;
     if (r && !t.r) { const day = t.z || Habit.today(); n = { ...n, s: t.done ? 1 : 0, b: t.done ? 1 : 0, l: t.done ? day : '', h: t.done ? [day] : [] }; }
     if (!r) n = { ...n, s: 0, b: 0, l: '', h: [] };
     return n;
@@ -592,7 +594,18 @@ setInterval(dayCheck, 60000);
 setInterval(() => Habit.tickResets(), 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) dayCheck(); });
 
-// ---- Images (ImgBB, see upload.js). Stored as short "path|thumb" strings in task.i ----
+// ---- Images (ImgBB, see upload.js). Stored as short "path|thumb|delete code" strings in task.i ----
+// When a picture disappears from every task and from your profile, its ImgBB copy is deleted too.
+// The 7 second wait keeps "Undo" working: undoing puts the picture back before anything is deleted.
+let imgPrev = null, imgNow = new Set();
+function trackImages() {
+  const cur = new Set(), add = (s) => { const d = s && Img.delId(s); if (d) cur.add(d); };
+  tasks.forEach(t => (t.i || []).forEach(add));
+  add(profile.a); add(profile.c); add(profile.y);
+  imgNow = cur;
+  if (imgPrev) imgPrev.forEach(d => { if (!cur.has(d)) setTimeout(() => { if (!imgNow.has(d)) Img.remove(d); }, 7000); });
+  imgPrev = cur;
+}
 let cardTarget = null;
 const upBusy = new Map(); // task id -> pictures still uploading
 const picsHtml = (t) => (t.i && t.i.length
@@ -612,6 +625,7 @@ const thumbsHtml = (list, busy) => list.map((p, k) =>
 const mkStore = (thumbsId, dropId) => ({ list: [], busy: 0,
   render() { $(thumbsId).innerHTML = thumbsHtml(this.list, this.busy); $(dropId).disabled = this.list.length + this.busy >= Img.MAX; } });
 const qa = mkStore('qa-thumbs', 'qa-drop'), ed = mkStore('ed-thumbs', 'ed-drop');
+ed.orig = new Set(); ed.saved = true;
 
 async function attachFiles(files, store) {
   files = [...files].filter(f => f.type.startsWith('image/'));
@@ -650,7 +664,11 @@ function bindStore(store, dropId, fileId, thumbsId) {
   dz.addEventListener('drop', (e) => { e.preventDefault(); dz.classList.remove('over'); attachFiles(e.dataTransfer.files, store); });
   $(thumbsId).addEventListener('click', (e) => {
     const rm = e.target.closest('[data-rm]'), pv = e.target.closest('[data-pv]');
-    if (rm) { store.list.splice(Number(rm.dataset.rm), 1); store.render(); }
+    if (rm) {
+      const [gone] = store.list.splice(Number(rm.dataset.rm), 1);
+      if (!store.orig || !store.orig.has(gone)) Img.remove(Img.delId(gone)); // never saved on a task, so delete it right away
+      store.render();
+    }
     else if (pv) Img.open(store.list, Number(pv.dataset.pv), (n) => { store.list.splice(n, 1); store.render(); return store.list; });
   });
 }
@@ -680,9 +698,20 @@ document.addEventListener('paste', (e) => {
   if ($('edit-dlg').open) { e.preventDefault(); attachFiles(files, ed); }
   else if (document.activeElement === $('task-title')) { e.preventDefault(); attachFiles(files, qa); }
 });
+// Closing the editor without saving: pictures added just now were never kept, so delete them
+$('edit-dlg').addEventListener('close', () => { if (!ed.saved) ed.list.forEach(s => { if (!ed.orig.has(s)) Img.remove(Img.delId(s)); }); ed.saved = true; });
+// Draw your pet
+$('pet-draw').addEventListener('click', () => {
+  if (!(window.DB && DB.user)) return toast('Sign in to draw and save your pet.');
+  Draw.open({
+    src: profile.y ? Img.parts(profile.y).u : '',
+    onSave: async (file) => { const s = await Img.upload(file); profile.y = s; DB.setPetArt(s); render(); toast('Your pet is saved'); },
+    onReset: () => { profile.y = ''; DB.setPetArt(''); render(); toast('Back to Jalty'); }
+  });
+});
 // Home cover picture
 function applyCover() {
-  const hero = $('hero'), c = profile && profile.c ? Img.full(profile.c) : '';
+  const hero = $('hero'), c = profile && profile.c ? Img.parts(profile.c).u : '';
   hero.style.setProperty('--cover', c ? `url("${encodeURI(c)}")` : 'none');
   hero.classList.toggle('has-cover', !!c);
   $('cover-reset').hidden = !c;
@@ -692,7 +721,7 @@ $('cover-file').addEventListener('change', async (e) => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
   toast('Uploading cover...');
-  try { profile.c = (await Img.upload(f)).split('|')[0]; DB.setCover(profile.c); applyCover(); toast('Cover updated'); }
+  try { profile.c = await Img.upload(f); DB.setCover(profile.c); applyCover(); toast('Cover updated'); }
   catch (err) { toast(err.message || 'Upload failed. Try again.'); }
 });
 $('cover-reset').addEventListener('click', () => { profile.c = ''; DB.setCover(''); applyCover(); toast('Cover removed'); });
@@ -702,7 +731,7 @@ $('av-file').addEventListener('change', async (e) => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
   setMsg('Uploading picture...', true);
-  try { profile.a = (await Img.upload(f, { square: 256 })).split('|')[0]; DB.setAvatar(profile.a); renderAccount(); setMsg('Picture updated.', true); }
+  try { profile.a = await Img.upload(f, { square: 256 }); DB.setAvatar(profile.a); renderAccount(); setMsg('Picture updated.', true); }
   catch (err) { setMsg(err.message || 'Upload failed. Try again.'); }
 });
 $('av-reset').addEventListener('click', () => { profile.a = ''; DB.setAvatar(''); renderAccount(); setMsg('Using your Google photo.', true); });

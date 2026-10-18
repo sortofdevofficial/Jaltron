@@ -94,6 +94,9 @@
     else if (stage >= 3) extra += `<line x1="50" y1="${top + 1}" x2="50" y2="${top - 9}" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round"/><circle class="tip" cx="50" cy="${top - 11}" r="3.4" fill="#fde047"/>`;
     return `<svg viewBox="0 0 100 100" class="pet-svg" aria-hidden="true">${defs}${shadow}<g class="bob">${back}${front}${body}${extra}</g>${awake ? '' : '<text x="78" y="26" class="zz">z</text>'}</svg>`;
   }
+  // A drawn pet: same growth stages, shown bigger as the streak grows
+  const PET_SCALE = [0.62, 0.68, 0.76, 0.84, 0.91, 0.96, 1];
+  const petImg = (src, stage, awake) => `<img class="pet-img${awake ? '' : ' sleepy'}" style="--s:${PET_SCALE[stage]}" src="${esc(src)}" alt="Your pet">${awake ? '' : '<span class="zz-ov">z</span>'}`;
   function petUpdate(map, day, c) {
     const derived = [...map.values()].filter(v => v > 0).length, doneToday = (map.get(day) || 0) > 0;
     const before = JSON.stringify(c.pet || {});
@@ -108,8 +111,13 @@
     petN = n; petAwake = doneToday;
     $('sk-now').textContent = n; $('sk-best').textContent = Math.max(p.b || 0, p.r || 0);
     $('pet-side-n').textContent = n;
-    const key = st + ':' + doneToday;
-    if (key !== petKey) { petKey = key; $('pet-art').innerHTML = petSvg(st, doneToday); $('pet-side-art').innerHTML = petSvg(st, doneToday); }
+    const art = c.art || '', key = st + ':' + doneToday + ':' + art;
+    if (key !== petKey) {
+      petKey = key;
+      const html = art ? petImg(art, st, doneToday) : petSvg(st, doneToday);
+      $('pet-art').innerHTML = html; $('pet-side-art').innerHTML = html;
+      $('pet-art').classList.toggle('has-img', !!art); $('pet-side-art').classList.toggle('has-img', !!art);
+    }
     $('pet-title').textContent = `Jalty the ${STAGES[st][0]}`;
     $('pet-msg').textContent = doneToday ? `${n}-day streak. Jalty is happy!` : n === 0 ? 'Finish a task to hatch your pet.' : 'Jalty is sleepy. Finish a task today to wake it up.';
     if (st < STAGES.length - 1) {

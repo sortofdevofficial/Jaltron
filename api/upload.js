@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
     const r = await fetch('https://api.imgbb.com/1/upload?key=' + key, { method: 'POST', body: fd });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.success) return fail(502, (j.error && j.error.message) || 'ImgBB rejected the upload.');
-    res.status(200).json({ url: j.data.url, thumb: (j.data.thumb && j.data.thumb.url) || '' });
+    res.status(200).json({ url: j.data.url, thumb: (j.data.thumb && j.data.thumb.url) || '', del: j.data.delete_url || '' });
   } catch { fail(502, 'Could not reach ImgBB. Try again.'); }
 };
 module.exports.config = { api: { bodyParser: false } };

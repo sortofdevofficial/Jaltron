@@ -81,6 +81,7 @@
         <span id="pet-msg">Finish a task to hatch your pet.</span>
         <div class="pet-bar" role="progressbar" aria-label="Growth to next stage"><div id="pet-fill"></div></div>
         <small id="pet-next"></small>
+        <button class="btn pet-draw" id="pet-draw"><i class="fa-solid fa-pencil"></i> Draw your pet</button>
       </div>
     </div>
   </section>
@@ -399,12 +400,37 @@
     <div class="lb-bar"><span id="lb-count"></span><button class="lb-del" id="lb-del" hidden><i class="fa-regular fa-trash-can"></i> Remove image</button><a id="lb-open" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-up-right-from-square"></i> Open original</a></div>
   </dialog>
 
+  <dialog id="draw-dlg" class="acct draw-dlg" aria-label="Draw your pet">
+    <div class="acct-head">
+      <div class="acct-id"><i class="fa-solid fa-pencil ed-ico"></i><div><strong>Draw your pet</strong><div class="sub">It grows as your streak grows</div></div></div>
+      <button type="button" class="icon-btn sm" id="dr-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="dr-stage"><canvas id="dr-canvas" width="512" height="512" aria-label="Drawing area"></canvas></div>
+    <div class="dr-tools">
+      <div class="dr-colors" id="dr-colors" role="radiogroup" aria-label="Colors"></div>
+      <label class="dr-pick" title="Custom color"><input type="color" id="dr-custom" value="#22d3ee" aria-label="Custom color"></label>
+    </div>
+    <label class="dr-size"><span>Brush size</span><input type="range" id="dr-size" min="2" max="60" value="14"></label>
+    <div class="dr-row">
+      <button type="button" class="btn on" id="dr-pen"><i class="fa-solid fa-pencil"></i> Draw</button>
+      <button type="button" class="btn" id="dr-erase"><i class="fa-solid fa-eraser"></i> Erase</button>
+      <button type="button" class="btn" id="dr-undo"><i class="fa-solid fa-rotate-left"></i> Undo</button>
+      <button type="button" class="btn" id="dr-clear"><i class="fa-regular fa-trash-can"></i> Clear</button>
+    </div>
+    <div class="dr-row end">
+      <button type="button" class="btn" id="dr-reset" hidden><i class="fa-solid fa-paw"></i> Back to Jalty</button>
+      <button type="button" class="btn primary" id="dr-save"><i class="fa-solid fa-floppy-disk"></i> Save pet</button>
+    </div>
+    <p class="sub" id="dr-msg" aria-live="polite"></p>
+  </dialog>
+
   <canvas id="fx" aria-hidden="true"></canvas>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="icons.js"></script>
   <script src="ai.js"></script>
   <script src="habits.js"></script>
   <script src="upload.js"></script>
+  <script src="draw.js"></script>
   <script src="focus.js"></script>
   <script src="extras.js"></script>
   <script src="index.js"></script>

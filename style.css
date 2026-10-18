@@ -569,3 +569,27 @@ html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 .content { padding-left: max(1.5rem, env(safe-area-inset-left)); padding-right: max(1.5rem, env(safe-area-inset-right)); }
 .hero h2 { font-size: clamp(1.5rem, 1rem + 1.6vw, 2.2rem); }
 @media (max-width: 700px) { .content { padding-left: max(.75rem, env(safe-area-inset-left)); padding-right: max(.75rem, env(safe-area-inset-right)); } }
+
+/* ---------- Draw your pet ---------- */
+.pet-draw { align-self: flex-start; margin-top: .5rem; }
+.pet-img { display: block; width: calc(100% * var(--s, 1)); height: calc(100% * var(--s, 1)); object-fit: contain; margin: auto auto 0; transform-origin: 50% 100%; animation: pet-bob 2.6s ease-in-out infinite; }
+.pet-img.sleepy { filter: grayscale(.55) brightness(.86); animation: none; }
+.has-img { position: relative; display: flex; align-items: flex-end; justify-content: center; }
+.zz-ov { position: absolute; top: 4%; right: 10%; font: 700 .8rem 'Exo 2', sans-serif; color: var(--muted); animation: pet-z 2.6s ease-in-out infinite; }
+.draw-dlg { width: min(30rem, 94vw); }
+.dr-stage { display: grid; place-items: center; }
+#dr-canvas { width: min(100%, 26rem); aspect-ratio: 1; touch-action: none; cursor: crosshair; border: 1.5px dashed var(--border-hover); border-radius: 1rem; background-color: var(--panel); background-image: linear-gradient(45deg, rgba(128,150,170,.16) 25%, transparent 25%, transparent 75%, rgba(128,150,170,.16) 75%), linear-gradient(45deg, rgba(128,150,170,.16) 25%, transparent 25%, transparent 75%, rgba(128,150,170,.16) 75%); background-size: 1.25rem 1.25rem; background-position: 0 0, .625rem .625rem; }
+.dr-tools { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.dr-colors { display: flex; gap: .4rem; flex-wrap: wrap; flex: 1; }
+.dr-sw { width: 1.75rem; height: 1.75rem; border-radius: 50%; border: 2px solid var(--border-hover); padding: 0; transition: transform .15s; }
+.dr-sw:hover { transform: scale(1.12); }
+.dr-sw.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--accent); }
+.dr-pick { width: 1.75rem; height: 1.75rem; border-radius: 50%; overflow: hidden; border: 2px solid var(--border-hover); display: block; }
+.dr-pick input { width: 200%; height: 200%; margin: -25%; padding: 0; border: none; background: none; cursor: pointer; }
+.dr-size { display: flex; align-items: center; gap: .75rem; color: var(--muted); font-size: .75rem; }
+.dr-size input { flex: 1; padding: 0; accent-color: var(--accent); }
+.dr-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.dr-row.end { justify-content: flex-end; }
+.dr-row .btn.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel-2)); }
+#dr-msg { min-height: 1rem; color: var(--danger); }
+#dr-msg[data-ok="1"] { color: var(--ok); }

@@ -1,13 +1,22 @@
 'use strict';
 // JALTRON images: upload to ImgBB through /api/upload (the key stays on the server), keep Firestore small, and view pictures in a lightbox.
-// Stored form (one short string per picture): "<path>|<thumb path>", e.g. "Ab3dEf/photo.jpg|Gh5jKl/photo.jpg"
+// Stored form (one short string per picture): "<path>|<thumb path>|<delete code>", e.g. "Ab3dEf/photo.jpg|Gh5jKl/photo.jpg|Xy12/9f8e..."
 // The common "https://i.ibb.co/" start is removed when saving and added back when showing.
 (function (root) {
   const MAX = 4;                                   // pictures per task
   const HOST = 'https://i.ibb.co/';
   const short = (u) => (u && u.startsWith(HOST) ? u.slice(HOST.length) : u || '');
   const full = (s) => (!s ? '' : /^https?:/.test(s) ? s : HOST + s);
-  const parts = (s) => { const [u, t] = String(s).split('|'); return { u: full(u), t: full(t || u) }; };
+  const parts = (s) => { const [u, t, d] = String(s).split('|'); return { u: full(u), t: full(t || u), d: d || '' }; };
+  const delId = (s) => (s ? String(s).split('|')[2] || '' : '');
+  // Remove the picture from ImgBB too (best effort: it never blocks the person using the site)
+  async function remove(d) {
+    try {
+      const token = root.DB && (await root.DB.token());
+      if (!token || !d) return;
+      await fetch('/api/delete', { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ d }), keepalive: true });
+    } catch {}
+  }
 
   // Shrink big photos in the browser: faster upload, less data. GIFs keep their animation.
   async function shrink(file, square) {
@@ -54,7 +63,8 @@
     if (!file || !/^image\//.test(file.type)) throw new Error('Choose an image file (JPG, PNG, GIF or WebP).');
     if (file.size > 25e6) throw new Error('That picture is over 25 MB.');
     const data = await send(await shrink(file, opt.square));
-    const u = short(data.url), t = data.thumb ? short(data.thumb) : '';
+    const u = short(data.url), t = data.thumb ? short(data.thumb) : '', d = (data.del || '').replace(/^https?:\/\/(?:www\.)?ibb\.co\//, '');
+    if (d) return `${u}|${t !== u ? t : ''}|${d}`;
     return t && t !== u ? `${u}|${t}` : u;
   }
 
@@ -88,5 +98,5 @@
   $('lightbox').addEventListener('keydown', (e) => { if (LB.list.length > 1 && e.key === 'ArrowLeft') step(-1); if (LB.list.length > 1 && e.key === 'ArrowRight') step(1); });
   $('lightbox').addEventListener('close', () => { $('lb-img').removeAttribute('src'); });
 
-  root.Img = { MAX, upload, parts, short, full, open };
+  root.Img = { MAX, upload, parts, short, full, open, delId, remove };
 })(window);
