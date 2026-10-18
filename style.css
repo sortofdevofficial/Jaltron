@@ -38,7 +38,7 @@ button { cursor: pointer; }
 [hidden] { display: none !important; }
 kbd { font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; padding: 1px 0.375rem; border-radius: 0.3125rem; border: 1px solid var(--border); background: var(--panel-2); color: var(--muted); }
 
-/* Icons: drawn by icons.js (built in, no outside server) */
+/* Icons: drawn by the built-in icon block in lib.js (no outside server) */
 i[class*="fa-"] { font-style: normal; display: inline-flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0; }
 i[class*="fa-"] > svg { width: 1em; height: 1em; fill: currentColor; display: block; overflow: visible; }
 .fa-spin { animation: fa-spin 1s linear infinite; }
