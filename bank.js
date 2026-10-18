@@ -12,6 +12,9 @@
   const dayShort = (iso) => new Date(iso + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   const AMT_MSG = 'Enter a whole number from 1 to 1,000,000';
   const ADD_ERR = { invalid: 'Usernames are 3 to 20 letters, numbers or _.', unknown: 'No account with that name.', me: 'That is you — you already run this pot.' };
+  // The w collection is only reachable once the updated firestore.rules are published; say so instead of blaming the network
+  const isPerm = (e) => !!e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
+  const why = (e) => isPerm(e) ? 'Firestore rules are missing the workspace block — publish the updated firestore.rules in the Firebase console, then reload.' : 'Check your connection.';
 
   let signedIn = false, mine = { m: 0, l: [] }, pots = [], potsReady = false, potErr = false;
   let unwatch = null, watchUid = null, busy = false, creating = false;
@@ -46,7 +49,7 @@
       if (inp) inp.value = '';
       paint();
       toast(`${delta > 0 ? 'Added' : 'Removed'} ${fmt(Math.abs(delta))} — balance ${fmt(mine.m)}`);
-    } catch { toast('Could not save. Check your connection.'); }
+    } catch (err) { toast('Could not save. ' + why(err)); }
     busy = false;
   }
 
@@ -75,7 +78,8 @@
     const own = pots.find(p => p.id === uid);
     $('bk-ws-new').hidden = !(signedIn && potsReady && !own && !potErr);
     if (!signedIn) { $('bk-ws').innerHTML = ''; return; }
-    if (potErr) { $('bk-ws').innerHTML = '<p class="sub">Could not load pots. Check your connection or the Firestore rules.</p>'; return; }
+    if (potErr === 'rules') { $('bk-ws').innerHTML = '<p class="sub">Workspace pots are blocked by Firestore rules. Publish the updated firestore.rules in the Firebase console, then reload this page.</p>'; return; }
+    if (potErr) { $('bk-ws').innerHTML = '<p class="sub">Could not load pots. Check your connection.</p>'; return; }
     if (!potsReady) { $('bk-ws').innerHTML = '<p class="sub">Looking for pots…</p>'; return; }
     const cards = [own, ...pots.filter(p => p.id !== uid)].filter(Boolean).map(p => potCard(p, uid)).join('');
     $('bk-ws').innerHTML = cards || '<div class="empty"><i class="fa-solid fa-users"></i>No pot yet. Create one, then add people by their username.</div>';
@@ -97,7 +101,7 @@
     if (uid === watchUid) return;
     if (unwatch) { unwatch(); unwatch = null; }
     watchUid = uid; pots = []; potsReady = false; potErr = false;
-    if (uid) unwatch = DB.wsWatch(onPots, () => { potErr = true; renderPots(); });
+    if (uid) unwatch = DB.wsWatch(onPots, (err) => { potErr = isPerm(err) ? 'rules' : 'net'; renderPots(); });
   }
 
   // ---------- Whole page ----------
@@ -133,7 +137,7 @@
     if (creating) return;
     creating = true;
     DB.wsCreate().then(() => toast('Pot created. Add members by username.'))
-      .catch(() => toast('Could not create the pot. Check your connection.'))
+      .catch((err) => toast('Could not create the pot. ' + why(err)))
       .finally(() => { creating = false; });
   });
 
@@ -141,7 +145,7 @@
     const del = e.target.closest('[data-ws-del]');
     if (del) {
       DB.wsDel(del.dataset.wsDel).then(() => toast('Member removed'))
-        .catch(() => toast('Could not remove. Check your connection.'));
+        .catch((err) => toast('Could not remove. ' + why(err)));
       return;
     }
     const card = e.target.closest('[data-pot]');
@@ -158,7 +162,7 @@
       pot.b = next.m; pot.l = next.l; inp.value = '';
       renderPots();
       toast(`${delta > 0 ? 'Added' : 'Removed'} ${fmt(n)} — pot ${fmt(pot.b)}`);
-    }).catch(() => toast('Could not move money. Check your connection.'))
+    }).catch((err) => toast('Could not move money. ' + why(err)))
       .finally(() => potBusy.delete(pot.id));
   });
   $('bk-ws').addEventListener('submit', (e) => {
@@ -166,7 +170,7 @@
     e.preventDefault();
     const inp = f.querySelector('input'), name = inp.value.trim().toLowerCase();
     DB.wsAdd(name).then(() => { inp.value = ''; toast(`Added @${name}`); })
-      .catch(err => toast(ADD_ERR[err.message] || 'Could not add that member.'));
+      .catch(err => toast(ADD_ERR[err.message] || why(err)));
   });
   $('bk-ws').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || !e.target.closest('.bk-controls')) return;

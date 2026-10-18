@@ -554,7 +554,7 @@ function addMsg(cls, text) {
 // ---- AI (everything lives in ai.js) ----
 function setNn(text) { const el = $('nn-state'); if (el) el.textContent = text; }
 let aiTraining = null;
-// The neural net trains only when someone opens the chat, so normal visits never pay for it
+// The net warms up on its own after the page loads (saved weights load instantly), so the chat is ready before you open it
 const ensureAI = () => aiTraining || (aiTraining = trainAI());
 async function trainAI() {
   if (typeof JaltronAI === 'undefined') return setNn('ai.js did not load. Upload ai.js next to index.html.');
@@ -583,6 +583,8 @@ $('chat-form').addEventListener('submit', (e) => {
   if (v) { $('chat-input').value = ''; ask(v); }
 });
 addMsg('ai', 'Hi, I am JALTRON. I can add, complete and delete tasks for you, plan your day, or explain the site. Try: add fix login bug tomorrow high');
+// Warm the neural AI in the background: cached weights load at once, a first visit trains in short pauses
+window.requestIdleCallback ? requestIdleCallback(() => ensureAI(), { timeout: 4000 }) : setTimeout(ensureAI, 1500);
 
 // New day: reopen finished repeating tasks, refresh due labels and streaks
 let lastDay = Habit.today();

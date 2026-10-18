@@ -163,10 +163,13 @@ async function bankMoney(delta, cur) {
 // The workspace pot: w/<your uid>, you are the owner. Members are uids; names come from nameOf.
 const wsRef = () => doc(db, 'w', auth.currentUser.uid);
 async function wsCreate() { await setDoc(wsRef(), { m: [auth.currentUser.uid], b: 0, l: [] }); }
+// Firestore turns "no such doc" into permission-denied when a rule checks a field (u/<name> needs 'u' in resource.data),
+// so a claim read failing that way just means the username is unknown.
+const isPerm = (e) => !!e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
 async function wsAdd(name) {
   name = String(name).trim().toLowerCase();
   if (!NAME_RE.test(name)) throw new Error('invalid');
-  const c = await getDoc(doc(db, 'u', name));
+  const c = await getDoc(doc(db, 'u', name)).catch((e) => { if (isPerm(e)) throw new Error('unknown'); throw e; });
   if (!c.exists() || !c.data().u) throw new Error('unknown');
   if (c.data().u === auth.currentUser.uid) throw new Error('me');
   await updateDoc(wsRef(), { m: arrayUnion(c.data().u) });

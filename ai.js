@@ -199,10 +199,11 @@ root.catReply = () => {
 // ===== 3. TINYBRAIN =====
 // TinyBrain: a small neural network trained from scratch on characters.
 // Text -> hashed character n-grams (letters, digits, special characters) -> hidden layer -> intent.
-// No libraries, no downloads. It trains in your browser each time the page loads.
+// No libraries, no downloads. It trains once in your browser, then saves its weights in
+// localStorage so every later visit loads instantly and never trains again.
 (function (root) {
   'use strict';
-  const DIM = 4096, HID = 128, EPOCHS = 16;
+  const DIM = 4096, HID = 128, EPOCHS = 16, CHUNK = 300;
   const BASE = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'deposit', 'withdraw', 'balance', 'unknown'];
   let INTENTS = BASE.slice(), K = INTENTS.length;
   let W1, b1, W2, b2, ready = false, seed = 1;
@@ -283,25 +284,77 @@ root.catReply = () => {
     return out.concat(aug);
   }
 
+  // ---- Saved-weights cache (localStorage) ----
+  // The dataset is static per deploy, so the trained net is saved and reused until TRAIN/KNOWLEDGE change.
+  const KEY = 'jc:nn', V = 1;
+  const store = typeof localStorage !== 'undefined' ? localStorage : null;
+  const sig = (x) => { const s = JSON.stringify(x); let h = 5381; for (let i = 0; i < s.length; i++) h = (Math.imul(h, 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
+  const fp = (extra) => [V, DIM, HID, EPOCHS, sig(root.TRAIN || {}), sig(root.KNOWLEDGE || []), sig(extra || [])].join('.');
+  const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
+  const ub64 = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+  const f32b = (f) => b64(new Uint8Array(f.buffer, f.byteOffset, f.byteLength));
+  const b2f = (s) => new Float32Array(ub64(s).buffer);
+  function save(fpKey, r) {
+    if (!store) return;
+    try {
+      // W1 is the big one: quantize to 1 byte per weight so the whole model fits in localStorage
+      let mx = 0; for (let i = 0; i < W1.length; i++) { const a = Math.abs(W1[i]); if (a > mx) mx = a; }
+      const sc = mx / 127 || 1, q1 = new Uint8Array(W1.length);
+      for (let i = 0; i < W1.length; i++) { const v = Math.round(W1[i] / sc) + 128; q1[i] = v < 0 ? 0 : v > 255 ? 255 : v; }
+      store.setItem(KEY, JSON.stringify({ fp: fpKey, ex: r.examples, acc: r.acc, sc, w1: b64(q1), b1: f32b(b1), w2: f32b(W2), b2: f32b(b2), I: INTENTS }));
+    } catch { /* quota full or storage blocked: train again next time */ }
+  }
+  function load(fpKey) {
+    if (!store) return null;
+    try {
+      const c = JSON.parse(store.getItem(KEY) || 'null');
+      if (!c || c.fp !== fpKey) return null;
+      const q1 = ub64(c.w1 || '');
+      if (q1.length !== DIM * HID) return null;
+      INTENTS = Array.isArray(c.I) ? c.I : BASE; K = INTENTS.length;
+      b1 = b2f(c.b1 || ''); W2 = b2f(c.w2 || ''); b2 = b2f(c.b2 || '');
+      if (b1.length !== HID || W2.length !== K * HID || b2.length !== K) return null;
+      W1 = new Float32Array(DIM * HID);
+      for (let i = 0; i < W1.length; i++) W1[i] = (q1[i] - 128) * (c.sc || 1);
+      ready = true;
+      return { examples: c.ex || 0, acc: c.acc || 0 };
+    } catch { return null; }
+  }
+
+  // Yield to the page between batches. MessageChannel is not throttled, so training keeps
+  // running even in a hidden tab, where setTimeout would be slowed to about once a minute.
+  const tick = typeof MessageChannel !== 'undefined'
+    ? () => new Promise((r) => { const ch = new MessageChannel(); ch.port1.onmessage = () => r(); ch.port2.postMessage(0); })
+    : () => new Promise((r) => setTimeout(r, 0));
+  const evalHold = (hold) => { let ok = 0; for (const d of hold) { const p = forward(d.ix).p; if (p.indexOf(Math.max(...p)) === d.y) ok++; } return hold.length ? ok / hold.length : 1; };
+
   async function train(extra, onProgress) {
+    const fpKey = fp(extra);
     seed = 7; ready = false;
     INTENTS = BASE.concat((root.KNOWLEDGE || []).map(k => 'k_' + k.id)); K = INTENTS.length;
+    const hit = load(fpKey); // previous visit: the saved weights load instantly
+    if (hit) return hit;
     init();
-    const all = build(root.TRAIN, extra).map(([t, i, tg]) => ({ ix: feats(t), y: INTENTS.indexOf(i), tg })).filter(d => d.y >= 0);
+    const raw = build(root.TRAIN, extra), all = [];
+    for (let i = 0; i < raw.length; i++) { const y = INTENTS.indexOf(raw[i][1]); if (y >= 0) all.push({ ix: feats(raw[i][0]), y, tg: raw[i][2] }); if (i % 600 === 599) await tick(); }
     for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
     const hold = [], tr = [];
     for (const d of all) (!d.tg && hold.length < all.length * 0.12 ? hold : tr).push(d);
+    let acc = 0, best = 0, stale = 0;
     for (let ep = 0; ep < EPOCHS; ep++) {
       const lr = 0.6 * (1 - ep / (EPOCHS * 1.2));
       for (let i = tr.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [tr[i], tr[j]] = [tr[j], tr[i]]; }
-      for (const d of tr) step(d.ix, d.y, lr);
+      for (let i = 0; i < tr.length; i++) { step(tr[i].ix, tr[i].y, lr); if (i % CHUNK === CHUNK - 1) await tick(); }
+      acc = evalHold(hold);
+      // stop early once the holdout score stops moving, instead of grinding the last epochs
+      if (acc > best + 0.002) { best = acc; stale = 0; } else if (++stale >= 2 && ep >= 7 && acc >= 0.9) break;
       if (onProgress) onProgress(ep + 1, EPOCHS);
-      await new Promise(r => setTimeout(r, 0)); // keep the page responsive
+      await tick();
     }
-    let ok = 0;
-    for (const d of hold) { const p = forward(d.ix).p; if (p.indexOf(Math.max(...p)) === d.y) ok++; }
     ready = true;
-    return { examples: all.length, acc: hold.length ? ok / hold.length : 1 };
+    const r = { examples: all.length, acc };
+    save(fpKey, r);
+    return r;
   }
 
   function predict(text) {
@@ -659,8 +712,12 @@ function neuralRespond(text, tasks) {
 
   // Main entry: exact commands first, then the neural net, then keyword knowledge search
   function reply(text, tasks, history) {
-    let res = root.Brain.respond(text, tasks, history);
-    if (res.unknown) { const n = neuralRespond(text, tasks); if (n) res = n; }
+    const res = root.Brain.respond(text, tasks, history);
+    if (!res.unknown) return res;
+    const n = neuralRespond(text, tasks);
+    if (n) return n;
+    // First visit, net still warming up: say so instead of a plain "did not get that"
+    if (!root.TinyBrain.ready) return { reply: 'My neural side is still training in your browser (watch the badge at the top) — a few more seconds. Exact commands already work, for example "add fix login bug tomorrow high" or "plan my day".', actions: [] };
     return res;
   }
   async function init(onProgress) { return root.TinyBrain.train([], onProgress); }
