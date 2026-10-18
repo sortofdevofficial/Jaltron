@@ -305,9 +305,19 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
   const potBusy = new Set(), upgrading = new Set(), deleting = new Set();
   let delArm = '', delTimer = 0;
 
-  function rowHtml(e, c) {
+  // can: this person may delete the line (mine: always; shared: the owner, or the author of that line)
+  function rowHtml(e, c, can) {
     const [day, amt, who] = String(e).split('|'), n = Number(amt);
-    return `<div class="bk-row"><span class="d">${esc(dayShort(day))}</span><b class="${n >= 0 ? 'pos' : 'neg'}">${n >= 0 ? '+' : '-'}${esc(fmt(Math.abs(n), c))}</b><span class="w" data-nm="${esc(who)}"></span></div>`;
+    return `<div class="bk-row"><span class="d">${esc(dayShort(day))}</span><b class="${n >= 0 ? 'pos' : 'neg'}">${n >= 0 ? '+' : '-'}${esc(fmt(Math.abs(n), c))}</b><span class="w" data-nm="${esc(who)}"></span>${can ? `<button type="button" class="bk-x" data-del-log="${esc(e)}" title="Delete this entry" aria-label="Delete this entry"><i class="fa-solid fa-xmark"></i></button>` : ''}</div>`;
+  }
+  // First click arms the button for 3 seconds, the second click confirms
+  let armedBtn = null, armTimer = 0;
+  function confirmed(btn) {
+    if (armedBtn === btn) { clearTimeout(armTimer); armedBtn = null; return true; }
+    if (armedBtn) armedBtn.classList.remove('sure');
+    armedBtn = btn; btn.classList.add('sure'); btn.title = 'Click again to delete';
+    clearTimeout(armTimer); armTimer = setTimeout(() => { btn.classList.remove('sure'); armedBtn = null; }, 3000);
+    return false;
   }
   const fillNames = (scope) => scope.querySelectorAll('[data-nm]').forEach(el => DB.nameOf(el.dataset.nm).then(n => { el.textContent = n || 'someone'; }));
 
@@ -317,7 +327,7 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     b.textContent = fmt(mine.m, mine.c);
     b.classList.toggle('neg', mine.m < 0);
     if ($('bk-cur').value !== mine.c) $('bk-cur').value = mine.c;
-    $('bk-log').innerHTML = mine.l.slice().reverse().map(e => rowHtml(e, mine.c)).join('') || '<div class="empty"><i class="fa-solid fa-piggy-bank"></i>No moves yet. Add or remove money and the log starts here.</div>';
+    $('bk-log').innerHTML = mine.l.slice().reverse().map(e => rowHtml(e, mine.c, true)).join('') || '<div class="empty"><i class="fa-solid fa-piggy-bank"></i>No moves yet. Add or remove money and the log starts here.</div>';
     fillNames($('bk-log'));
   }
   async function money(delta, inp) {
@@ -350,7 +360,7 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
       ${own ? `<form class="cmd-form" data-ws-add><input maxlength="20" placeholder="Add member by username" autocomplete="off" aria-label="Add member by username"><button class="btn">Add member</button></form>
       <form class="bk-edit" data-ws-edit><input maxlength="30" value="${esc(v.nm)}" aria-label="Bank name" required><select aria-label="Currency">${curOpts(v.c)}</select><button class="btn">Save</button><button type="button" class="btn danger" data-ws-remove>${delArm === p.id ? 'Click again to delete' : 'Delete bank'}</button></form>`
         : '<button class="btn" data-ws-leave><i class="fa-solid fa-right-from-bracket"></i> Leave this bank</button>'}
-      <div class="bk-log">${v.l.slice().reverse().map(e => rowHtml(e, v.c)).join('') || '<p class="sub">No moves yet.</p>'}</div>
+      <div class="bk-log">${v.l.slice().reverse().map(e => rowHtml(e, v.c, own || String(e).split('|')[2] === uid)).join('') || '<p class="sub">No moves yet.</p>'}</div>
     </div>`;
   }
   // Keep what someone is typing (and where the cursor is) when a snapshot redraws the banks
@@ -414,6 +424,14 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
   });
 
   $('bk-signin').addEventListener('click', () => window.DB ? DB.signIn() : toast('Cloud is still loading, try again'));
+  $('bk-log').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-del-log]');
+    if (!b || !confirmed(b) || busy) return;
+    busy = true;
+    try { mine = await DB.bankLogDel(b.dataset.delLog, mine, mineStored); mineStored = true; paint(); toast('History entry deleted. The balance is unchanged.'); }
+    catch (err) { toast('Could not delete. ' + why(err)); }
+    busy = false;
+  });
   $('bk-cur').addEventListener('change', async (e) => {
     const c = e.target.value;
     try { mine = await DB.bankPut({ ...mine, c }); mineStored = true; paint(); toast(`Your bank now shows ${c}. Amounts are not converted.`); }
@@ -440,6 +458,13 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
 
   const potOf = (el) => { const card = el.closest('[data-pot]'); return card && { card, id: card.dataset.pot, pot: banks.find(p => p.id === card.dataset.pot) }; };
   $('bk-ws').addEventListener('click', (e) => {
+    const dl = e.target.closest('[data-del-log]');
+    if (dl) {
+      const t0 = potOf(dl);
+      if (!t0 || !t0.pot || !confirmed(dl)) return;
+      if (!t0.pot.v) return toast('This old bank is still upgrading, try again in a moment.');
+      return void DB.wsLogDel(t0.id, dl.dataset.delLog).then(() => toast('History entry deleted. The balance is unchanged.')).catch((err) => toast('Could not delete. ' + why(err)));
+    }
     const del = e.target.closest('[data-ws-del]'), add = e.target.closest('[data-madd]'), take = e.target.closest('[data-mtake]'), rm = e.target.closest('[data-ws-remove]'), leave = e.target.closest('[data-ws-leave]');
     const t = potOf(e.target); if (!t || !t.pot) return;
     if (del) return void DB.wsDel(t.id, del.dataset.wsDel).then(() => toast('Member removed')).catch((err) => toast('Could not remove. ' + why(err)));

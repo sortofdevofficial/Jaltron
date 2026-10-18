@@ -711,3 +711,7 @@ html[data-plan="free"] [data-page="insights"] .lock-card { display: grid; gap: .
 .bk-edit .btn, .bk-new .btn { white-space: nowrap; }
 .bk-pot .bk-row b { font-family: inherit; font-size: inherit; font-weight: 700; background: none; -webkit-background-clip: initial; background-clip: initial; }
 .bk-pot .bk-row b.pos { color: var(--ok); } .bk-pot .bk-row b.neg { color: var(--danger); }
+.bk-x { margin-left: .5rem; width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; flex: none; }
+.bk-x:hover, .bk-x.sure { background: var(--danger); color: #fff; }
+.bk-x.sure { width: auto; padding: 0 .5rem; border-radius: 6rem; font-size: .6875rem; }
+.bk-x.sure::after { content: 'Delete?'; margin-left: .25rem; }

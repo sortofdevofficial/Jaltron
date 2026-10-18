@@ -185,6 +185,13 @@ async function bankMoney(delta, cur, stored) {
   cacheBank(next);
   return next;
 }
+// Delete one history line (balance stays as it is). Saved v: 2 copies can use arrayRemove; old copies are rewritten whole.
+async function bankLogDel(entry, cur, stored) {
+  const next = { ...cur, l: cur.l.filter((x) => x !== entry) };
+  await (stored ? updateDoc(ref(), { 'b.l': arrayRemove(entry) }) : updateDoc(ref(), { b: next }));
+  cacheBank(next);
+  return next;
+}
 async function bankPut(b) { await updateDoc(ref(), { b }); cacheBank(b); return b; }
 
 // Shared banks: w/<autoId> { o: owner uid, nm: name, c: currency, m: [member uids, owner included], b: balance, l: log, v: 2 }.
@@ -193,6 +200,7 @@ async function bankPut(b) { await updateDoc(ref(), { b }); cacheBank(b); return 
 const wsDoc = (id) => doc(db, 'w', id);
 const wsCreate = (nm, c) => addDoc(collection(db, 'w'), { o: auth.currentUser.uid, nm, c, m: [auth.currentUser.uid], b: 0, l: [], v: 2 });
 const wsEdit = (id, nm, c) => updateDoc(wsDoc(id), { nm, c });
+const wsLogDel = (id, entry) => updateDoc(wsDoc(id), { l: arrayRemove(entry) });
 const wsRemove = (id) => deleteDoc(wsDoc(id));
 const wsLeave = (id) => updateDoc(wsDoc(id), { m: arrayRemove(auth.currentUser.uid) });
 // A claim read failing with permission-denied just means the username is unknown.
@@ -305,7 +313,7 @@ const adminSet = (uid, days) => setDoc(doc(db, 's', uid), days === 0 ? { p: 'fre
 window.DB = {
   isAdmin, adminFind, adminSet, lbTop, setLbOptOut,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt,
-  bankMoney, bankPut, wsCreate, wsEdit, wsRemove, wsLeave, wsAdd, wsDel, wsMoney, wsUpgrade, wsWatch, nameOf,
+  bankMoney, bankPut, bankLogDel, wsLogDel, wsCreate, wsEdit, wsRemove, wsLeave, wsAdd, wsDel, wsMoney, wsUpgrade, wsWatch, nameOf,
   token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),
   get user() { return auth.currentUser; },
   signIn: () => signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver).catch(e => { if (e.code !== 'auth/popup-closed-by-user') emit('error', 'Sign-in failed: ' + e.code); }),
