@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Admin | JALTRON</title>
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="db.js"></script>
+</head>
+<body>
+  <main class="adm hud">
+    <h1>JALTRON Admin</h1>
+    <p class="sub" id="a-state">Loading...</p>
+    <button class="btn primary" id="a-login" hidden>Sign in with Google</button>
+    <div id="a-tool" hidden>
+      <form class="cmd-form" id="a-form"><input id="a-q" placeholder="Username or account ID" autocomplete="off" required><button class="btn primary">Find</button></form>
+      <div id="a-user" hidden>
+        <p><strong id="a-name"></strong> <code id="a-uid"></code></p>
+        <p class="sub" id="a-plan"></p>
+        <div class="adm-btns">
+          <button class="btn primary" data-days="30">Give Lite: 30 days</button>
+          <button class="btn" data-days="90">90 days</button>
+          <button class="btn" data-days="-1">Forever</button>
+          <button class="btn" data-days="0">Remove (Free)</button>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let cur = null;
+    const show = (m) => { $('a-state').textContent = m; };
+    const plan = (p) => !p || p.p !== 'lite' ? 'Free' : p.e ? (p.e > Date.now() ? 'Lite until ' + new Date(p.e).toLocaleString() : 'Lite (expired)') : 'Lite forever';
+    addEventListener('jaltron:user', async (e) => {
+      if (!e.detail.user) { show('Sign in with an admin account.'); $('a-login').hidden = false; $('a-tool').hidden = true; return; }
+      $('a-login').hidden = true;
+      let ok = false; try { ok = await DB.isAdmin(); } catch {}
+      $('a-tool').hidden = !ok; show(ok ? 'Signed in as ' + e.detail.user.email : 'This account is not an admin.');
+    });
+    $('a-login').onclick = () => DB.signIn();
+    async function find(q) {
+      try { cur = await DB.adminFind(q); } catch { return show('Lookup failed.'); }
+      $('a-user').hidden = false; $('a-name').textContent = cur.name || '(no username)'; $('a-uid').textContent = cur.uid; $('a-plan').textContent = 'Plan: ' + plan(cur.plan);
+    }
+    $('a-form').onsubmit = (e) => { e.preventDefault(); find($('a-q').value); };
+    document.querySelectorAll('[data-days]').forEach(b => b.onclick = async () => {
+      if (!cur) return;
+      try { await DB.adminSet(cur.uid, Number(b.dataset.days)); show('Done.'); find(cur.uid); } catch { show('Could not save. Is this account in the admins collection?'); }
+    });
+  </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 // JALTRON cloud: Google sign-in + Firestore. Email, photo, name and last login come from Auth, so none are stored.
 //   u/<uid>      { k: [custom categories], a: profile picture, c: home cover picture (short ImgBB paths), p: pet and streak {n total days, d last day, r run, b best run}, f: focus timer {d day, m minutes today, s sessions today, t all-time minutes, c settings}, y: drawn pet picture }
 //   u/<uid>/t/<id> { t: title, p: h|m|l, c: category, d: due, x: done, o: order, r/s/b/l/h: repeat, streak, best, last day, history, z: finished day, i: ["path|thumb"] pictures (ImgBB, host removed) }
+//   s/<uid>      { p: 'lite', e: expiry ms }  the subscription, written only by staff (rules block clients)
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -149,9 +150,10 @@ async function load(user) {
   // Profile and tasks are fetched at the same time instead of one after the other
   // The username is remembered from the last visit, which skips an extra server query on every load
   const known = readCache(user.uid)?.profile?.n || '';
-  const [snap, docs, name] = await Promise.all([getDoc(ref()), getDocs(query(col('t'), orderBy('o'))), known || mine()]);
+  const [snap, docs, name, plan] = await Promise.all([getDoc(ref()), getDocs(query(col('t'), orderBy('o'))), known || mine(), getDoc(doc(db, 's', user.uid)).catch(() => null)]);
   const d = snap.exists() ? snap.data() : {};
-  const profile = { n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? d.p : {}, f: d.f && typeof d.f === 'object' ? d.f : {}, y: typeof d.y === 'string' ? d.y : '' };
+  const s = plan && plan.exists() ? { p: plan.data().p, e: plan.data().e || 0 } : null;
+  const profile = { s, n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? d.p : {}, f: d.f && typeof d.f === 'object' ? d.f : {}, y: typeof d.y === 'string' ? d.y : '' };
   const tasks = docs.docs.map(x => unpack(x.id, x.data()));
   synced = new Map(tasks.map((t, o) => [String(t.id), JSON.stringify(pack(t, o))]));
   writeCache(user.uid, tasks, profile);
@@ -175,7 +177,19 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
+// Admin tools (the rules only let accounts listed in admins/<uid> write s/<uid>)
+const isAdmin = async () => !!auth.currentUser && (await getDoc(doc(db, 'admins', auth.currentUser.uid))).exists();
+async function adminFind(q) {
+  q = String(q).trim();
+  const n = q.toLowerCase(), byName = NAME_RE.test(n) ? await getDoc(doc(db, 'u', n)) : null;
+  const uid = byName && byName.exists() && byName.data().u ? byName.data().u : q;
+  const [plan, nm] = await Promise.all([getDoc(doc(db, 's', uid)), getDocs(query(collection(db, 'u'), where('u', '==', uid), limit(1)))]);
+  return { uid, name: nm.empty ? '' : nm.docs[0].id, plan: plan.exists() ? plan.data() : null };
+}
+const adminSet = (uid, days) => setDoc(doc(db, 's', uid), days === 0 ? { p: 'free' } : { p: 'lite', e: days < 0 ? 0 : Date.now() + days * 864e5 });
+
 window.DB = {
+  isAdmin, adminFind, adminSet,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt,
   token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),
   get user() { return auth.currentUser; },

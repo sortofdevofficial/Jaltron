@@ -60,6 +60,7 @@
 
   // upload(file, { square: 256 }) -> short string to store
   async function upload(file, opt = {}) {
+    if (!root.Plan.can('img')) throw new Error(root.Plan.msg('img'));
     if (!file || !/^image\//.test(file.type)) throw new Error('Choose an image file (JPG, PNG, GIF or WebP).');
     if (file.size > 25e6) throw new Error('That picture is over 25 MB.');
     const data = await send(await shrink(file, opt.square));

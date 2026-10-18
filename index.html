@@ -29,9 +29,10 @@
       <button class="nav-item" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span><b id="nav-tasks-n">0</b></button>
       <button class="nav-item" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span><b class="live" id="nav-focus-t" hidden>25:00</b></button>
       <button class="nav-item" data-nav="insights"><i class="fa-solid fa-chart-pie"></i><span>Insights</span></button>
+      <button class="nav-item" data-nav="plans"><i class="fa-solid fa-bolt"></i><span>Plans</span><b id="nav-plan">Free</b></button>
       <button class="nav-item nav-ai" id="nav-ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Ask AI</span></button>
     </div>
-    <button class="side-pet" id="pet-side" aria-label="Your pet, open Home"><span class="pet" id="pet-side-art"></span><span class="sp-t"><b id="pet-side-n">0</b><small>day streak</small></span></button>
+    <button class="side-pet" id="pet-side" hidden aria-label="Your pet, open Home"><span class="pet" id="pet-side-art"></span><span class="sp-t"><b id="pet-side-n">0</b><small>day streak</small></span></button>
     <div class="nav tools">
       <p class="nav-label">Tools</p>
       <button class="nav-item" id="nav-add"><i class="fa-solid fa-plus"></i><span>New task</span><kbd>N</kbd></button>
@@ -75,12 +76,13 @@
     </svg>
     <div class="next"><h3>Up next</h3><ol id="next-list"></ol></div>
     <div class="pet-strip">
-      <button class="pet" id="pet-btn" aria-label="Your pet. Tap to say hi" title="Say hi"><span id="pet-art"></span></button>
+      <button class="pet" id="pet-btn" hidden aria-label="Your pet. Tap to say hi" title="Say hi"><span id="pet-art"></span></button>
       <div class="pet-info">
-        <strong id="pet-title">Jalty the Egg</strong>
-        <span id="pet-msg">Finish a task to hatch your pet.</span>
-        <div class="pet-bar" role="progressbar" aria-label="Growth to next stage"><div id="pet-fill"></div></div>
+        <strong id="pet-title" hidden></strong>
+        <span id="pet-msg">Draw a pet and it grows with your streak.</span>
+        <div class="pet-bar" id="pet-bar" role="progressbar" aria-label="Growth to next stage"><div id="pet-fill"></div></div>
         <small id="pet-next"></small>
+        <form class="cmd-form pet-name" id="pet-name-form" hidden><input id="pet-name" maxlength="20" placeholder="Name your pet" autocomplete="off" aria-label="Pet name"><button class="btn">Save</button></form>
         <button class="btn pet-draw" id="pet-draw"><i class="fa-solid fa-pencil"></i> Draw your pet</button>
       </div>
     </div>
@@ -182,7 +184,46 @@
       </div>
     </div>
   </div>
+  <div class="page" data-page="plans">
+  <section class="hud plans" id="plans">
+    <div class="panel-title"><span><i class="fa-solid fa-bolt"></i> Plans</span><span class="sub" id="plan-state"></span></div>
+    <div class="plan-grid">
+      <article class="plan-card" id="plan-free">
+        <h3>Free</h3><div class="plan-price">$0<small> forever</small></div>
+        <ul>
+          <li><i class="fa-solid fa-check"></i> Up to 25 tasks</li>
+          <li><i class="fa-solid fa-check"></i> 3 custom categories</li>
+          <li><i class="fa-solid fa-check"></i> Focus timer and Ask AI</li>
+          <li><i class="fa-solid fa-check"></i> Google sign-in and cloud sync</li>
+        </ul>
+        <span class="plan-cur">Your current plan</span>
+      </article>
+      <article class="plan-card pro" id="plan-lite">
+        <span class="plan-tag">Best value</span>
+        <h3>Lite</h3><div class="plan-price">$0.10<small> / month</small> <em>or ₹10</em></div>
+        <ul>
+          <li><i class="fa-solid fa-check"></i> Unlimited tasks</li>
+          <li><i class="fa-solid fa-check"></i> 12 custom categories</li>
+          <li><i class="fa-solid fa-check"></i> Repeating tasks, streaks and Insights</li>
+          <li><i class="fa-solid fa-check"></i> Pictures: task images, avatar and cover</li>
+          <li><i class="fa-solid fa-check"></i> A drawn pet that keeps growing with your streak, with its own name</li>
+        </ul>
+        <p class="plan-pay"><i class="fa-solid fa-tag"></i> Crypto accepted. Pay through Discord.</p>
+        <a class="btn primary" data-dc-link href="https://discord.com/channels/1503297362246897694" target="_blank" rel="noopener noreferrer"><span class="dc-logo mini"></span> Talk to staff to get Lite</a>
+        <span class="plan-cur">Your current plan</span>
+      </article>
+    </div>
+    <ol class="plan-steps">
+      <li>Join our Discord and open a ticket or message staff.</li>
+      <li>Pay $0.10 / ₹10 (crypto available). Tell staff your account ID below.</li>
+      <li>Staff activate Lite on your account. It shows up here after you reload.</li>
+    </ol>
+    <div class="plan-id" id="plan-id" hidden><span class="sub">Your account ID</span><code id="plan-uid"></code><button class="btn" id="plan-copy">Copy</button></div>
+  </section>
+  </div>
+
   <div class="page" data-page="insights">
+    <div class="lock-card"><strong>Insights is a Lite feature</strong><p>Charts, heatmap and streak stats unlock with Lite.</p><button class="btn primary" data-nav="plans">See plans</button></div>
   <section class="hud insights" id="insights">
     <div class="panel-title">
       <span><i class="fa-solid fa-chart-pie"></i> Insights</span>
@@ -431,7 +472,7 @@
       <button type="button" class="btn" id="dr-clear"><i class="fa-regular fa-trash-can"></i> Clear</button>
     </div>
     <div class="dr-row end">
-      <button type="button" class="btn" id="dr-reset" hidden><i class="fa-solid fa-paw"></i> Back to Jalty</button>
+      <button type="button" class="btn" id="dr-reset" hidden><i class="fa-solid fa-paw"></i> Remove pet</button>
       <button type="button" class="btn primary" id="dr-save"><i class="fa-solid fa-floppy-disk"></i> Save pet</button>
     </div>
     <p class="sub" id="dr-msg" aria-live="polite"></p>
@@ -440,6 +481,7 @@
   <canvas id="fx" aria-hidden="true"></canvas>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="icons.js"></script>
+  <script src="plan.js"></script>
   <script src="ai.js"></script>
   <script src="habits.js"></script>
   <script src="upload.js"></script>

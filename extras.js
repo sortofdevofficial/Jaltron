@@ -63,40 +63,9 @@
   // ---------- Pet: grows with your streak. The streak never resets, so the pet never shrinks ----------
   const STAGES = [['Egg', 0], ['Hatchling', 1], ['Sprout', 3], ['Explorer', 7], ['Guardian', 14], ['Champion', 30], ['Legend', 60]];
   const stageOf = (n) => STAGES.reduce((s, [, d], i) => (n >= d ? i : s), 0);
-  let petN = 0, petAwake = false, petKey = '', petUid = 0;
-  function petSvg(stage, awake) {
-    const id = 'pg' + (++petUid);
-    const defs = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#3b82f6"/></linearGradient><radialGradient id="${id}e" cx=".4" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#cfe9f7"/></radialGradient></defs>`;
-    const shadow = '<ellipse cx="50" cy="90" rx="22" ry="3.5" fill="rgba(0,0,0,.14)"/>';
-    if (stage === 0) {
-      return `<svg viewBox="0 0 100 100" class="pet-svg" aria-hidden="true">${defs}${shadow}<g class="bob"><ellipse cx="50" cy="62" rx="22" ry="28" fill="url(#${id}e)" stroke="#7cc4e6" stroke-width="2"/><path d="M34 56 l7 -6 l6 7 l7 -7 l6 7 l7 -6" fill="none" stroke="#22d3ee" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="42" cy="73" r="3" fill="#bfe3f5"/><circle cx="58" cy="69" r="2.4" fill="#bfe3f5"/></g>${awake ? '' : '<text x="76" y="26" class="zz">z</text>'}</svg>`;
-    }
-    const R = [0, 17, 21, 24, 27, 30, 32][stage], ry = R * 0.92, cy = 86 - ry, top = cy - ry;
-    const ex = R * 0.4, ey = cy - R * 0.08, er = Math.max(2.4, R * 0.14), m = R * 0.12, my = ey + er * 2.5;
-    const eye = (x) => awake
-      ? `<circle cx="${x}" cy="${ey}" r="${er}" fill="#0b1b33"/><circle cx="${x + er * .35}" cy="${ey - er * .35}" r="${er * .38}" fill="#fff"/>`
-      : `<path d="M${x - er} ${ey} Q${x} ${ey + er * 1.2} ${x + er} ${ey}" fill="none" stroke="#0b1b33" stroke-width="2" stroke-linecap="round"/>`;
-    let back = '', front = '';
-    if (stage >= 4) {
-      const w = `<path d="M${50 - R * .85} ${cy + R * .1} Q${50 - R * 1.7} ${cy - R * .5} ${50 - R * 1.25} ${cy - R * 1.05} Q${50 - R * .75} ${cy - R * .7} ${50 - R * .6} ${cy - R * .2} Z" fill="#7dd3fc" opacity=".9"/>`;
-      back += w + `<g transform="translate(100 0) scale(-1 1)">${w}</g>`;
-    }
-    if (stage >= 2) front += `<ellipse cx="${50 - R * .45}" cy="86" rx="${R * .22}" ry="${R * .11}" fill="#2f7fe0"/><ellipse cx="${50 + R * .45}" cy="86" rx="${R * .22}" ry="${R * .11}" fill="#2f7fe0"/>`;
-    const body = `<ellipse cx="50" cy="${cy}" rx="${R}" ry="${ry}" fill="url(#${id})"/>`
-      + (stage >= 2 ? `<ellipse cx="50" cy="${cy + R * .3}" rx="${R * .55}" ry="${R * .45}" fill="rgba(255,255,255,.28)"/>` : '')
-      + (stage >= 4 ? `<ellipse cx="${50 - R * .98}" cy="${cy + R * .2}" rx="${R * .15}" ry="${R * .22}" fill="url(#${id})"/><ellipse cx="${50 + R * .98}" cy="${cy + R * .2}" rx="${R * .15}" ry="${R * .22}" fill="url(#${id})"/>` : '')
-      + `<g class="eyes">${eye(50 - ex)}${eye(50 + ex)}</g>`
-      + (stage >= 2 ? `<ellipse cx="${50 - R * .64}" cy="${ey + er * 2}" rx="${R * .12}" ry="${R * .07}" fill="#f9a8d4" opacity=".65"/><ellipse cx="${50 + R * .64}" cy="${ey + er * 2}" rx="${R * .12}" ry="${R * .07}" fill="#f9a8d4" opacity=".65"/>` : '')
-      + (awake ? `<path d="M${50 - m} ${my} Q50 ${my + m * 1.2} ${50 + m} ${my}" fill="none" stroke="#0b1b33" stroke-width="2" stroke-linecap="round"/>` : `<ellipse cx="50" cy="${my + 1}" rx="${m * .45}" ry="${m * .35}" fill="#0b1b33" opacity=".75"/>`);
-    let extra = '';
-    if (stage >= 5) extra += `<path d="M${50 - R * .72} ${cy + R * .5} Q50 ${cy + R * .78} ${50 + R * .72} ${cy + R * .5} L${50 + R * .72} ${cy + R * .66} Q50 ${cy + R * .94} ${50 - R * .72} ${cy + R * .66} Z" fill="#f43f5e"/>`;
-    if (stage === 6) extra += `<path d="M${50 - R * .4} ${top + 3} L${50 - R * .4} ${top - 8} L${50 - R * .2} ${top - 2} L50 ${top - 11} L${50 + R * .2} ${top - 2} L${50 + R * .4} ${top - 8} L${50 + R * .4} ${top + 3} Z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.4" stroke-linejoin="round"/><path class="tw" d="M16 30 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 z" fill="#fde047"/><path class="tw" d="M84 22 l1.6 4 l4 1.6 l-4 1.6 l-1.6 4 l-1.6 -4 l-4 -1.6 l4 -1.6 z" fill="#fde047"/>`;
-    else if (stage >= 3) extra += `<line x1="50" y1="${top + 1}" x2="50" y2="${top - 9}" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round"/><circle class="tip" cx="50" cy="${top - 11}" r="3.4" fill="#fde047"/>`;
-    return `<svg viewBox="0 0 100 100" class="pet-svg" aria-hidden="true">${defs}${shadow}<g class="bob">${back}${front}${body}${extra}</g>${awake ? '' : '<text x="78" y="26" class="zz">z</text>'}</svg>`;
-  }
+  let petN = 0, petAwake = false, petKey = '', lastP = {}, lastC = null;
   // A drawn pet: same growth stages, shown bigger as the streak grows
-  const PET_SCALE = [0.62, 0.68, 0.76, 0.84, 0.91, 0.96, 1];
-  const petImg = (src, stage, awake) => `<img class="pet-img${awake ? '' : ' sleepy'}" style="--s:${PET_SCALE[stage]}" src="${esc(src)}" alt="Your pet">${awake ? '' : '<span class="zz-ov">z</span>'}`;
+    const petImg = (src, stage, awake) => `<img class="pet-img${awake ? '' : ' sleepy'}" src="${esc(src)}" alt="Your pet">${awake ? '' : '<span class="zz-ov">z</span>'}`;
   function petUpdate(map, day, c) {
     const derived = [...map.values()].filter(v => v > 0).length, doneToday = (map.get(day) || 0) > 0;
     const before = JSON.stringify(c.pet || {});
@@ -108,28 +77,41 @@
       if (JSON.stringify(p) !== before) c.setPet(p);
     }
     const n = Math.max(p.n || 0, derived), st = stageOf(n);
-    petN = n; petAwake = doneToday;
+    petN = n; petAwake = doneToday; lastP = p; lastC = c;
     $('sk-now').textContent = n; $('sk-best').textContent = Math.max(p.b || 0, p.r || 0);
     $('pet-side-n').textContent = n;
-    const art = c.art || '', key = st + ':' + doneToday + ':' + art;
+    const art = c.art || '', key = n + ':' + doneToday + ':' + art, nm = (p.m || '').trim();
     if (key !== petKey) {
       petKey = key;
-      const html = art ? petImg(art, st, doneToday) : petSvg(st, doneToday);
+      const html = art ? petImg(art, st, doneToday) : '';
       $('pet-art').innerHTML = html; $('pet-side-art').innerHTML = html;
       $('pet-art').classList.toggle('has-img', !!art); $('pet-side-art').classList.toggle('has-img', !!art);
     }
-    $('pet-title').textContent = `Jalty the ${STAGES[st][0]}`;
-    $('pet-msg').textContent = doneToday ? `${n}-day streak. Jalty is happy!` : n === 0 ? 'Finish a task to hatch your pet.' : 'Jalty is sleepy. Finish a task today to wake it up.';
+    // The pet keeps growing with the streak: 5rem at day 0, about 14rem after a year
+    $('pet-btn').style.setProperty('--pet', (5 + 9 * (1 - Math.exp(-n / 60))).toFixed(2) + 'rem');
+    ['pet-btn', 'pet-side', 'pet-name-form', 'pet-bar'].forEach(id => { $(id).hidden = !art; });
+    $('pet-next').hidden = !art;
+    $('pet-title').hidden = !art || !nm; $('pet-title').textContent = nm;
+    if (document.activeElement !== $('pet-name')) $('pet-name').value = nm;
+    const who = nm || 'Your pet';
+    $('pet-msg').textContent = !art ? 'Draw a pet and it grows with your streak.' : doneToday ? `${n}-day streak. ${who} is happy!` : `${who} is sleepy. Finish a task today to wake it up.`;
+    if (!art) return;
     if (st < STAGES.length - 1) {
-      const [nm, d] = STAGES[st + 1], lo = STAGES[st][1];
+      const [nx, d] = STAGES[st + 1], lo = STAGES[st][1];
       $('pet-fill').style.width = `${Math.round((n - lo) / (d - lo) * 100)}%`;
-      $('pet-next').textContent = `${d - n} more ${d - n === 1 ? 'day' : 'days'} to become ${nm}. Your streak never resets.`;
+      $('pet-next').textContent = `${d - n} more ${d - n === 1 ? 'day' : 'days'} to become ${nx}. Your streak never resets.`;
     } else { $('pet-fill').style.width = '100%'; $('pet-next').textContent = 'Fully grown. Your streak never resets.'; }
   }
+  $('pet-name-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const m = $('pet-name').value.trim().slice(0, 20);
+    if (lastC && lastC.canSavePet) { lastC.setPet({ ...lastP, m }); lastP = { ...lastP, m }; $('pet-title').textContent = m; $('pet-title').hidden = !m; toast(m ? `Pet named ${m}` : 'Pet name removed'); }
+    else toast('Sign in to name your pet.');
+  });
   const SAY = ['Let\'s get something done!', 'I believe in you.', 'Small steps count.', 'Your streak never resets. Take your time.', 'Ready when you are.'];
   $('pet-btn').addEventListener('click', () => {
     $('pet-btn').classList.remove('jump'); void $('pet-btn').offsetWidth; $('pet-btn').classList.add('jump');
-    toast(`Jalty: ${SAY[Math.floor(Math.random() * SAY.length)]}`);
+    toast(`${(lastP.m || 'Pet')}: ${SAY[Math.floor(Math.random() * SAY.length)]}`);
     if (petAwake) burst($('pet-btn').getBoundingClientRect().left + 40, $('pet-btn').getBoundingClientRect().top + 30, 14);
   });
   $('pet-side').addEventListener('click', () => go('home'));
@@ -138,7 +120,7 @@
   setInterval(() => Habit.tickResets(), 20000);
 
   // ---------- Navigation ----------
-  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights' };
+  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans' };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));

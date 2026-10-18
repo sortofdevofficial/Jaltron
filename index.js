@@ -104,7 +104,7 @@ function render() {
   renderInsights();
   applyCover();
   trackImages();
-  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, art: profile.y ? Img.parts(profile.y).u : '', focus: profile.f || {}, setFocus: (f) => { profile.f = f; if (window.DB && DB.user && DB.setFocus) DB.setFocus(f); }, canSavePet: !syncing, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
+  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, art: profile.y && Plan.can('pet') ? Img.parts(profile.y).u : '', focus: profile.f || {}, setFocus: (f) => { profile.f = f; if (window.DB && DB.user && DB.setFocus) DB.setFocus(f); }, canSavePet: !syncing, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
 
   const q = query.toLowerCase();
   const filtered = tasks.filter(t => {
@@ -231,6 +231,7 @@ $('task-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const title = $('task-title').value.trim();
   if (!title) return;
+  if (tasks.length >= Plan.limit('tasks')) return toast(Plan.msg('tasks'));
   if (qa.busy) return toast('Wait for the images to finish uploading.');
   tasks.unshift(mkTask({ title, prio: $('task-prio').value, tag: $('task-tag').value, due: $('task-due').value || '', r: $('task-rep').value, i: qa.list.slice() }));
   $('task-title').value = '';
@@ -387,7 +388,7 @@ function renderAccount() {
 addEventListener('jaltron:user', (e) => {
   const { user, tasks: saved, profile: p } = e.detail;
   bootName = ''; syncing = !!e.detail.loading; imgPrev = null; // new data arrived: not a deletion
-  tasks = Habit.rollover(saved).tasks; profile = p; custom = p.k;
+  tasks = Habit.rollover(saved).tasks; profile = p; custom = p.k; Plan.set(p.s); renderPlan();
   nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
   fillCats(); renderAccount(); render();
   ready();
@@ -417,7 +418,7 @@ function addCategory(raw) {
   const v = String(raw).trim().replace(/\s+/g, ' ');
   if (!v) return 'Type a category name.';
   if (catList().some(c => c.toLowerCase() === v.toLowerCase())) return 'You already have that category.';
-  if (custom.length >= 12) return 'You can create up to 12 categories.';
+  if (custom.length >= Plan.limit('cats')) return Plan.can('img') ? 'You can create up to 12 categories.' : Plan.msg('cats');
   custom.push(v); saveCats();
   fillCats(); renderCats();
   return '';
@@ -515,7 +516,7 @@ $('edit-dlg').addEventListener('click', (e) => { if (e.target === e.currentTarge
 // Run actions the assistant returns (add, complete, delete, prio, clear, optimize, filter)
 function applyActions(actions) {
   for (const a of actions) {
-    if (a.type === 'add' && a.title) tasks.unshift(mkTask({ title: String(a.title).slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: a.tag || 'General', due: a.due || '', r: REPS.includes(a.rep) ? a.rep : '' }));
+    if (a.type === 'add' && a.title && tasks.length < Plan.limit('tasks')) tasks.unshift(mkTask({ title: String(a.title).slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: a.tag || 'General', due: a.due || '', r: REPS.includes(a.rep) ? a.rep : '' }));
     else if (a.type === 'complete') tasks = tasks.map(t => t.id === a.id ? Habit.complete(t) : t);
     else if (a.type === 'delete') tasks = tasks.filter(t => t.id !== a.id);
     else if (a.type === 'prio' && WEIGHT[a.prio]) tasks = tasks.map(t => t.id === a.id ? { ...t, prio: a.prio } : t);
@@ -703,10 +704,11 @@ $('edit-dlg').addEventListener('close', () => { if (!ed.saved) ed.list.forEach(s
 // Draw your pet
 $('pet-draw').addEventListener('click', () => {
   if (!(window.DB && DB.user)) return toast('Sign in to draw and save your pet.');
+  if (!Plan.can('pet')) return toast(Plan.msg('pet'));
   Draw.open({
     src: profile.y ? Img.parts(profile.y).u : '',
     onSave: async (file) => { const s = await Img.upload(file); profile.y = s; DB.setPetArt(s); render(); toast('Your pet is saved'); },
-    onReset: () => { profile.y = ''; DB.setPetArt(''); render(); toast('Back to Jalty'); }
+    onReset: () => { profile.y = ''; DB.setPetArt(''); render(); toast('Pet removed'); }
   });
 });
 // Home cover picture
@@ -758,3 +760,13 @@ $('cmd-form').addEventListener('submit', (e) => {
 setStatus('demo', 'CONNECTING');
 setNn('The neural AI warms up when you open the chat. Exact commands work right away.');
 setTimeout(() => { if (!window.DB) setStatus('offline', 'OFFLINE'); }, 8000);
+// Plans page: current plan, expiry and the account ID to give staff
+function renderPlan() {
+  $('nav-plan').textContent = Plan.name;
+  $('plan-state').textContent = Plan.id === 'lite' ? (Plan.until ? `Lite until ${new Date(Plan.until).toLocaleDateString()}` : 'Lite is active') : 'Free plan';
+  ['task-rep', 'ed-rep'].forEach(id => { const el = $(id); el.disabled = !Plan.can('repeat'); el.title = Plan.can('repeat') ? '' : 'Repeating tasks need Lite'; if (el.disabled) el.value = ''; });
+  const uid = window.DB && DB.user ? DB.user.uid : '';
+  $('plan-id').hidden = !uid; $('plan-uid').textContent = uid;
+}
+$('plan-copy').addEventListener('click', () => navigator.clipboard.writeText($('plan-uid').textContent).then(() => toast('Account ID copied'), () => toast('Select and copy the ID')));
+renderPlan();
