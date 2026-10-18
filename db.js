@@ -1,13 +1,14 @@
 // JALTRON cloud: Google sign-in + Firestore. Email, photo, name and last login come from Auth, so none are stored.
-//   u/<uid>      { v: 2 format mark, k: [custom categories], a: profile picture, c: home cover picture, p: pet and streak {n total days, d last day, r run, b best run}, f: focus timer {d day, m minutes today, s sessions today, t all-time minutes, c settings}, y: drawn pet picture,
+//   u/<uid>      { v: 2 format mark, k: [custom categories], a: profile picture, c: home cover picture, p: pet and streak {n total days, d last day, r run, b best run}, f: focus timer {d day, m minutes today, s sessions today, t all-time minutes, c settings}, y: drawn pet picture, b: fake bank { m: balance, l: ["YYYY-MM-DD|+N|<uid>|<ms>", ...] },
 //                 q: task map { "<id>": { t: title, p: h|m|l, c: category, d: due, x: done, o: order, r/s/b/l/h: repeat, streak, best, last day, history, z: finished day, i: ["path|thumb"] pictures (ImgBB, host removed) } } }
 //                 The whole account is one doc: one read loads it, one update saves only the tasks that changed ("q.<id>" field paths). Order comes from o, sorted in JS.
 //   u/<uid>/t/<id>  legacy one-doc-per-task layout, replaced by q. Kept readable while old accounts self-migrate (migrate() below); the rules block can go once they are all on v: 2.
 //   s/<uid>      { p: 'lite', e: expiry ms }  the subscription, written only by staff (rules block clients)
+//   w/<ownerUid> { m: [member uids, owner always included], b: shared pot balance, l: same log format }  one workspace pot per owner; the rules let members change only b and l, names are never stored here (resolved from the claims below)
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteField, writeBatch, runTransaction, query, where, limit } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyDlqQYIPue53vx1tpm7-DYYKMZB4OatiDg',
@@ -177,7 +178,7 @@ async function load(user) {
   let d = snap.exists() ? snap.data() : {};
   if (d.v !== 2) { await migrate(); d = (await getDoc(ref())).data() || {}; }
   const s = plan && plan.exists() ? { p: plan.data().p, e: plan.data().e || 0 } : null;
-  const profile = { s, n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? d.p : {}, f: d.f && typeof d.f === 'object' ? d.f : {}, y: typeof d.y === 'string' ? d.y : '' };
+  const profile = { s, n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? d.p : {}, f: d.f && typeof d.f === 'object' ? d.f : {}, y: typeof d.y === 'string' ? d.y : '', b: d.b && typeof d.b === 'object' ? d.b : { m: 0, l: [] } };
   const tasks = Object.entries(d.q || {}).sort((a, b) => (a[1].o || 0) - (b[1].o || 0)).map(([id, td]) => unpack(id, td));
   synced = new Map(tasks.map((t, o) => [String(t.id), JSON.stringify(pack(t, o))]));
   writeCache(user.uid, tasks, profile);
