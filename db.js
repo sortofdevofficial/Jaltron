@@ -1,5 +1,5 @@
 // JALTRON cloud: Google sign-in + Firestore. Email, photo, name and last login come from Auth, so none are stored.
-//   u/<uid>      { k: [custom categories], a: profile picture, c: home cover picture (short ImgBB paths), p: pet and streak {n total days, d last day, r run, b best run} }
+//   u/<uid>      { k: [custom categories], a: profile picture, c: home cover picture (short ImgBB paths), p: pet and streak {n total days, d last day, r run, b best run}, f: focus timer {d day, m minutes today, s sessions today, t all-time minutes, c settings} }
 //   u/<uid>/t/<id> { t: title, p: h|m|l, c: category, d: due, x: done, o: order, r/s/b/l/h: repeat, streak, best, last day, history, z: finished day, i: ["path|thumb"] pictures (ImgBB, host removed) }
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
@@ -119,6 +119,14 @@ async function setPet(p) {
   } catch (err) { console.error(err); }
 }
 
+async function setFocus(f) {
+  try {
+    await setDoc(ref(), { f }, { merge: true });
+    const uid = auth.currentUser.uid, cc = readCache(uid);
+    if (cc) writeCache(uid, cc.tasks, { ...cc.profile, f });
+  } catch (err) { console.error(err); }
+}
+
 // First login: pick a free username from the Google name or email
 async function claim(user) {
   const base = (user.displayName || user.email?.split('@')[0] || 'user').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 14).padEnd(3, '0');
@@ -135,7 +143,7 @@ async function load(user) {
   const known = readCache(user.uid)?.profile?.n || '';
   const [snap, docs, name] = await Promise.all([getDoc(ref()), getDocs(query(col('t'), orderBy('o'))), known || mine()]);
   const d = snap.exists() ? snap.data() : {};
-  const profile = { n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? d.p : {} };
+  const profile = { n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? d.p : {}, f: d.f && typeof d.f === 'object' ? d.f : {} };
   const tasks = docs.docs.map(x => unpack(x.id, x.data()));
   synced = new Map(tasks.map((t, o) => [String(t.id), JSON.stringify(pack(t, o))]));
   writeCache(user.uid, tasks, profile);
@@ -160,7 +168,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 window.DB = {
-  save, u, setUsername, setCats, setAvatar, setCover, setPet,
+  save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus,
   token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),
   get user() { return auth.currentUser; },
   signIn: () => signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver).catch(e => { if (e.code !== 'auth/popup-closed-by-user') emit('error', 'Sign-in failed: ' + e.code); }),

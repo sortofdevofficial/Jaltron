@@ -330,7 +330,7 @@ const clean = (t) => ({
   prio: W[t.prio] ? t.prio : 'medium',
   tag: (window.CATS ? CATS() : ['Dev', 'Bug', 'Study', 'General']).includes(t.tag) ? t.tag : 'General',
   due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : '', done: !!t.done,
-  r: ['d', 'wd', 'w'].includes(t.r) ? t.r : '', s: Number(t.s) || 0, b: Number(t.b) || 0, l: /^\d{4}-\d{2}-\d{2}$/.test(t.l || '') ? t.l : ''
+  r: ['d', 'wd', 'we', 'w'].includes(t.r) ? t.r : '', s: Number(t.s) || 0, b: Number(t.b) || 0, l: /^\d{4}-\d{2}-\d{2}$/.test(t.l || '') ? t.l : ''
 });
 
 function score(t) {
@@ -388,6 +388,7 @@ function parseTask(raw) {
   let rep = '';
   if ((m = s.match(/\b(?:every|each)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i))) { rep = 'w'; due = nextDay(m[1]); s = s.replace(m[0], ' '); }
   else if (/\b(?:every\s*day|each\s*day|everyday|daily)\b/i.test(s)) { rep = 'd'; s = s.replace(/\b(?:every\s*day|each\s*day|everyday|daily)\b/ig, ' '); }
+  else if (/\b(?:every\s+weekend|on\s+weekends?)\b/i.test(s)) { rep = 'we'; s = s.replace(/\b(?:every\s+weekend|on\s+weekends?)\b/ig, ' '); }
   else if (/\b(?:every\s+week\s*day|on\s+weekdays|week\s*days?)\b/i.test(s)) { rep = 'wd'; s = s.replace(/\b(?:every\s+week\s*day|on\s+weekdays|week\s*days?)\b/ig, ' '); }
   else if (/\b(?:every\s+week|each\s+week|weekly)\b/i.test(s)) { rep = 'w'; s = s.replace(/\b(?:every\s+week|each\s+week|weekly)\b/ig, ' '); }
   const pre = '(?:by|due|before|until|till|for|on)?\\s*';
@@ -505,7 +506,7 @@ function respond(msg, tasksIn, history) {
     if (!text || /^(?:a\s+|new\s+)?tasks?$/i.test(text)) return say(ASK_TITLE);
     const added = text.split(SPLIT_RE).filter(x => x && x.trim().length > 1).slice(0, 8).map(parseTask).filter(p => p.title);
     if (!added.length) return say(ASK_TITLE);
-    const REPW = { d: 'daily', wd: 'on weekdays', w: 'weekly' };
+    const REPW = { d: 'daily', wd: 'on weekdays', we: 'on weekends', w: 'weekly' };
     const fmt = (p) => `"${p.title}" (${p.prio}, ${p.tag}${p.due ? ', due ' + p.due : ''}${p.rep ? ', repeats ' + REPW[p.rep] : ''})`;
     return say(added.length === 1 ? `Added ${fmt(added[0])}.` : `Added ${added.length} tasks:\n` + added.map(p => '- ' + fmt(p)).join('\n'), added.map(p => ({ type: 'add', ...p })));
   }

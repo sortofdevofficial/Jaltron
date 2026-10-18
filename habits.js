@@ -1,6 +1,6 @@
 'use strict';
 // JALTRON habits: repeating tasks, streaks, completion history and SVG charts.
-// Task fields added by this file:  r repeat ('' | 'd' daily | 'wd' weekdays | 'w' weekly)
+// Task fields added by this file:  r repeat ('' | 'd' daily | 'wd' weekdays | 'we' weekends | 'w' weekly)
 //   s current streak, b best streak, l last completed day, h completed days (last 90), z day a one-off task was finished
 (function (root) {
   const pad = (n) => String(n).padStart(2, '0');
@@ -10,7 +10,7 @@
   const dow = (s) => new Date(s + 'T00:00').getDay();
   const isWeekend = (s) => dow(s) === 0 || dow(s) === 6;
   const esc = (x) => String(x).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
-  const REP = { d: 'Daily', wd: 'Weekdays', w: 'Weekly' };
+  const REP = { d: 'Daily', wd: 'Weekdays', we: 'Weekends', w: 'Weekly' };
 
   // The latest day that still keeps a streak alive when finishing on `day`
   function prevDay(r, day) {
@@ -45,6 +45,7 @@
     if (!t.r || !t.done || !t.l) return false;
     if (t.r === 'w') return t.l <= addDays(day, -7);
     if (t.r === 'wd' && isWeekend(day)) return false;
+    if (t.r === 'we' && !isWeekend(day)) return false;
     return t.l < day;
   }
 
@@ -61,6 +62,31 @@
       return { ...t, done: false, z: '', due };
     });
     return { tasks: out, changed };
+  }
+
+  // ---- reset timer: when does a finished repeating task come back? ----
+  function nextReset(t) {
+    if (!t.r || !t.l) return '';
+    if (t.r === 'w') return addDays(t.l, 7);
+    let n = addDays(t.l, 1);
+    if (t.r === 'wd') while (isWeekend(n)) n = addDays(n, 1);
+    if (t.r === 'we') while (!isWeekend(n)) n = addDays(n, 1);
+    return n;
+  }
+  function fmtLeft(ms) {
+    if (ms <= 0) return 'now';
+    const m = Math.ceil(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
+    return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m`;
+  }
+  // Badge that counts down to the reset (index.js and extras.js keep it ticking through data-reset)
+  function resetBadge(t) {
+    const n = nextReset(t);
+    if (!t.r || !t.done || !n) return '';
+    const when = new Date(n + 'T00:00').toLocaleDateString(undefined, { weekday: 'long' });
+    return `<span class="badge reset" data-reset="${n}" title="Comes back ${when} at 00:00"><i class="fa-solid fa-rotate"></i> Resets in <b>${fmtLeft(new Date(n + 'T00:00') - new Date())}</b></span>`;
+  }
+  function tickResets(root = document) {
+    root.querySelectorAll('[data-reset]').forEach(el => { const b = el.querySelector('b'); if (b) b.textContent = fmtLeft(new Date(el.dataset.reset + 'T00:00') - new Date()); });
   }
 
   // ---- numbers for the dashboard ----
@@ -149,6 +175,6 @@
     return Array.from({ length: 7 }, (_, i) => { const d = addDays(end, i - 6); return `<i class="dot${h.has(d) ? ' on' : ''}" title="${d}"></i>`; }).join('');
   }
 
-  root.Habit = { REP, today, addDays, complete, reopen, streak, rollover, completions, lastDays, activeStreak, bestActive, group, donut, bars, heatmap, week7 };
+  root.Habit = { REP, nextReset, fmtLeft, resetBadge, tickResets, today, addDays, complete, reopen, streak, rollover, completions, lastDays, activeStreak, bestActive, group, donut, bars, heatmap, week7 };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.Habit;
 })(typeof window !== 'undefined' ? window : globalThis);

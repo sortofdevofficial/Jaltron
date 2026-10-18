@@ -18,10 +18,10 @@ let custom = [];
 const catList = () => [...DEFAULT_CATS, ...custom];
 window.CATS = catList;
 window.catReply = () => `Categories group your tasks. Built in: ${DEFAULT_CATS.join(', ')}.` + (custom.length ? ` Yours: ${custom.join(', ')}.` : ' Create your own with the New button in Quick Add.');
-window.jaltron = { openChat: (o) => toggleChat(o), openAccount: () => $('auth-btn').click(), clearDone: () => $('clear-done').click() }; // ai.js reads this so the chat knows your own categories
+window.jaltron = { complete: (id) => { const el = document.querySelector(`.task-item[data-id="${id}"] .check-btn`); if (el) el.click(); return !!el; }, openChat: (o) => toggleChat(o), openAccount: () => $('auth-btn').click(), clearDone: () => $('clear-done').click() }; // ai.js reads this so the chat knows your own categories
 
 const WEIGHT = { high: 3, medium: 2, low: 1 };
-const REPS = ['d', 'wd', 'w'];
+const REPS = ['d', 'wd', 'we', 'w'];
 // One place that builds a task, so every field (including repeat and streak data) always exists
 const mkTask = (o) => ({ id: nextId++, title: '', prio: 'medium', tag: 'General', due: '', done: false, r: '', s: 0, b: 0, l: '', h: [], z: '', i: [], ...o });
 const todayStr = () => {
@@ -45,6 +45,11 @@ function dueBadge(t) {
   return `<span class="badge due ${cls}"><i class="fa-regular fa-calendar"></i> ${label}</span>`;
 }
 
+function doneBadges(t) {
+  const today = Habit.today();
+  const doneToday = t.done && (t.z === today || t.l === today);
+  return (doneToday ? '<span class="badge okd"><i class="fa-solid fa-check"></i> Done today</span>' : '') + Habit.resetBadge(t);
+}
 function repBadges(t) {
   if (!t.r) return '';
   const s = Habit.streak(t);
@@ -98,7 +103,7 @@ function render() {
   $('progress-text').textContent = `${pct}% (${done}/${total})`;
   renderInsights();
   applyCover();
-  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, canSavePet: !syncing, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
+  if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, focus: profile.f || {}, setFocus: (f) => { profile.f = f; if (window.DB && DB.user && DB.setFocus) DB.setFocus(f); }, canSavePet: !syncing, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
 
   const q = query.toLowerCase();
   const filtered = tasks.filter(t => {
@@ -134,7 +139,7 @@ function render() {
             <span class="badge ${t.prio}"><i class="fa-solid fa-flag"></i> ${t.prio}</span>
             <span class="badge tag"><i class="fa-solid fa-${CAT_ICON[t.tag] || 'tag'}"></i> ${escapeHtml(t.tag)}</span>
             ${dueBadge(t)}
-            ${repBadges(t)}
+            ${repBadges(t)}${doneBadges(t)}
             ${upBusy.has(t.id) ? '<span class="badge up"><i class="fa-solid fa-spinner fa-spin"></i> Uploading</span>' : ''}
           </div>
           ${picsHtml(t)}
@@ -584,6 +589,7 @@ function dayCheck() {
   render();
 }
 setInterval(dayCheck, 60000);
+setInterval(() => Habit.tickResets(), 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) dayCheck(); });
 
 // ---- Images (ImgBB, see upload.js). Stored as short "path|thumb" strings in task.i ----

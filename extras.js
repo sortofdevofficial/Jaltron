@@ -40,6 +40,10 @@
       : '<li class="none" style="border:none;background:none">Nothing waiting. Nice.</li>';
 
     petUpdate(map, day, c);
+    Focus.sync(list, c);
+    const dn = list.filter(t => t.done && (t.z === day || t.l === day));
+    $('done-box').hidden = !dn.length; $('dt-n').textContent = dn.length;
+    $('dt-list').innerHTML = dn.map(t => `<li><i class="fa-solid fa-circle-check"></i><span title="${esc(t.title)}">${esc(t.title)}</span>${Habit.resetBadge(t) || '<small>one-time</small>'}</li>`).join('');
     const pending = list.filter(t => !t.done).length;
     $('nav-tasks-n').textContent = pending; $('nav-tasks-n').classList.toggle('hot', overdue > 0);
     // view counters
@@ -122,14 +126,17 @@
   });
   $('pet-side').addEventListener('click', () => go('home'));
 
+  $('dt-all').addEventListener('click', () => { go('tasks'); clickEl('[data-view="all"]'); clickEl('[data-filter="done"]'); });
+  setInterval(() => Habit.tickResets(), 20000);
+
   // ---------- Navigation ----------
-  const PAGES = { home: 'Home', tasks: 'Tasks', insights: 'Insights' };
+  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights' };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
     document.querySelectorAll('[data-nav]').forEach(x => { const on = x.dataset.nav === p; x.classList.toggle('active', on); on ? x.setAttribute('aria-current', 'page') : x.removeAttribute('aria-current'); });
     $('page-title').textContent = PAGES[p];
-    F.orig = `${PAGES[p]} | JALTRON`; if (!F.running) document.title = F.orig;
+    Focus.title(`${PAGES[p]} | JALTRON`); Focus.pageChanged();
     if (location.hash !== '#' + p) history.replaceState(null, '', '#' + p);
     if (!quiet) scrollTo({ top: 0 });
   }
@@ -140,7 +147,6 @@
   $('nav-ai').addEventListener('click', () => jaltron.openChat(true));
   $('nav-add').addEventListener('click', newTask);
   $('top-add').addEventListener('click', newTask);
-  $('nav-focus').addEventListener('click', () => startFocus(next3[0] || null));
   $('nav-keys').addEventListener('click', () => $('keys-dlg').showModal());
   // Stat cards jump to the matching filtered task list
   const jump = [
@@ -165,64 +171,8 @@
     $('task-due').value = Habit.addDays(Habit.today(), d === 'we' ? (6 - dow + 7) % 7 : Number(d));
   });
 
-  // ---------- Focus timer ----------
-  const F = { task: null, total: 25 * 60, end: 0, left: 25 * 60, running: false, id: null, orig: document.title };
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-  function paint() {
-    const s = Math.max(0, F.running ? Math.ceil((F.end - Date.now()) / 1000) : F.left);
-    $('fd-time').textContent = fmt(s);
-    $('fd-fill').style.strokeDashoffset = String(DOCK * (1 - s / F.total));
-    document.title = F.running ? `${fmt(s)} Focus | JALTRON` : F.orig;
-    $('fd-toggle').innerHTML = `<i class="fa-solid fa-${F.running ? 'pause' : 'play'}"></i>`;
-    return s;
-  }
-  function tick() {
-    if (paint() > 0) return;
-    stop(false);
-    $('fd-time').textContent = 'Done';
-    beep();
-    toast(F.task ? `Focus session finished: ${F.task.title}` : 'Focus session finished');
-    burst(innerWidth / 2, innerHeight - 100, 60);
-  }
-  function startFocus(task, mins = 25) {
-    clearInterval(F.id);
-    F.task = task || null; F.total = F.left = mins * 60; F.end = Date.now() + F.left * 1000; F.running = true;
-    $('fd-task').textContent = task ? task.title : 'Free focus';
-    $('fd-done').hidden = !task;
-    $('focus-dock').hidden = false;
-    F.id = setInterval(tick, 250); paint();
-    window.dispatchEvent(new Event('jaltron:focus'));
-  }
-  function stop(hide) {
-    clearInterval(F.id); F.running = false;
-    document.title = F.orig;
-    if (hide) $('focus-dock').hidden = true;
-    paint();
-  }
-  $('fd-toggle').addEventListener('click', () => {
-    if (F.running) { F.left = Math.max(0, Math.ceil((F.end - Date.now()) / 1000)); stop(false); }
-    else if (F.left > 0) { F.end = Date.now() + F.left * 1000; F.running = true; F.id = setInterval(tick, 250); paint(); }
-    else startFocus(F.task);
-  });
-  $('fd-add').addEventListener('click', () => { F.total += 300; if (F.running) F.end += 300000; else F.left += 300; paint(); });
-  $('fd-close').addEventListener('click', () => { stop(true); F.task = null; document.querySelectorAll('.focusing').forEach(x => x.classList.remove('focusing')); });
-  $('fd-done').addEventListener('click', () => {
-    const el = document.querySelector(`.task-item[data-id="${F.task && F.task.id}"] .check-btn`);
-    stop(true);
-    if (el) el.click();
-    F.task = null;
-  });
-  function beep() {
-    try {
-      const a = new (window.AudioContext || window.webkitAudioContext)();
-      [660, 880].forEach((f, i) => {
-        const o = a.createOscillator(), g = a.createGain();
-        o.frequency.value = f; o.connect(g); g.connect(a.destination);
-        g.gain.setValueAtTime(.0001, a.currentTime + i * .22); g.gain.exponentialRampToValueAtTime(.25, a.currentTime + i * .22 + .03); g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + i * .22 + .3);
-        o.start(a.currentTime + i * .22); o.stop(a.currentTime + i * .22 + .32);
-      });
-    } catch {}
-  }
+  // ---------- Focus (the timer itself lives in focus.js) ----------
+  const startFocus = (task) => { go('focus'); Focus.start(task || null); };
 
   // ---------- Confetti ----------
   const cv = $('fx'), cx = cv.getContext('2d');
@@ -266,7 +216,8 @@
     { i: 'chart-pie', l: 'Go to Insights', k: 'charts streaks', run: () => go('insights') },
     { i: 'plus', l: 'New task', k: 'add create', run: newTask },
     { i: 'comment-dots', l: 'Open AI chat', k: 'ask assistant', run: () => jaltron.openChat(true) },
-    { i: 'bullseye', l: 'Start focus session', k: 'timer pomodoro', run: () => startFocus(next3[0] || null) },
+    { i: 'stopwatch', l: 'Go to Focus timer', k: 'pomodoro timer', run: () => go('focus') },
+    { i: 'bullseye', l: 'Start focus session', k: 'timer pomodoro start', run: () => startFocus(next3[0] || null) },
     { i: 'bolt', l: 'Smart sort my plan', k: 'optimize order', run: () => { go('tasks'); clickEl('#ai-sort-btn'); } },
     { i: 'sun', l: 'Show today', k: 'view', run: () => { go('tasks'); clickEl('[data-view="today"]'); } },
     { i: 'calendar', l: 'Show upcoming', k: 'view', run: () => { go('tasks'); clickEl('[data-view="upcoming"]'); } },
@@ -314,14 +265,14 @@
     if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]') || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
     const k = e.key.toLowerCase();
     if (k === 'n') { e.preventDefault(); newTask(); }
-    else if (k === '1') go('home'); else if (k === '2') go('tasks'); else if (k === '3') go('insights');
+    else if (k === '1') go('home'); else if (k === '2') go('tasks'); else if (k === '3') go('focus'); else if (k === '4') go('insights');
     else if (k === 'c') { e.preventDefault(); jaltron.openChat(true); }
-    else if (k === 'f') { e.preventDefault(); startFocus(next3[0] || null); }
+    else if (k === 'f') { e.preventDefault(); go('focus'); }
     else if (k === 't') $('theme-btn').click();
     else if (e.key === '?') $('keys-dlg').showModal();
   });
 
   go(location.hash.slice(1) || 'home', true);
-  window.Extras = { go, update, startFocus, celebrate, focusId: () => (F.task && !$('focus-dock').hidden ? F.task.id : null) };
+  window.Extras = { go, update, startFocus, celebrate, focusId: () => Focus.taskId(), burst, toast };
 })();
 document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && !document.querySelector('dialog[open]')) Extras.go('tasks', true); }, true);

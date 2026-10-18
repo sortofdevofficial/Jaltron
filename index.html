@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>JALTRON - AI Plan Manager</title>
   <link id="favicon" rel="icon" type="image/png" href="favicon.png">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -27,6 +27,7 @@
     <div class="nav">
       <button class="nav-item active" data-nav="home"><i class="fa-solid fa-house"></i><span>Home</span></button>
       <button class="nav-item" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span><b id="nav-tasks-n">0</b></button>
+      <button class="nav-item" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span><b class="live" id="nav-focus-t" hidden>25:00</b></button>
       <button class="nav-item" data-nav="insights"><i class="fa-solid fa-chart-pie"></i><span>Insights</span></button>
       <button class="nav-item nav-ai" id="nav-ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Ask AI</span></button>
     </div>
@@ -34,7 +35,6 @@
     <div class="nav tools">
       <p class="nav-label">Tools</p>
       <button class="nav-item" id="nav-add"><i class="fa-solid fa-plus"></i><span>New task</span><kbd>N</kbd></button>
-      <button class="nav-item" id="nav-focus"><i class="fa-solid fa-bullseye"></i><span>Focus timer</span><kbd>F</kbd></button>
       <button class="nav-item" id="nav-keys"><i class="fa-regular fa-keyboard"></i><span>Shortcuts</span><kbd>?</kbd></button>
     </div>
   </nav>
@@ -98,6 +98,76 @@
     <div class="progress"><div id="progress-bar"></div></div>
   </div>
 
+  <section class="hud done-box" id="done-box" hidden>
+    <div class="panel-title"><span><i class="fa-solid fa-check-double"></i> Completed today <b id="dt-n">0</b></span><button class="btn" id="dt-all"><i class="fa-solid fa-list-check"></i> Open tasks</button></div>
+    <ul class="dt-list" id="dt-list"></ul>
+  </section>
+  </div>
+  <div class="page" data-page="focus">
+    <div class="fp-grid">
+      <section class="hud fp-main" id="fp-main-card" data-mode="focus">
+        <div class="fp-modes" role="tablist" aria-label="Timer mode">
+          <button class="fp-mode active" role="tab" data-mode="focus"><i class="fa-solid fa-bullseye"></i> Focus</button>
+          <button class="fp-mode" role="tab" data-mode="short"><i class="fa-solid fa-mug-hot"></i> Short break</button>
+          <button class="fp-mode" role="tab" data-mode="long"><i class="fa-solid fa-couch"></i> Long break</button>
+        </div>
+        <div class="fp-ring-wrap">
+          <svg class="fp-ring" viewBox="0 0 240 240" aria-hidden="true">
+            <defs><linearGradient id="fp-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="s1"/><stop offset="1" class="s2"/></linearGradient></defs>
+            <circle class="fp-ticks" cx="120" cy="120" r="112"/>
+            <circle class="fp-track" cx="120" cy="120" r="98"/>
+            <circle class="fp-prog" id="fp-prog" cx="120" cy="120" r="98" stroke-dasharray="615.75" stroke-dashoffset="0"/>
+          </svg>
+          <div class="fp-center">
+            <div class="fp-time" id="fp-time">25:00</div>
+            <div class="fp-state" id="fp-state">Ready to focus</div>
+            <div class="fp-task" id="fp-task">Free focus</div>
+          </div>
+        </div>
+        <div class="fp-dots" id="fp-dots" aria-label="Sessions in this cycle"></div>
+        <div class="fp-controls">
+          <button class="icon-btn lg" id="fp-reset" aria-label="Reset timer" title="Reset (R)"><i class="fa-solid fa-rotate-left"></i></button>
+          <button class="btn primary big" id="fp-main"><i class="fa-solid fa-play"></i><span>Start</span></button>
+          <button class="icon-btn lg" id="fp-skip" aria-label="Skip to next" title="Skip (S)"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+        <div class="fp-presets" id="fp-presets">
+          <button data-min="15">15</button><button data-min="25">25</button><button data-min="45">45</button><button data-min="60">60</button>
+          <label class="fp-custom"><input type="number" id="fp-custom" min="1" max="180" aria-label="Custom focus minutes"><span>min</span></label>
+        </div>
+        <div class="fp-actions">
+          <button class="btn" id="fp-zen" title="Zen mode (Z)"><i class="fa-solid fa-expand"></i> Zen mode</button>
+          <button class="btn" id="fp-complete" hidden><i class="fa-solid fa-check"></i> Mark task done</button>
+        </div>
+        <p class="fp-keys sub">Space start or pause, R reset, S skip, Z zen</p>
+      </section>
+      <div class="fp-side">
+        <section class="hud panel fp-card">
+          <div class="panel-title"><span><i class="fa-solid fa-list-check"></i> Working on</span></div>
+          <select id="fp-pick" aria-label="Task to focus on"></select>
+        </section>
+        <section class="hud panel fp-card">
+          <div class="panel-title"><span><i class="fa-solid fa-chart-simple"></i> Today</span></div>
+          <div class="fp-stats">
+            <div><b id="fp-s-n">0</b><span>sessions</span></div>
+            <div><b id="fp-s-m">0m</b><span>focused</span></div>
+            <div><b id="fp-s-t">0m</b><span>all time</span></div>
+          </div>
+          <ul class="fp-log" id="fp-log"></ul>
+        </section>
+        <section class="hud panel fp-card">
+          <div class="panel-title"><span><i class="fa-solid fa-sliders"></i> Settings</span></div>
+          <div class="fp-cfg">
+            <label>Focus<input type="number" id="cf-focus" min="1" max="180"></label>
+            <label>Short break<input type="number" id="cf-short" min="1" max="180"></label>
+            <label>Long break<input type="number" id="cf-long" min="1" max="180"></label>
+            <label>Long break every<input type="number" id="cf-every" min="1" max="12"></label>
+          </div>
+          <label class="fp-toggle"><input type="checkbox" id="cf-auto"><span>Start the next session automatically</span></label>
+          <label class="fp-toggle"><input type="checkbox" id="cf-sound"><span>Play a sound when time is up</span></label>
+          <label class="fp-toggle"><input type="checkbox" id="cf-notify"><span>Desktop notification</span></label>
+        </section>
+      </div>
+    </div>
   </div>
   <div class="page" data-page="insights">
   <section class="hud insights" id="insights">
@@ -164,7 +234,7 @@
           </div>
           <div class="field">
             <label for="task-rep">Repeat</label>
-            <select id="task-rep"><option value="">Never</option><option value="d">Daily</option><option value="wd">Weekdays</option><option value="w">Weekly</option></select>
+            <select id="task-rep"><option value="">Never</option><option value="d">Daily</option><option value="wd">Weekdays</option><option value="we">Weekends</option><option value="w">Weekly</option></select>
           </div>
         </div>
         <div class="field">
@@ -269,7 +339,7 @@
       </div>
       <div class="two-col">
         <div class="field"><label for="ed-due">Due date</label><input type="date" id="ed-due"></div>
-        <div class="field"><label for="ed-rep">Repeat</label><select id="ed-rep"><option value="">Never</option><option value="d">Daily</option><option value="wd">Weekdays</option><option value="w">Weekly</option></select></div>
+        <div class="field"><label for="ed-rep">Repeat</label><select id="ed-rep"><option value="">Never</option><option value="d">Daily</option><option value="wd">Weekdays</option><option value="we">Weekends</option><option value="w">Weekly</option></select></div>
       </div>
       <div class="field">
         <label>Images</label>
@@ -288,12 +358,11 @@
 
   <div class="focus-dock" id="focus-dock" hidden>
     <svg class="fd-ring" viewBox="0 0 64 64" aria-hidden="true"><circle class="t" cx="32" cy="32" r="27"/><circle class="f" id="fd-fill" cx="32" cy="32" r="27" stroke-dasharray="169.6" stroke-dashoffset="0"/></svg>
-    <div class="fd-info"><div class="fd-time" id="fd-time">25:00</div><small id="fd-task">Free focus</small></div>
+    <div class="fd-info"><div class="fd-time" id="fd-time">25:00</div><small id="fd-task">Focus</small></div>
     <div class="fd-btns">
       <button class="icon-btn" id="fd-toggle" aria-label="Pause or resume"><i class="fa-solid fa-pause"></i></button>
-      <button class="icon-btn" id="fd-add" aria-label="Add 5 minutes" title="+5 min"><i class="fa-solid fa-plus"></i></button>
-      <button class="icon-btn" id="fd-done" aria-label="Mark task done" title="Mark task done"><i class="fa-solid fa-check"></i></button>
-      <button class="icon-btn" id="fd-close" aria-label="Stop focus"><i class="fa-solid fa-xmark"></i></button>
+      <button class="icon-btn" id="fd-open" aria-label="Open the Focus page" title="Open Focus page"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></button>
+      <button class="icon-btn" id="fd-close" aria-label="Stop and reset" title="Stop"><i class="fa-solid fa-stop"></i></button>
     </div>
   </div>
 
@@ -309,11 +378,13 @@
       <kbd>Ctrl K</kbd><span>Command palette</span>
       <kbd>1</kbd><span>Home</span>
       <kbd>2</kbd><span>Tasks</span>
-      <kbd>3</kbd><span>Insights</span>
+      <kbd>3</kbd><span>Focus</span>
+      <kbd>4</kbd><span>Insights</span>
+      <kbd>Space</kbd><span>Start or pause (Focus page)</span>
       <kbd>N</kbd><span>New task</span>
       <kbd>/</kbd><span>Search tasks</span>
       <kbd>C</kbd><span>Open the AI chat</span>
-      <kbd>F</kbd><span>Start a focus session</span>
+      <kbd>F</kbd><span>Open the Focus page</span>
       <kbd>T</kbd><span>Switch theme</span>
       <kbd>?</kbd><span>Show this list</span>
     </div>
@@ -334,6 +405,7 @@
   <script src="ai.js"></script>
   <script src="habits.js"></script>
   <script src="upload.js"></script>
+  <script src="focus.js"></script>
   <script src="extras.js"></script>
   <script src="index.js"></script>
 </body>
