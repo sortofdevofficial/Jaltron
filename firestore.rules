@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /u/{id} {
+      // Your own data doc: u/<uid>
+      allow read, write: if request.auth != null && request.auth.uid == id;
+
+      // Username claim docs: u/<name> = { u: <uid> } (the doc ID is the unique name)
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['u'])
+        && request.resource.data.u == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.u == request.auth.uid;
+
+      // Tasks: u/<uid>/t/<id>
+      match /t/{taskId} {
+        allow read, write: if request.auth != null && request.auth.uid == id;
+      }
+    }
+  }
+}
