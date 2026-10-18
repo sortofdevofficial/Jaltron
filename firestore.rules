@@ -46,17 +46,27 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == id;
     }
 
-    // Workspaces: w/<ownerUid> = { m: member uids, b: balance, l: log }. Owner runs it;
-    // members (m) may only change the pot balance and log — never the member list, never delete.
+    // Shared banks: w/<id> = { o: owner uid, nm: name, c: currency, m: member uids, b: balance, l: log, v: 2 }.
+    // Old pots are w/<ownerUid> without o (the id is the owner then). The owner edits everything; members move money or leave.
     match /w/{id} {
+      function owner() { return resource.data.get('o', id) == request.auth.uid; }
       allow read: if request.auth != null && (request.auth.uid == id || request.auth.uid in resource.data.m);
-      allow create: if request.auth != null && request.auth.uid == id
-        && request.resource.data.m is list && request.auth.uid in request.resource.data.m;
-      allow update: if request.auth != null && request.auth.uid == id;
+      allow create: if request.auth != null && request.resource.data.o == request.auth.uid
+        && request.resource.data.m is list && request.auth.uid in request.resource.data.m && request.resource.data.m.size() <= 20
+        && request.resource.data.nm is string && request.resource.data.nm.size() >= 1 && request.resource.data.nm.size() <= 30
+        && request.resource.data.c is string && request.resource.data.c.size() == 3
+        && request.resource.data.b is int && request.resource.data.l is list && request.resource.data.l.size() <= 100;
+      allow update: if request.auth != null && owner()
+        && request.resource.data.get('o', id) == resource.data.get('o', id)
+        && request.resource.data.m is list && request.auth.uid in request.resource.data.m && request.resource.data.m.size() <= 20
+        && request.resource.data.b is int && request.resource.data.l is list && request.resource.data.l.size() <= 100;
       allow update: if request.auth != null && request.auth.uid in resource.data.m
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['b', 'l'])
         && request.resource.data.b is int && request.resource.data.l is list && request.resource.data.l.size() <= 100;
-      allow delete: if request.auth != null && request.auth.uid == id;
+      allow update: if request.auth != null && request.auth.uid in resource.data.m && !owner()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['m'])
+        && !(request.auth.uid in request.resource.data.m) && request.resource.data.m.size() == resource.data.m.size() - 1;
+      allow delete: if request.auth != null && owner();
     }
   }
 }

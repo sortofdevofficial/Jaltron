@@ -5,11 +5,11 @@
 //   u/<uid>/t/<id>  legacy one-doc-per-task layout, replaced by q. Kept readable while old accounts self-migrate (migrate() below); the rules block can go once they are all on v: 2.
 //   s/<uid>      { p: 'lite', e: expiry ms }  the subscription, written only by staff (rules block clients)
 //   lb/<uid>     { n: username, t: streak days, b: best run, d: last active day }  the public streak leaderboard (self-reported; rules tie n to your own username claim; o: true on u/<uid> hides you)
-//   w/<ownerUid> { m: [member uids, owner always included], b: shared pot balance, l: same log format }  one workspace pot per owner; the rules let members change only b and l, names are never stored here (resolved from the claims below)
+//   w/<id>       { o: owner uid, nm: name, c: currency, m: [member uids, owner included], b: balance in minor units, l: log, v: 2 }  shared banks (any number per owner); members change only b and l; names are resolved from the claims below
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyDlqQYIPue53vx1tpm7-DYYKMZB4OatiDg',
@@ -166,45 +166,54 @@ async function setPetArt(y) {
   } catch (err) { console.error(err); emit('error', 'Could not save your pet.'); }
 }
 
-// ---------- Fake bank + workspaces ----------
-// Log entries "YYYY-MM-DD|+N|<uid>|<ms>": this code adds the uid, so nobody can spend under
-// someone else's name, and the ms tail keeps same-day entries from merging inside arrayUnion.
-// Money moves use increment/arrayUnion (no read of the heavy account doc, they also work offline);
-// once the log is full one plain write lands that also trims it back to the cap.
+// ---------- Fake banks ----------
+// Money is stored as whole minor units (cents) with a currency code. Entries: "YYYY-MM-DD|+N|<uid>|<ms>" (N in minor units).
+// This code adds the uid, so nobody can spend under someone else's name; the ms tail keeps same-day entries from merging in arrayUnion.
+// Moves use increment/arrayUnion (no read, they also work offline); once the log is full one plain write lands that also trims it.
+// Old accounts stored whole dollars with no v: 2 mark; extras.js converts those on read and the first write here upgrades them.
 const pad = (n) => String(n).padStart(2, '0');
 const isoDay = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const BANK_CAP = 90; // the rules allow 100; 90 matches the history caps elsewhere in the app
 const bankEntry = (delta) => `${isoDay()}|${delta > 0 ? '+' : ''}${delta}|${auth.currentUser.uid}|${Date.now()}`;
-const nextBank = (cur, delta, e) => ({ m: (cur?.m || 0) + delta, l: [...(cur?.l || []).slice(-(BANK_CAP - 1)), e] });
+const nextBank = (cur, delta, e) => ({ m: (cur?.m || 0) + delta, l: [...(cur?.l || []).slice(-(BANK_CAP - 1)), e], c: cur?.c || 'USD', v: 2 });
+const cacheBank = (b) => { const c = readCache(auth.currentUser.uid); if (c) writeCache(auth.currentUser.uid, c.tasks, { ...c.profile, b }); };
 
-async function bankMoney(delta, cur) {
+// My (private) bank. stored: the saved copy is already v: 2, so increments are safe
+async function bankMoney(delta, cur, stored) {
   const e = bankEntry(delta), next = nextBank(cur, delta, e);
-  await updateDoc(ref(), (cur?.l || []).length < BANK_CAP ? { 'b.m': increment(delta), 'b.l': arrayUnion(e) } : { b: next });
-  const c = readCache(auth.currentUser.uid);
-  if (c) writeCache(auth.currentUser.uid, c.tasks, { ...c.profile, b: next });
+  await updateDoc(ref(), stored && (cur?.l || []).length < BANK_CAP ? { 'b.m': increment(delta), 'b.l': arrayUnion(e) } : { b: next });
+  cacheBank(next);
   return next;
 }
+async function bankPut(b) { await updateDoc(ref(), { b }); cacheBank(b); return b; }
 
-// The workspace pot: w/<your uid>, you are the owner. Members are uids; names come from nameOf.
-const wsRef = () => doc(db, 'w', auth.currentUser.uid);
-async function wsCreate() { await setDoc(wsRef(), { m: [auth.currentUser.uid], b: 0, l: [] }); }
+// Shared banks: w/<autoId> { o: owner uid, nm: name, c: currency, m: [member uids, owner included], b: balance, l: log, v: 2 }.
+// The owner edits everything; members may only move money (b, l) or remove themselves. Names are never stored here (resolved from the claims).
+// Old pots were w/<ownerUid> with no o/nm/c/v: the owner's client upgrades them (wsUpgrade).
+const wsDoc = (id) => doc(db, 'w', id);
+const wsCreate = (nm, c) => addDoc(collection(db, 'w'), { o: auth.currentUser.uid, nm, c, m: [auth.currentUser.uid], b: 0, l: [], v: 2 });
+const wsEdit = (id, nm, c) => updateDoc(wsDoc(id), { nm, c });
+const wsRemove = (id) => deleteDoc(wsDoc(id));
+const wsLeave = (id) => updateDoc(wsDoc(id), { m: arrayRemove(auth.currentUser.uid) });
 // A claim read failing with permission-denied just means the username is unknown.
-async function wsAdd(name) {
+async function wsAdd(id, name) {
   name = String(name).trim().toLowerCase();
   if (!NAME_RE.test(name)) throw new Error('invalid');
   const c = await getDoc(doc(db, 'u', name)).catch((e) => { if (isPerm(e)) throw new Error('unknown'); throw e; });
   if (!c.exists() || !c.data().u) throw new Error('unknown');
   if (c.data().u === auth.currentUser.uid) throw new Error('me');
-  await updateDoc(wsRef(), { m: arrayUnion(c.data().u) });
+  await updateDoc(wsDoc(id), { m: arrayUnion(c.data().u) });
 }
-async function wsDel(uid) { await updateDoc(wsRef(), { m: arrayRemove(uid) }); }
+const wsDel = (id, uid) => updateDoc(wsDoc(id), { m: arrayRemove(uid) });
 async function wsMoney(id, delta, cur) {
   const e = bankEntry(delta), next = nextBank(cur, delta, e);
-  await updateDoc(doc(db, 'w', id), (cur?.l || []).length < BANK_CAP ? { b: increment(delta), l: arrayUnion(e) } : { b: next.m, l: next.l });
+  await updateDoc(wsDoc(id), (cur?.l || []).length < BANK_CAP ? { b: increment(delta), l: arrayUnion(e) } : { b: next.m, l: next.l });
   return next;
 }
-// Every pot whose member list contains you, live (member add/remove shows up here too). Returns the unsubscribe.
-const wsWatch = (onNext, onErr) => onSnapshot(query(collection(db, 'w'), where('m', 'array-contains', auth.currentUser.uid)), { includeMetadataChanges: true }, onNext, onErr); // metadata changes on: the cache-to-server confirmation must fire even when nothing changed
+const wsUpgrade = (id, b, l) => updateDoc(wsDoc(id), { o: id, nm: 'Shared bank', c: 'USD', v: 2, b, l });
+// Every bank whose member list contains you, live (member add/remove shows up here too). Returns the unsubscribe.
+// includeMetadataChanges: the cache-to-server confirmation must fire even when nothing changed.
+const wsWatch = (onNext, onErr) => onSnapshot(query(collection(db, 'w'), where('m', 'array-contains', auth.currentUser.uid)), { includeMetadataChanges: true }, onNext, onErr);
 
 // Username for a uid: claims store only name -> uid, so run the reverse query once per uid and keep the answer
 const names = new Map();
@@ -296,7 +305,7 @@ const adminSet = (uid, days) => setDoc(doc(db, 's', uid), days === 0 ? { p: 'fre
 window.DB = {
   isAdmin, adminFind, adminSet, lbTop, setLbOptOut,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt,
-  bankMoney, wsCreate, wsAdd, wsDel, wsMoney, wsWatch, nameOf,
+  bankMoney, bankPut, wsCreate, wsEdit, wsRemove, wsLeave, wsAdd, wsDel, wsMoney, wsUpgrade, wsWatch, nameOf,
   token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),
   get user() { return auth.currentUser; },
   signIn: () => signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver).catch(e => { if (e.code !== 'auth/popup-closed-by-user') emit('error', 'Sign-in failed: ' + e.code); }),

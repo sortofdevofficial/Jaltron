@@ -698,3 +698,16 @@ html[data-plan="free"] [data-page="insights"] .lock-card { display: grid; gap: .
 .icon-btn.has-lbl { width: auto; display: inline-flex; align-items: center; gap: .4rem; padding: 0 .75rem; }
 .icon-btn .lbl { font-size: .75rem; font-weight: 500; }
 @media (max-width: 700px) { .icon-btn .lbl { display: none; } .icon-btn.has-lbl { width: 2.625rem; padding: 0; justify-content: center; } }
+
+/* ---- Banks: names, currency, members ---- */
+.bk-new, .bk-edit { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; }
+.bk-new input { flex: 1 1 10rem; min-width: 0; } .bk-edit input { flex: 1 1 8rem; min-width: 0; }
+.bk-new select, .bk-edit select, #bk-cur { max-width: 11rem; }
+#bk-ws { display: grid; gap: .75rem; }
+.bk-pot-name { display: grid; min-width: 0; } .bk-pot-name strong { font-family: 'Exo 2', sans-serif; font-size: 1.0625rem; overflow: hidden; text-overflow: ellipsis; }
+.chip .own { font-style: normal; font-size: .625rem; color: var(--accent); }
+.bk-controls input { width: 9rem; }
+.bk-new, .bk-edit { flex-direction: row; align-items: center; }
+.bk-edit .btn, .bk-new .btn { white-space: nowrap; }
+.bk-pot .bk-row b { font-family: inherit; font-size: inherit; font-weight: 700; background: none; -webkit-background-clip: initial; background-clip: initial; }
+.bk-pot .bk-row b.pos { color: var(--ok); } .bk-pot .bk-row b.neg { color: var(--danger); }

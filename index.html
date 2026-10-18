@@ -280,18 +280,23 @@
   </div>
   <div class="bk-grid" id="bk-main" hidden>
     <section class="hud panel">
-      <div class="panel-title"><span><i class="fa-solid fa-piggy-bank"></i> My bank</span><span class="sub">Fake money, just for fun</span></div>
-      <div class="bk-balance"><span class="sub">Balance</span><b id="bk-mine">$0</b></div>
+      <div class="panel-title"><span><i class="fa-solid fa-piggy-bank"></i> My bank</span><select id="bk-cur" aria-label="Currency"></select></div>
+      <div class="bk-balance"><span class="sub">Balance (fake money, just for fun)</span><b id="bk-mine">0</b></div>
       <div class="bk-controls">
-        <input type="number" id="bk-amt" min="1" max="1000000" inputmode="numeric" placeholder="Amount" aria-label="Amount">
+        <input type="text" id="bk-amt" inputmode="decimal" placeholder="Amount, e.g. 12.50" aria-label="Amount" autocomplete="off">
         <button class="btn primary" id="bk-add"><i class="fa-solid fa-plus"></i> Add</button>
         <button class="btn" id="bk-take"><i class="fa-solid fa-minus"></i> Remove</button>
       </div>
-      <div class="bk-chips" id="bk-chips"><button type="button">+$10</button><button type="button">+$50</button><button type="button">+$100</button><button type="button">-$50</button></div>
+      <div class="bk-chips" id="bk-chips"><button type="button">+10</button><button type="button">+50</button><button type="button">+100</button><button type="button">-50</button></div>
       <div class="bk-log" id="bk-log"></div>
     </section>
     <section class="hud panel">
-      <div class="panel-title"><span><i class="fa-solid fa-users"></i> Workspace pot</span><button class="btn primary" id="bk-ws-new" hidden><i class="fa-solid fa-plus"></i> Create pot</button></div>
+      <div class="panel-title"><span><i class="fa-solid fa-users"></i> Shared banks</span></div>
+      <form class="bk-new" id="bk-new-form">
+        <input id="bk-new-name" maxlength="30" placeholder="Name a new bank, e.g. Trip fund" autocomplete="off" aria-label="Bank name" required>
+        <select id="bk-new-cur" aria-label="Currency"></select>
+        <button class="btn primary"><i class="fa-solid fa-plus"></i> Create bank</button>
+      </form>
       <div id="bk-ws"></div>
     </section>
   </div>
