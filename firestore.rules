@@ -26,7 +26,8 @@ service cloud.firestore {
         && request.resource.data.u == request.auth.uid;
       allow delete: if request.auth != null && resource.data.u == request.auth.uid;
 
-      // Tasks: u/<uid>/t/<id>
+      // Legacy tasks: u/<uid>/t/<id> — tasks now live in the q map on u/<uid> (covered by the rule above).
+      // Old clients still self-migrate their subcollection; remove this block once every account has v: 2.
       match /t/{taskId} {
         allow read, write: if request.auth != null && request.auth.uid == id;
       }

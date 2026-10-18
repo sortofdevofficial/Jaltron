@@ -2,7 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 
-// Signed out: tasks live only in memory. Signed in: they sync to Firestore at u/<uid>/t (see db.js). Repeating tasks and streaks live in lib.js (habits).
+// Signed out: tasks live only in memory. Signed in: they sync to the task map q on u/<uid> in Firestore (see db.js). Repeating tasks and streaks live in lib.js (habits).
 let tasks = [];
 let nextId = 1;
 let currentFilter = 'all';
