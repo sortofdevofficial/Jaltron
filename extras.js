@@ -161,7 +161,7 @@
     $('task-due').value = Habit.addDays(Habit.today(), d === 'we' ? (6 - dow + 7) % 7 : Number(d));
   });
 
-  // ---------- Focus (the timer itself lives in focus.js) ----------
+  // ---------- Focus (the timer itself lives in lib.js) ----------
   const startFocus = (task) => { go('focus'); Focus.start(task || null); };
 
   // ---------- Confetti ----------

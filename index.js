@@ -2,7 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 
-// Signed out: tasks live only in memory. Signed in: they sync to Firestore at u/<uid>/t (see db.js). Repeating tasks and streaks live in habits.js.
+// Signed out: tasks live only in memory. Signed in: they sync to Firestore at u/<uid>/t (see db.js). Repeating tasks and streaks live in lib.js (habits).
 let tasks = [];
 let nextId = 1;
 let currentFilter = 'all';
@@ -595,7 +595,7 @@ setInterval(dayCheck, 60000);
 setInterval(() => Habit.tickResets(), 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) dayCheck(); });
 
-// ---- Images (ImgBB, see upload.js). Stored as short "path|thumb|delete code" strings in task.i ----
+// ---- Images (ImgBB, see lib.js). Stored as short "path|thumb|delete code" strings in task.i ----
 // When a picture disappears from every task and from your profile, its ImgBB copy is deleted too.
 // The 7 second wait keeps "Undo" working: undoing puts the picture back before anything is deleted.
 let imgPrev = null, imgNow = new Set();
