@@ -819,7 +819,7 @@ html[data-plan="free"] [data-page="insights"] .lock-card { display: grid; gap: .
 .rv-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, #f59e0b 35%, var(--border)); box-shadow: 0 0.5rem 1.5rem -4px rgba(245, 158, 11, .15); }
 .rv-card.rv-mine { border-color: #f59e0b; background: linear-gradient(180deg, color-mix(in srgb, #f59e0b 6%, var(--panel)), var(--panel)); box-shadow: 0 0 1.25rem color-mix(in srgb, #f59e0b 18%, transparent); }
 .rv-card-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .75rem; }
-.rv-avatar { width: 2.5rem; height: 2.5rem; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #ec4899); color: #fff; font-weight: 700; font-size: .875rem; display: grid; place-items: center; text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; box-shadow: 0 2px 6px rgba(245, 158, 11, .3); }
+.rv-avatar { width: 2.5rem; height: 2.5rem; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #ec4899); color: #fff; font-weight: 700; font-size: .875rem; display: grid; place-items: center; text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; box-shadow: 0 2px 6px rgba(245, 158, 11, .3); object-fit: cover; }
 .rv-card-meta { display: grid; min-width: 0; }
 .rv-card-name { font-weight: 600; font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rv-you { font-size: .625rem; padding: 1px .4rem; border-radius: 6rem; background: #f59e0b; color: #04101c; font-weight: 700; text-transform: uppercase; margin-left: .3rem; }
