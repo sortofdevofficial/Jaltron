@@ -7,7 +7,7 @@
 //   lb/<uid>     { n: username, t: streak days, b: best run, d: last active ms }  the public streak leaderboard (a projection of your own streak; rules tie n to your own username claim; o: true on u/<uid> hides you)
 //   w/<id>       { o: owner uid, nm: name, c: currency, m: [member uids, owner included], b: balance in minor units, l: log, v: 3 }  shared banks (any number per owner); members change only b and l; names are resolved from the claims below
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
-//   rv/<uid>     { s: 1-5 stars (int), tx: review text (string ≤200), n: username (string), t: timestamp ms (int), a: avatar picture (optional string) }  one review per user; readable by all, writable only by owner
+//   rv/<uid>     { s: 1-5 stars (int), tx: review text (string ≤200), n: username (string), t: timestamp ms (int), a: picture (optional, refreshed on login) }  one review per user; readable by all, writable only by owner
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
@@ -105,6 +105,22 @@ async function setLbOptOut(o) {
     else pushLb({ ...(c && c.profile), o });
   } catch (err) { console.error(err); emit('error', 'Could not change the leaderboard setting.'); }
 }
+// Your picture on your review (rv/<uid>.a): u/<uid> is private, so the review itself carries the public copy.
+// Refreshed on login and picture change (one write only when it changed); clearing your picture clears it from the review too.
+async function pushRvAva(a) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const k = 'jr:' + user.uid;
+  try { if (localStorage.getItem(k) === (a || '')) return; } catch {}
+  try {
+    await updateDoc(doc(db, 'rv', user.uid), a ? { a } : { a: deleteField() });
+    try { localStorage.setItem(k, a || ''); } catch {}
+  } catch (err) {
+    // No review yet: nothing to refresh, remember it so we stop retrying (publishing includes the picture itself)
+    try { if (err && err.code === 'not-found') localStorage.setItem(k, a || ''); } catch {}
+    if (!err || err.code !== 'not-found') console.error(err);
+  }
+}
 const lbTop = async (n = 25) => (await getDocs(query(collection(db, 'lb'), orderBy('t', 'desc'), limit(n)))).docs.map((x) => ({ id: x.id, ...x.data() }));
 
 async function setUsername(name) {
@@ -136,6 +152,7 @@ async function setCats(k) {
 async function setAvatar(a) {
   try {
     await setDoc(ref(), { a }, { merge: true });
+    pushRvAva(a);
     const uid = auth.currentUser.uid, c = readCache(uid);
     if (c) writeCache(uid, c.tasks, { ...c.profile, a });
   } catch (err) { console.error(err); emit('error', 'Could not save your picture.'); }
@@ -300,6 +317,7 @@ async function load(user) {
   writeCache(user.uid, tasks, profile);
   loadedUid = user.uid;
   pushLb(profile);
+  pushRvAva(profile.a);
   return { tasks, profile };
 }
 

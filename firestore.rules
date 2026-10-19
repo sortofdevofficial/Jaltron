@@ -73,7 +73,7 @@ service cloud.firestore {
     }
 
     // Reviews: rv/<uid>. Anyone can read. A signed-in user can write/overwrite only their own review.
-    // Fields: s (1.0-5.0 score, number), tx (text, string ≤280), n (username, string), t (timestamp ms, int), a (avatar picture, optional string ≤200).
+    // Fields: s (1.0-5.0 score, number), tx (text, string ≤280), n (username, string), t (timestamp ms, int), a (picture, optional string ≤200 — refreshed by the owner's client on login).
     match /rv/{id} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == id

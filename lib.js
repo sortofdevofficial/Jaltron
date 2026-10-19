@@ -1058,24 +1058,9 @@
     try {
       const token = await DB.token();
       const r = await fetch(`${BASE}/rv/${DB.user.uid}`, { headers: { Authorization: 'Bearer ' + token } });
-      if (r.ok) { const j = await r.json(); if (j.fields) { myReview = j.fields; await healAvatar(token); } else { myReview = null; } }
+      if (r.ok) { const j = await r.json(); myReview = j.fields || null; }
       else { myReview = null; }
     } catch { myReview = null; }
-  }
-
-  // Reviews written before profile pictures existed gain theirs the next time their owner opens the page
-  async function healAvatar(token) {
-    const uid = DB.user.uid; let av = '';
-    try { const c = localStorage.getItem('jc:' + uid); if (c) av = (JSON.parse(c).profile || {}).a || ''; } catch {}
-    if (!av || dec(myReview.a)) return;
-    const body = { fields: { ...myReview, a: fStr(av) } };
-    try {
-      const r = await fetch(`${BASE}/rv/${uid}`, { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (!r.ok) return;
-      myReview = body.fields;
-      const i = allReviews.findIndex(x => x.uid === uid);
-      if (i >= 0) { allReviews[i] = { uid, ...decDoc(body) }; renderGrid(); }
-    } catch {}
   }
 
   // ---- show/configure the write panel ----
@@ -1149,7 +1134,9 @@
       const uid = DB.user.uid, token = await DB.token();
       let name = '', av = '';
       try { const c = localStorage.getItem('jc:' + uid); if (c) { const p = JSON.parse(c); name = (p.profile && p.profile.n) || ''; av = (p.profile && p.profile.a) || ''; } } catch {}
-      const body = { fields: { s: fNum(selScore), tx: fStr(txt), n: fStr(name), t: { integerValue: String(Date.now()) }, a: fStr(av) } };
+      const fields = { s: fNum(selScore), tx: fStr(txt), n: fStr(name), t: { integerValue: String(Date.now()) } };
+      if (av) fields.a = fStr(av);
+      const body = { fields };
       const r = await fetch(`${BASE}/rv/${uid}`, {
         method: 'PATCH',
         headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
