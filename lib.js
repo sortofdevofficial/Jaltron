@@ -875,8 +875,8 @@
   // ---- state ----
   let allReviews = [];          // all loaded, [{uid, s, tx, n, t}]
   let myReview = null;          // own doc fields object (Firestore format) or null
-  let selStar = 0;              // 0 = none selected
-  let filterStar = 0;           // 0 = all
+  let selScore = 5.0;           // default rating (supports 4.1, 2.2, etc.)
+  let filterStar = 0;           // 0 = all, 1-5 = bucket
   let sortMode = 'new';
   let loaded = false;
   let loadedAt = 0;
@@ -885,7 +885,10 @@
 
   // ---- Firestore REST helpers ----
   const fStr = (v) => ({ stringValue: String(v) });
-  const fInt = (v) => ({ integerValue: String(Math.round(Number(v))) });
+  const fNum = (v) => {
+    const n = Math.round(Number(v) * 10) / 10;
+    return Number.isInteger(n) ? { integerValue: String(n) } : { doubleValue: n };
+  };
   const dec = (f) => {
     if (!f) return undefined;
     if ('stringValue' in f) return f.stringValue;
@@ -895,33 +898,59 @@
   };
   const decDoc = (d) => {
     const f = d.fields || {};
-    return { s: dec(f.s) || 0, tx: dec(f.tx) || '', n: dec(f.n) || '', t: dec(f.t) || 0 };
+    const rawS = dec(f.s);
+    return { s: typeof rawS === 'number' ? Math.round(rawS * 10) / 10 : 5.0, tx: dec(f.tx) || '', n: dec(f.n) || '', t: dec(f.t) || 0 };
   };
 
-  // ---- star label text ----
-  const STAR_LABELS = ['', 'Terrible 😞', 'Poor 😕', 'Okay 😐', 'Good 😊', 'Amazing 🤩'];
+  // ---- cozy sentiment label based on decimal score ----
+  function scoreLabel(s) {
+    if (s >= 4.8) return 'Super cozy! ☕✨';
+    if (s >= 4.3) return 'Loved it! 🌟';
+    if (s >= 3.8) return 'Pretty good 😊';
+    if (s >= 3.0) return 'Nice & okay 🌿';
+    if (s >= 2.0) return 'Needs warmth 🌧️';
+    return 'Chilly ❄️';
+  }
 
-  // ---- set star rating UI ----
-  function setStars(n, locked) {
-    selStar = n;
+  // ---- set score UI (slider, stars, pill, and label) ----
+  function setScore(score, locked) {
+    selScore = Math.min(5.0, Math.max(1.0, Math.round(Number(score) * 10) / 10));
+    
+    // update stars visual (filled count is floor/ceil)
+    const roundedStars = Math.round(selScore);
     document.querySelectorAll('#rv-stars .rv-star').forEach((b, i) => {
-      b.dataset.on = i < n ? '1' : '0';
+      b.dataset.on = (i + 1) <= roundedStars ? '1' : '0';
       if (locked) b.disabled = true;
+      else b.disabled = false;
     });
+
+    const pill = $('rv-score-pill');
+    if (pill) pill.textContent = selScore.toFixed(1);
+
     const lbl = $('rv-star-label');
-    if (lbl) lbl.textContent = n ? STAR_LABELS[n] : 'Tap a star';
+    if (lbl) lbl.textContent = scoreLabel(selScore);
+
+    const slider = $('rv-score-slider');
+    if (slider) {
+      slider.value = String(selScore);
+      slider.disabled = !!locked;
+    }
+
+    document.querySelectorAll('.rv-chip').forEach(c => {
+      c.classList.toggle('active', Number(c.dataset.val) === selScore);
+      c.disabled = !!locked;
+    });
   }
 
   // ---- render average score banner ----
   function renderAvg() {
     if (!allReviews.length) { $('rv-avg').hidden = true; return; }
-    const avg = allReviews.reduce((s, r) => s + r.s, 0) / allReviews.length;
+    const avg = allReviews.reduce((sum, r) => sum + r.s, 0) / allReviews.length;
     const full = Math.round(avg * 10) / 10;
     $('rv-avg-n').textContent = full.toFixed(1);
-    // filled stars proportional to avg
-    const pct = avg / 5;
-    $('rv-avg-stars').innerHTML = `<div class="rv-avg-bar"><div class="rv-avg-fill" style="width:${Math.round(pct*100)}%"></div></div>`;
-    $('rv-avg-label').textContent = `${allReviews.length} review${allReviews.length === 1 ? '' : 's'}`;
+    const pct = Math.min(100, Math.max(0, (avg / 5) * 100));
+    $('rv-avg-stars').innerHTML = `<div class="rv-avg-bar"><div class="rv-avg-fill" style="width:${Math.round(pct)}%"></div></div>`;
+    $('rv-avg-label').textContent = `${allReviews.length} cozy review${allReviews.length === 1 ? '' : 's'}`;
     $('rv-avg').hidden = false;
   }
 
@@ -937,12 +966,14 @@
 
   // ---- render one card ----
   function card(rv) {
+    const filledStars = Math.round(rv.s);
     const stars = Array.from({ length: 5 }, (_, i) =>
-      `<span class="${i < rv.s ? 'rv-cs on' : 'rv-cs'}">${i < rv.s ? '★' : '☆'}</span>`).join('');
-    const name = rv.n ? esc(rv.n) : 'Anonymous';
+      `<span class="${i < filledStars ? 'rv-cs on' : 'rv-cs'}">${i < filledStars ? '★' : '☆'}</span>`).join('');
+    const name = rv.n ? esc(rv.n) : 'Anonymous Friend';
     const initials = name.slice(0, 2).toUpperCase();
     const txt = rv.tx ? `<p class="rv-card-txt">${esc(rv.tx)}</p>` : '';
     const isMe = root.DB && DB.user && rv.uid === DB.user.uid;
+    const scoreVal = Number(rv.s).toFixed(1);
     return `<article class="rv-card${isMe ? ' rv-mine' : ''}">
       <div class="rv-card-head">
         <div class="rv-avatar" aria-hidden="true">${initials}</div>
@@ -950,7 +981,10 @@
           <strong class="rv-card-name">${name}${isMe ? ' <span class="rv-you">you</span>' : ''}</strong>
           <span class="rv-card-time sub">${ago(rv.t)}</span>
         </div>
-        <div class="rv-card-stars" aria-label="${rv.s} out of 5 stars">${stars}</div>
+        <div class="rv-card-score-box">
+          <span class="rv-card-pt">${scoreVal}</span>
+          <div class="rv-card-stars" aria-label="${scoreVal} out of 5 stars">${stars}</div>
+        </div>
       </div>
       ${txt}
     </article>`;
@@ -958,7 +992,7 @@
 
   // ---- sorted + filtered view ----
   function visible() {
-    let list = filterStar ? allReviews.filter(r => r.s === filterStar) : allReviews.slice();
+    let list = filterStar ? allReviews.filter(r => Math.round(r.s) === filterStar) : allReviews.slice();
     if (sortMode === 'top') list.sort((a, b) => b.s - a.s || b.t - a.t);
     else if (sortMode === 'low') list.sort((a, b) => a.s - b.s || b.t - a.t);
     else list.sort((a, b) => b.t - a.t);
@@ -970,7 +1004,7 @@
     const list = visible();
     const grid = $('rv-grid');
     if (!list.length) {
-      grid.innerHTML = `<div class="rv-empty"><i class="fa-regular fa-face-sad-tear"></i><p>${filterStar ? `No ${filterStar}-star reviews yet.` : 'No reviews yet. Be the first!'}</p></div>`;
+      grid.innerHTML = `<div class="rv-empty"><i class="fa-solid fa-mug-hot"></i><p>${filterStar ? `No ~${filterStar}-star reviews yet.` : 'No reviews yet. Be the first cozy writer!'}</p></div>`;
       $('rv-more-wrap').hidden = true;
       return;
     }
@@ -1029,28 +1063,29 @@
     const btn = $('rv-open-write');
 
     if (!signedIn) {
-      if (gate) gate.textContent = 'Sign in with Google to leave a review.';
+      if (gate) gate.textContent = 'Sign in with Google to leave a cozy review.';
       if (editor) editor.hidden = true;
-      if (btn) btn.textContent = 'Sign in to review';
+      if (btn) btn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in to review';
     } else if (!isLite) {
-      if (gate) gate.textContent = 'Reviews are for Lite subscribers. Upgrade on the Plans page to share your thoughts!';
+      if (gate) gate.textContent = 'Reviews are for Lite subscribers. Upgrade on the Plans page to share your experience!';
       if (editor) editor.hidden = true;
-      if (btn) btn.textContent = 'Get Lite to review';
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Get Lite to review';
     } else if (myReview) {
       // already reviewed — show it pre-filled, locked
-      if (gate) gate.textContent = 'You already published a review. Thanks! ✨';
+      if (gate) gate.textContent = 'You published a review! Thank you for the cozy feedback ✨';
       if (editor) { editor.hidden = false; }
-      setStars(dec(myReview.s) || 0, true);
+      const pastScore = dec(myReview.s) || 5.0;
+      setScore(pastScore, true);
       const ta = $('rv-text');
       if (ta) { ta.value = dec(myReview.tx) || ''; ta.disabled = true; }
       const sub = $('rv-submit');
-      if (sub) { sub.disabled = true; sub.textContent = 'Published'; }
-      if (btn) btn.textContent = 'Edit review';
+      if (sub) { sub.disabled = true; sub.innerHTML = '<i class="fa-solid fa-check"></i> Published'; }
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-pen"></i> Edit your review';
     } else {
       if (gate) gate.textContent = '';
       if (editor) { editor.hidden = false; }
-      setStars(selStar, false);
-      if (btn) btn.textContent = 'Write a review';
+      setScore(selScore, false);
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Write a review';
     }
   }
 
@@ -1069,9 +1104,10 @@
       const ta = $('rv-text');
       const sub = $('rv-submit');
       if (ta) ta.disabled = false;
-      if (sub) { sub.disabled = false; sub.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Update'; }
+      if (sub) { sub.disabled = false; sub.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Update Review'; }
+      setScore(dec(myReview.s) || 5.0, false);
       const gate = $('rv-gate-msg');
-      if (gate) gate.textContent = 'Update your review:';
+      if (gate) gate.textContent = 'Update your review score or thoughts:';
     }
 
     panel.hidden = false;
@@ -1082,16 +1118,14 @@
   async function postReview(e) {
     e.preventDefault();
     if (!root.DB || !DB.user) { toast('Sign in first.'); return; }
-    if (!selStar) { toast('Pick a star rating first!'); $('rv-star-label').style.animation = 'rv-shake .3s'; setTimeout(() => $('rv-star-label').style.animation = '', 400); return; }
     const txt = ($('rv-text').value || '').trim().slice(0, 280);
     const msg = $('rv-form-msg'); if (msg) msg.textContent = 'Publishing…';
     const sub = $('rv-submit'); if (sub) sub.disabled = true;
     try {
       const uid = DB.user.uid, token = await DB.token();
-      // read username from local cache
       let name = '';
       try { const c = localStorage.getItem('jc:' + uid); if (c) { const p = JSON.parse(c); name = (p.profile && p.profile.n) || ''; } } catch {}
-      const body = { fields: { s: fInt(selStar), tx: fStr(txt), n: fStr(name), t: fInt(Date.now()) } };
+      const body = { fields: { s: fNum(selScore), tx: fStr(txt), n: fStr(name), t: { integerValue: String(Date.now()) } } };
       const r = await fetch(`${BASE}/rv/${uid}`, {
         method: 'PATCH',
         headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
@@ -1099,14 +1133,13 @@
       });
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error((j.error && j.error.message) || 'Could not publish.'); }
       myReview = body.fields;
-      if (msg) msg.textContent = '✅ Published! Thanks for the review.';
-      if (sub) { sub.disabled = true; sub.innerHTML = 'Published'; }
+      if (msg) msg.textContent = '✨ Published! Thanks for making JALTRON cozier.';
+      if (sub) { sub.disabled = true; sub.innerHTML = '<i class="fa-solid fa-check"></i> Published'; }
       const ta = $('rv-text'); if (ta) ta.disabled = true;
-      setStars(selStar, true);
-      toast('Review published! 🎉');
-      // update list in place
+      setScore(selScore, true);
+      toast('Review published! ☕🎉');
       const existing = allReviews.findIndex(r => r.uid === uid);
-      const rv = { uid, s: selStar, tx: txt, n: name, t: Date.now() };
+      const rv = { uid, s: selScore, tx: txt, n: name, t: Date.now() };
       if (existing >= 0) allReviews[existing] = rv; else allReviews.unshift(rv);
       renderAvg();
       renderGrid();
@@ -1117,21 +1150,22 @@
   }
 
   // ---- wire up static elements ----
-  // Star hover / select
-  document.addEventListener('mouseover', (e) => {
-    const s = e.target.closest('#rv-stars .rv-star:not([disabled])');
-    if (!s) return;
-    const n = Number(s.dataset.s);
-    document.querySelectorAll('#rv-stars .rv-star').forEach((b, i) => { b.dataset.hover = i < n ? '1' : '0'; });
-  });
-  document.addEventListener('mouseout', (e) => {
-    if (!e.target.closest('#rv-stars')) return;
-    document.querySelectorAll('#rv-stars .rv-star').forEach(b => { b.dataset.hover = '0'; });
-  });
+  // Clicking quick stars sets integer score
   document.addEventListener('click', (e) => {
     const s = e.target.closest('#rv-stars .rv-star:not([disabled])');
-    if (s) setStars(Number(s.dataset.s), false);
+    if (s) setScore(Number(s.dataset.s), false);
+
+    const chip = e.target.closest('.rv-chip:not([disabled])');
+    if (chip) setScore(Number(chip.dataset.val), false);
   });
+
+  // Slider changes
+  const slider = $('rv-score-slider');
+  if (slider) {
+    slider.addEventListener('input', (e) => {
+      setScore(Number(e.target.value), false);
+    });
+  }
 
   // Char counter
   const ta = $('rv-text');
@@ -1168,20 +1202,17 @@
   // ---- pageChanged: called every time Reviews tab is opened ----
   function pageChanged() {
     if (document.querySelector('.page.active')?.dataset.page !== 'reviews') return;
-    // Reload if stale (> 60s) or never loaded
     if (!loaded || Date.now() - loadedAt > 60000) { shown = PAGE; load(); }
     else { renderGrid(); setupWritePanel(); }
   }
 
-  // Re-check auth state
   addEventListener('jaltron:user', () => {
-    myReview = null; // re-check on next pageChanged
+    myReview = null;
     if (document.querySelector('.page.active')?.dataset.page === 'reviews') { shown = PAGE; load(); }
   });
 
   window.Reviews = { pageChanged };
-
-  // Initial silent load (so cards are ready before user clicks Reviews)
   load();
 })(window);
+
 

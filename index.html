@@ -291,17 +291,35 @@
           <button class="icon-btn sm" id="rv-panel-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <p class="sub" id="rv-gate-msg"></p>
-        <div id="rv-editor">
-          <div class="rv-star-row" id="rv-stars" role="radiogroup" aria-label="Star rating">
-            <button type="button" class="rv-star" data-s="1" aria-label="1 star">★</button>
-            <button type="button" class="rv-star" data-s="2" aria-label="2 stars">★</button>
-            <button type="button" class="rv-star" data-s="3" aria-label="3 stars">★</button>
-            <button type="button" class="rv-star" data-s="4" aria-label="4 stars">★</button>
-            <button type="button" class="rv-star" data-s="5" aria-label="5 stars">★</button>
-            <span class="rv-star-label" id="rv-star-label">Tap a star</span>
+          <div class="rv-score-picker">
+            <div class="rv-score-header">
+              <div class="rv-star-row" id="rv-stars" role="radiogroup" aria-label="Star rating">
+                <button type="button" class="rv-star" data-s="1" aria-label="1 star">★</button>
+                <button type="button" class="rv-star" data-s="2" aria-label="2 stars">★</button>
+                <button type="button" class="rv-star" data-s="3" aria-label="3 stars">★</button>
+                <button type="button" class="rv-star" data-s="4" aria-label="4 stars">★</button>
+                <button type="button" class="rv-star" data-s="5" aria-label="5 stars">★</button>
+              </div>
+              <div class="rv-score-val-wrap">
+                <span class="rv-score-pill" id="rv-score-pill">5.0</span>
+                <span class="rv-star-label" id="rv-star-label">Amazing 🤩</span>
+              </div>
+            </div>
+            <div class="rv-slider-row">
+              <label for="rv-score-slider" class="sub"><i class="fa-solid fa-sliders"></i> Exact score:</label>
+              <input type="range" id="rv-score-slider" min="1.0" max="5.0" step="0.1" value="5.0" aria-label="Precise rating from 1.0 to 5.0">
+              <div class="rv-score-chips">
+                <button type="button" class="rv-chip" data-val="5.0">5.0</button>
+                <button type="button" class="rv-chip" data-val="4.8">4.8</button>
+                <button type="button" class="rv-chip" data-val="4.5">4.5</button>
+                <button type="button" class="rv-chip" data-val="4.1">4.1</button>
+                <button type="button" class="rv-chip" data-val="3.5">3.5</button>
+                <button type="button" class="rv-chip" data-val="2.2">2.2</button>
+              </div>
+            </div>
           </div>
           <form id="rv-form">
-            <textarea id="rv-text" placeholder="Tell everyone what you think about JALTRON Lite…" maxlength="280" rows="3"></textarea>
+            <textarea id="rv-text" placeholder="Share your cozy thoughts on JALTRON Lite…" maxlength="280" rows="3"></textarea>
             <div class="rv-form-foot">
               <span class="rv-char sub" id="rv-char">0 / 280</span>
               <button class="btn primary" type="submit" id="rv-submit"><i class="fa-solid fa-paper-plane"></i> Publish</button>
