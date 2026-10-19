@@ -120,8 +120,8 @@
   setInterval(() => Habit.tickResets(), 20000);
 
   // ---------- Navigation ----------
-  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans', bank: 'Bank', board: 'Leaderboard', settings: 'Settings' };
-  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', insights: '📊', plans: '⚡', bank: '🐷', board: '🏆', settings: '⚙️' };
+  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans', bank: 'Bank', board: 'Leaderboard', reviews: 'Reviews', settings: 'Settings' };
+  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', insights: '📊', plans: '⚡', bank: '🐷', board: '🏆', reviews: '⭐', settings: '⚙️' };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
@@ -130,6 +130,7 @@
     Focus.title(`${PAGES[p]} | JALTRON`); Focus.pageChanged();
     window.Bank && Bank.pageChanged();
     window.Board && Board.pageChanged();
+    window.Reviews && Reviews.pageChanged();
     if (location.hash !== '#' + p) history.replaceState(null, '', '#' + p);
     if (!quiet) scrollTo({ top: 0 });
   }

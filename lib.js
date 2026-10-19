@@ -863,141 +863,325 @@
 })(window);
 
 // ================= reviews =================
-// Users on Lite can post one star review + comment. Stored in rv/<uid> in Firestore.
-// Anyone signed in can read. Displayed as a card wall on the Plans page.
+// Full reviews page. Stored in rv/<uid> in Firestore (REST, no extra import needed).
+// Lite users can write/update their own review. Anyone can read.
 (function (root) {
   const $ = (id) => document.getElementById(id);
   const toast = (m) => root.Extras && Extras.toast(m);
-  let selStar = 0, myReview = null;
+  const esc = (s) => String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+  const PROJECT = 'jaltron0';
+  const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 
-  function setStars(n) {
+  // ---- state ----
+  let allReviews = [];          // all loaded, [{uid, s, tx, n, t}]
+  let myReview = null;          // own doc fields object (Firestore format) or null
+  let selStar = 0;              // 0 = none selected
+  let filterStar = 0;           // 0 = all
+  let sortMode = 'new';
+  let loaded = false;
+  let loadedAt = 0;
+  const PAGE = 12;
+  let shown = PAGE;
+
+  // ---- Firestore REST helpers ----
+  const fStr = (v) => ({ stringValue: String(v) });
+  const fInt = (v) => ({ integerValue: String(Math.round(Number(v))) });
+  const dec = (f) => {
+    if (!f) return undefined;
+    if ('stringValue' in f) return f.stringValue;
+    if ('integerValue' in f) return Number(f.integerValue);
+    if ('doubleValue' in f) return Number(f.doubleValue);
+    return undefined;
+  };
+  const decDoc = (d) => {
+    const f = d.fields || {};
+    return { s: dec(f.s) || 0, tx: dec(f.tx) || '', n: dec(f.n) || '', t: dec(f.t) || 0 };
+  };
+
+  // ---- star label text ----
+  const STAR_LABELS = ['', 'Terrible 😞', 'Poor 😕', 'Okay 😐', 'Good 😊', 'Amazing 🤩'];
+
+  // ---- set star rating UI ----
+  function setStars(n, locked) {
     selStar = n;
-    document.querySelectorAll('.rv-star').forEach((b, i) => {
-      b.dataset.active = i < n ? '1' : '0';
+    document.querySelectorAll('#rv-stars .rv-star').forEach((b, i) => {
+      b.dataset.on = i < n ? '1' : '0';
+      if (locked) b.disabled = true;
     });
+    const lbl = $('rv-star-label');
+    if (lbl) lbl.textContent = n ? STAR_LABELS[n] : 'Tap a star';
   }
 
-  function renderCard(rv) {
-    const stars = '★'.repeat(rv.s || 0) + '☆'.repeat(5 - (rv.s || 0));
-    const ago = (() => {
-      const d = Date.now() - (rv.t || 0), m = Math.floor(d / 60000), h = Math.floor(d / 3600000), dd = Math.floor(d / 86400000);
-      return dd > 0 ? dd + 'd ago' : h > 0 ? h + 'h ago' : m > 0 ? m + 'm ago' : 'just now';
-    })();
-    const name = rv.n ? `<strong class="rv-name">${rv.n.replace(/</g, '&lt;')}</strong>` : '<strong class="rv-name">Anonymous</strong>';
-    const text = rv.tx ? `<p class="rv-text">${rv.tx.replace(/</g, '&lt;')}</p>` : '';
-    return `<div class="rv-card"><div class="rv-card-top">${name}<span class="rv-ago sub">${ago}</span></div><div class="rv-stars-disp">${stars}</div>${text}</div>`;
+  // ---- render average score banner ----
+  function renderAvg() {
+    if (!allReviews.length) { $('rv-avg').hidden = true; return; }
+    const avg = allReviews.reduce((s, r) => s + r.s, 0) / allReviews.length;
+    const full = Math.round(avg * 10) / 10;
+    $('rv-avg-n').textContent = full.toFixed(1);
+    // filled stars proportional to avg
+    const pct = avg / 5;
+    $('rv-avg-stars').innerHTML = `<div class="rv-avg-bar"><div class="rv-avg-fill" style="width:${Math.round(pct*100)}%"></div></div>`;
+    $('rv-avg-label').textContent = `${allReviews.length} review${allReviews.length === 1 ? '' : 's'}`;
+    $('rv-avg').hidden = false;
   }
 
-  function renderList(reviews) {
-    const el = $('rv-list');
-    if (!reviews.length) { el.innerHTML = '<p class="rv-empty sub">No reviews yet. Be the first!</p>'; return; }
-    el.innerHTML = reviews.map(renderCard).join('');
-    const c = $('rv-count');
-    if (c) c.textContent = `${reviews.length} review${reviews.length === 1 ? '' : 's'}`;
+  // ---- relative time ----
+  function ago(t) {
+    const d = Date.now() - t;
+    if (d < 60000) return 'just now';
+    if (d < 3600000) return Math.floor(d / 60000) + 'm ago';
+    if (d < 86400000) return Math.floor(d / 3600000) + 'h ago';
+    if (d < 30 * 86400000) return Math.floor(d / 86400000) + 'd ago';
+    return new Date(t).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
   }
 
+  // ---- render one card ----
+  function card(rv) {
+    const stars = Array.from({ length: 5 }, (_, i) =>
+      `<span class="${i < rv.s ? 'rv-cs on' : 'rv-cs'}">${i < rv.s ? '★' : '☆'}</span>`).join('');
+    const name = rv.n ? esc(rv.n) : 'Anonymous';
+    const initials = name.slice(0, 2).toUpperCase();
+    const txt = rv.tx ? `<p class="rv-card-txt">${esc(rv.tx)}</p>` : '';
+    const isMe = root.DB && DB.user && rv.uid === DB.user.uid;
+    return `<article class="rv-card${isMe ? ' rv-mine' : ''}">
+      <div class="rv-card-head">
+        <div class="rv-avatar" aria-hidden="true">${initials}</div>
+        <div class="rv-card-meta">
+          <strong class="rv-card-name">${name}${isMe ? ' <span class="rv-you">you</span>' : ''}</strong>
+          <span class="rv-card-time sub">${ago(rv.t)}</span>
+        </div>
+        <div class="rv-card-stars" aria-label="${rv.s} out of 5 stars">${stars}</div>
+      </div>
+      ${txt}
+    </article>`;
+  }
+
+  // ---- sorted + filtered view ----
+  function visible() {
+    let list = filterStar ? allReviews.filter(r => r.s === filterStar) : allReviews.slice();
+    if (sortMode === 'top') list.sort((a, b) => b.s - a.s || b.t - a.t);
+    else if (sortMode === 'low') list.sort((a, b) => a.s - b.s || b.t - a.t);
+    else list.sort((a, b) => b.t - a.t);
+    return list;
+  }
+
+  // ---- render grid ----
+  function renderGrid() {
+    const list = visible();
+    const grid = $('rv-grid');
+    if (!list.length) {
+      grid.innerHTML = `<div class="rv-empty"><i class="fa-regular fa-face-sad-tear"></i><p>${filterStar ? `No ${filterStar}-star reviews yet.` : 'No reviews yet. Be the first!'}</p></div>`;
+      $('rv-more-wrap').hidden = true;
+      return;
+    }
+    const slice = list.slice(0, shown);
+    grid.innerHTML = slice.map(card).join('');
+    $('rv-more-wrap').hidden = list.length <= shown;
+  }
+
+  // ---- load from Firestore ----
   async function load() {
+    loaded = false;
+    $('rv-loading') && ($('rv-loading').style.display = 'flex');
     try {
-      if (!root.DB) return;
-      const { getDocs, collection, query, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js').catch(() => ({}));
-      if (!getDocs) return; // Firestore not available
-      // Access the db instance from the existing import — use the DB.user sentinel but reach Firestore via fetch REST fallback
-      // Since we can't import db directly, we use the public REST endpoint instead (public read)
-      const project = 'jaltron0';
-      const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents:runQuery`;
-      const body = { structuredQuery: { from: [{ collectionId: 'rv' }], orderBy: [{ field: { fieldPath: 't' }, direction: 'DESCENDING' }], limit: 50 } };
-      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (!r.ok) return;
-      const rows = await r.json();
-      const reviews = (Array.isArray(rows) ? rows : []).filter(x => x.document).map(x => {
-        const f = x.document.fields || {};
-        const str = (k) => f[k] && f[k].stringValue || '';
-        const num = (k) => f[k] && Number(f[k].integerValue || f[k].doubleValue || 0) || 0;
-        return { s: num('s'), tx: str('tx'), n: str('n'), t: num('t') };
+      const r = await fetch(`${BASE}:runQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'rv' }], orderBy: [{ field: { fieldPath: 't' }, direction: 'DESCENDING' }], limit: 200 } })
       });
-      renderList(reviews);
-      // Check if signed-in user already left a review
-      if (root.DB && DB.user) {
-        const uid = DB.user.uid;
-        const token = await DB.token();
-        const me = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/rv/${uid}`, { headers: { Authorization: 'Bearer ' + token } });
-        if (me.ok) { const mj = await me.json(); if (mj.fields) { myReview = mj.fields; } }
-        showWriteArea();
-      }
-    } catch (e) { console.warn('reviews load', e); }
+      if (!r.ok) throw new Error('fetch failed');
+      const rows = await r.json();
+      allReviews = (Array.isArray(rows) ? rows : [])
+        .filter(x => x.document)
+        .map(x => ({ uid: x.document.name.split('/').pop(), ...decDoc(x.document) }));
+      loaded = true;
+      loadedAt = Date.now();
+    } catch (e) {
+      console.warn('reviews load:', e);
+      $('rv-grid').innerHTML = `<div class="rv-empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Could not load reviews. Check your connection.</p></div>`;
+      return;
+    }
+    $('rv-loading') && ($('rv-loading').style.display = 'none');
+    renderAvg();
+    renderGrid();
+    // check own review (if signed in)
+    if (root.DB && DB.user) await checkMyReview();
+    setupWritePanel();
   }
 
-  function showWriteArea() {
-    const canWrite = root.DB && DB.user && root.Plan && Plan.id === 'lite';
-    const el = $('rv-write');
-    if (el) el.hidden = !canWrite;
-    if (myReview && canWrite) {
-      // Already reviewed
-      const msg = $('rv-msg');
-      if (msg) msg.textContent = 'You already posted a review. Thanks!';
-      const form = $('rv-form');
-      if (form) { form.querySelector('button[type="submit"]').disabled = true; }
-      const stars = Number((myReview.s || {}).integerValue || 0);
-      setStars(stars);
-      const txt = (myReview.tx || {}).stringValue || '';
+  // ---- check if this user already reviewed ----
+  async function checkMyReview() {
+    if (!root.DB || !DB.user) return;
+    try {
+      const token = await DB.token();
+      const r = await fetch(`${BASE}/rv/${DB.user.uid}`, { headers: { Authorization: 'Bearer ' + token } });
+      if (r.ok) { const j = await r.json(); if (j.fields) { myReview = j.fields; } else { myReview = null; } }
+      else { myReview = null; }
+    } catch { myReview = null; }
+  }
+
+  // ---- show/configure the write panel ----
+  function setupWritePanel() {
+    const signedIn = !!(root.DB && DB.user);
+    const isLite = root.Plan && Plan.id === 'lite';
+    const gate = $('rv-gate-msg');
+    const editor = $('rv-editor');
+    const btn = $('rv-open-write');
+
+    if (!signedIn) {
+      if (gate) gate.textContent = 'Sign in with Google to leave a review.';
+      if (editor) editor.hidden = true;
+      if (btn) btn.textContent = 'Sign in to review';
+    } else if (!isLite) {
+      if (gate) gate.textContent = 'Reviews are for Lite subscribers. Upgrade on the Plans page to share your thoughts!';
+      if (editor) editor.hidden = true;
+      if (btn) btn.textContent = 'Get Lite to review';
+    } else if (myReview) {
+      // already reviewed — show it pre-filled, locked
+      if (gate) gate.textContent = 'You already published a review. Thanks! ✨';
+      if (editor) { editor.hidden = false; }
+      setStars(dec(myReview.s) || 0, true);
       const ta = $('rv-text');
-      if (ta) { ta.value = txt; ta.disabled = true; }
+      if (ta) { ta.value = dec(myReview.tx) || ''; ta.disabled = true; }
+      const sub = $('rv-submit');
+      if (sub) { sub.disabled = true; sub.textContent = 'Published'; }
+      if (btn) btn.textContent = 'Edit review';
+    } else {
+      if (gate) gate.textContent = '';
+      if (editor) { editor.hidden = false; }
+      setStars(selStar, false);
+      if (btn) btn.textContent = 'Write a review';
     }
   }
 
+  // ---- open/close the write panel ----
+  function openWritePanel() {
+    const signedIn = !!(root.DB && DB.user);
+    const isLite = root.Plan && Plan.id === 'lite';
+    const panel = $('rv-write-panel');
+    if (!panel) return;
+
+    if (!signedIn) { root.DB ? DB.signIn() : toast('Loading...'); return; }
+    if (!isLite && !myReview) { toast('Reviews are for Lite users. Upgrade on the Plans page!'); return; }
+
+    // if already reviewed and they click "Edit review", unlock
+    if (myReview) {
+      const ta = $('rv-text');
+      const sub = $('rv-submit');
+      if (ta) ta.disabled = false;
+      if (sub) { sub.disabled = false; sub.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Update'; }
+      const gate = $('rv-gate-msg');
+      if (gate) gate.textContent = 'Update your review:';
+    }
+
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ---- post / update ----
   async function postReview(e) {
     e.preventDefault();
     if (!root.DB || !DB.user) { toast('Sign in first.'); return; }
-    if (Plan.id !== 'lite') { toast('Reviews are for Lite users.'); return; }
-    if (!selStar) { toast('Pick a star rating first!'); return; }
-    const txt = ($('rv-text').value || '').trim().slice(0, 200);
-    const msg = $('rv-msg'); if (msg) msg.textContent = 'Posting...';
+    if (!selStar) { toast('Pick a star rating first!'); $('rv-star-label').style.animation = 'rv-shake .3s'; setTimeout(() => $('rv-star-label').style.animation = '', 400); return; }
+    const txt = ($('rv-text').value || '').trim().slice(0, 280);
+    const msg = $('rv-form-msg'); if (msg) msg.textContent = 'Publishing…';
+    const sub = $('rv-submit'); if (sub) sub.disabled = true;
     try {
       const uid = DB.user.uid, token = await DB.token();
-      const project = 'jaltron0';
-      // Get username from cached profile
+      // read username from local cache
       let name = '';
       try { const c = localStorage.getItem('jc:' + uid); if (c) { const p = JSON.parse(c); name = (p.profile && p.profile.n) || ''; } } catch {}
-      const body = { fields: { s: { integerValue: String(selStar) }, tx: { stringValue: txt }, n: { stringValue: name }, t: { integerValue: String(Date.now()) } } };
-      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/rv/${uid}`, { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (!r.ok) throw new Error('Could not post review.');
+      const body = { fields: { s: fInt(selStar), tx: fStr(txt), n: fStr(name), t: fInt(Date.now()) } };
+      const r = await fetch(`${BASE}/rv/${uid}`, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error((j.error && j.error.message) || 'Could not publish.'); }
       myReview = body.fields;
-      if (msg) msg.textContent = 'Review posted. Thank you!';
-      const btn = document.querySelector('#rv-form button[type="submit"]');
-      if (btn) btn.disabled = true;
-      if ($('rv-text')) $('rv-text').disabled = true;
-      toast('Review posted!');
-      load(); // refresh list
-    } catch (err) { if (msg) msg.textContent = err.message || 'Something went wrong.'; }
+      if (msg) msg.textContent = '✅ Published! Thanks for the review.';
+      if (sub) { sub.disabled = true; sub.innerHTML = 'Published'; }
+      const ta = $('rv-text'); if (ta) ta.disabled = true;
+      setStars(selStar, true);
+      toast('Review published! 🎉');
+      // update list in place
+      const existing = allReviews.findIndex(r => r.uid === uid);
+      const rv = { uid, s: selStar, tx: txt, n: name, t: Date.now() };
+      if (existing >= 0) allReviews[existing] = rv; else allReviews.unshift(rv);
+      renderAvg();
+      renderGrid();
+    } catch (err) {
+      if (msg) msg.textContent = err.message || 'Something went wrong.';
+      if (sub) sub.disabled = false;
+    }
   }
 
-  // Star hover / click
+  // ---- wire up static elements ----
+  // Star hover / select
   document.addEventListener('mouseover', (e) => {
-    const s = e.target.closest('.rv-star');
-    if (!s || myReview) return;
+    const s = e.target.closest('#rv-stars .rv-star:not([disabled])');
+    if (!s) return;
     const n = Number(s.dataset.s);
-    document.querySelectorAll('.rv-star').forEach((b, i) => { b.dataset.hover = i < n ? '1' : '0'; });
+    document.querySelectorAll('#rv-stars .rv-star').forEach((b, i) => { b.dataset.hover = i < n ? '1' : '0'; });
   });
   document.addEventListener('mouseout', (e) => {
-    if (!e.target.closest('.rv-star')) return;
-    document.querySelectorAll('.rv-star').forEach(b => { b.dataset.hover = '0'; });
+    if (!e.target.closest('#rv-stars')) return;
+    document.querySelectorAll('#rv-stars .rv-star').forEach(b => { b.dataset.hover = '0'; });
   });
   document.addEventListener('click', (e) => {
-    const s = e.target.closest('.rv-star');
-    if (!s || myReview) return;
-    setStars(Number(s.dataset.s));
+    const s = e.target.closest('#rv-stars .rv-star:not([disabled])');
+    if (s) setStars(Number(s.dataset.s), false);
   });
 
+  // Char counter
+  const ta = $('rv-text');
+  if (ta) ta.addEventListener('input', () => { const c = $('rv-char'); if (c) c.textContent = `${ta.value.length} / 280`; });
+
+  // Open/close write panel
+  const openBtn = $('rv-open-write');
+  if (openBtn) openBtn.addEventListener('click', openWritePanel);
+  const closeBtn = $('rv-panel-close');
+  if (closeBtn) closeBtn.addEventListener('click', () => { $('rv-write-panel').hidden = true; });
+
+  // Form submit
   const form = $('rv-form');
   if (form) form.addEventListener('submit', postReview);
 
-  // Load on plans page nav
-  addEventListener('jaltron:user', (ev) => {
-    if (!ev.detail || !ev.detail.user) return;
-    showWriteArea();
-    if (!ev.detail.cached) load();
+  // Filter buttons
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.rv-fs-btn');
+    if (!btn) return;
+    filterStar = Number(btn.dataset.fs);
+    shown = PAGE;
+    document.querySelectorAll('.rv-fs-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderGrid();
   });
 
-  // Initial load (no auth needed for reading)
+  // Sort select
+  const sortEl = $('rv-sort');
+  if (sortEl) sortEl.addEventListener('change', () => { sortMode = sortEl.value; shown = PAGE; renderGrid(); });
+
+  // Load more
+  const moreBtn = $('rv-more');
+  if (moreBtn) moreBtn.addEventListener('click', () => { shown += PAGE; renderGrid(); });
+
+  // ---- pageChanged: called every time Reviews tab is opened ----
+  function pageChanged() {
+    if (document.querySelector('.page.active')?.dataset.page !== 'reviews') return;
+    // Reload if stale (> 60s) or never loaded
+    if (!loaded || Date.now() - loadedAt > 60000) { shown = PAGE; load(); }
+    else { renderGrid(); setupWritePanel(); }
+  }
+
+  // Re-check auth state
+  addEventListener('jaltron:user', () => {
+    myReview = null; // re-check on next pageChanged
+    if (document.querySelector('.page.active')?.dataset.page === 'reviews') { shown = PAGE; load(); }
+  });
+
+  window.Reviews = { pageChanged };
+
+  // Initial silent load (so cards are ready before user clicks Reviews)
   load();
 })(window);
+

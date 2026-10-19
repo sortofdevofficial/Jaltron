@@ -39,6 +39,7 @@
       <button class="nav-item" data-nav="insights"><i class="fa-solid fa-chart-pie"></i><span>Insights</span></button>
       <button class="nav-item" data-nav="board"><i class="fa-solid fa-trophy"></i><span>Leaderboard</span></button>
       <button class="nav-item" data-nav="bank"><i class="fa-solid fa-piggy-bank"></i><span>Bank</span></button>
+      <button class="nav-item" data-nav="reviews"><i class="fa-solid fa-star"></i><span>Reviews</span></button>
       <p class="nav-label">Account</p>
       <button class="nav-item" data-nav="plans"><i class="fa-solid fa-bolt"></i><span>Plans</span><b id="nav-plan">Free</b></button>
       <button class="nav-item" data-nav="settings"><i class="fa-solid fa-sliders"></i><span>Settings</span></button>
@@ -262,27 +263,82 @@
       <span class="sub plan-uid-note">Share this with staff when paying via Discord</span>
     </div>
   </section>
+  </div>
 
-  <!-- Review area -->
-  <section class="hud panel reviews-section" id="reviews-section">
-    <div class="panel-title"><span><i class="fa-solid fa-star"></i> Reviews</span><span class="sub" id="rv-count"></span></div>
-    <div class="rv-write" id="rv-write" hidden>
-      <p class="sub rv-intro">You're on Lite — leave a quick review!</p>
-      <div class="rv-stars" id="rv-stars" role="radiogroup" aria-label="Rating">
-        <button type="button" class="rv-star" data-s="1" aria-label="1 star">★</button>
-        <button type="button" class="rv-star" data-s="2" aria-label="2 stars">★</button>
-        <button type="button" class="rv-star" data-s="3" aria-label="3 stars">★</button>
-        <button type="button" class="rv-star" data-s="4" aria-label="4 stars">★</button>
-        <button type="button" class="rv-star" data-s="5" aria-label="5 stars">★</button>
+  <div class="page" data-page="reviews">
+    <div class="rv-page">
+
+      <!-- Hero banner + avg rating -->
+      <div class="rv-hero hud">
+        <div class="rv-hero-left">
+          <h2 class="rv-hero-title"><i class="fa-solid fa-star"></i> What people say</h2>
+          <p class="rv-hero-sub">Real reviews from real JALTRON users.</p>
+          <div class="rv-avg" id="rv-avg" hidden>
+            <span class="rv-avg-n" id="rv-avg-n">5.0</span>
+            <div>
+              <div class="rv-avg-stars" id="rv-avg-stars"></div>
+              <span class="rv-avg-label" id="rv-avg-label">0 reviews</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn primary rv-write-btn" id="rv-open-write"><i class="fa-solid fa-pen-to-square"></i> Write a review</button>
       </div>
-      <form class="rv-form" id="rv-form">
-        <textarea id="rv-text" placeholder="What do you like about JALTRON?" maxlength="200" rows="2"></textarea>
-        <button class="btn primary" type="submit"><i class="fa-solid fa-paper-plane"></i> Post review</button>
-      </form>
-      <p class="sub" id="rv-msg" aria-live="polite"></p>
+
+      <!-- Write review panel (hidden until button clicked or Lite user lands here) -->
+      <div class="hud rv-write-panel" id="rv-write-panel" hidden>
+        <div class="panel-title">
+          <span><i class="fa-solid fa-pen-to-square"></i> Your review</span>
+          <button class="icon-btn sm" id="rv-panel-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p class="sub" id="rv-gate-msg"></p>
+        <div id="rv-editor">
+          <div class="rv-star-row" id="rv-stars" role="radiogroup" aria-label="Star rating">
+            <button type="button" class="rv-star" data-s="1" aria-label="1 star">★</button>
+            <button type="button" class="rv-star" data-s="2" aria-label="2 stars">★</button>
+            <button type="button" class="rv-star" data-s="3" aria-label="3 stars">★</button>
+            <button type="button" class="rv-star" data-s="4" aria-label="4 stars">★</button>
+            <button type="button" class="rv-star" data-s="5" aria-label="5 stars">★</button>
+            <span class="rv-star-label" id="rv-star-label">Tap a star</span>
+          </div>
+          <form id="rv-form">
+            <textarea id="rv-text" placeholder="Tell everyone what you think about JALTRON Lite…" maxlength="280" rows="3"></textarea>
+            <div class="rv-form-foot">
+              <span class="rv-char sub" id="rv-char">0 / 280</span>
+              <button class="btn primary" type="submit" id="rv-submit"><i class="fa-solid fa-paper-plane"></i> Publish</button>
+            </div>
+          </form>
+          <p class="sub rv-form-msg" id="rv-form-msg" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <!-- Filter / sort bar -->
+      <div class="rv-toolbar" id="rv-toolbar">
+        <div class="rv-filter-stars" id="rv-filter-stars" role="group" aria-label="Filter by stars">
+          <button class="rv-fs-btn active" data-fs="0">All</button>
+          <button class="rv-fs-btn" data-fs="5">★5</button>
+          <button class="rv-fs-btn" data-fs="4">★4</button>
+          <button class="rv-fs-btn" data-fs="3">★3</button>
+          <button class="rv-fs-btn" data-fs="2">★2</button>
+          <button class="rv-fs-btn" data-fs="1">★1</button>
+        </div>
+        <select id="rv-sort" aria-label="Sort reviews">
+          <option value="new">Newest first</option>
+          <option value="top">Top rated</option>
+          <option value="low">Lowest rated</option>
+        </select>
+      </div>
+
+      <!-- Cards grid -->
+      <div class="rv-grid" id="rv-grid">
+        <div class="rv-loading" id="rv-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading reviews…</div>
+      </div>
+
+      <!-- Load more -->
+      <div class="rv-more-wrap" id="rv-more-wrap" hidden>
+        <button class="btn" id="rv-more">Load more</button>
+      </div>
+
     </div>
-    <div class="rv-list" id="rv-list"><p class="rv-empty sub">No reviews yet. Be the first!</p></div>
-  </section>
   </div>
 
   <div class="page" data-page="settings">
