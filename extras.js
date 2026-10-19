@@ -121,7 +121,7 @@
 
   // ---------- Navigation ----------
   const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans', bank: 'Bank', board: 'Leaderboard', reviews: 'Reviews', settings: 'Settings' };
-  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', insights: '📊', plans: '⚡', bank: '🐷', board: '🏆', reviews: '⭐', settings: '⚙️' };
+  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', insights: '📊', plans: '⚡', bank: '🐷', board: '🏆', reviews: '', settings: '⚙️' };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));

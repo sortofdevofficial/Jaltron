@@ -66,6 +66,7 @@ h1 { font-family: 'Exo 2', 'Inter', sans-serif; font-size: 1.1875rem; font-weigh
 .nav { display: flex; flex-direction: column; gap: 0.25rem; }
 .nav-label { font-size: 0.6875rem; color: var(--muted); padding: 0 0.75rem 0.25rem; font-weight: 600; }
 .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 0.75rem; border-radius: 0.625rem; border: 1px solid transparent; background: transparent; color: var(--muted); font-size: 0.8125rem; font-weight: 500; text-align: left; width: 100%; transition: background .15s, color .15s, border-color .15s; }
+.nav-item:not(:has(i)) { padding-left: 1rem; }
 .nav-item i { width: 1.125rem; text-align: center; font-size: 0.875rem; }
 .nav-item span { flex: 1; }
 .nav-item b { font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; padding: 1px 0.4375rem; border-radius: 6.1875rem; background: var(--panel-3); color: var(--text); }
