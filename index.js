@@ -120,7 +120,7 @@ function render() {
 
   const listEl = $('task-list');
   if (!filtered.length) {
-    listEl.innerHTML = `<div class="empty"><i class="fa-regular fa-clipboard"></i><p>${syncing ? 'Loading your tasks...' : total ? 'No tasks match this view.' : 'Your plan is empty. Add a task to get started.'}</p></div>`;
+    listEl.innerHTML = `<div class="empty"><i class="fa-regular fa-clipboard"></i><p>${syncing ? 'Loading your tasks...' : total ? '🔍 No tasks match this view.' : '📝 Your plan is empty. Add a task to get started.'}</p></div>`;
     return;
   }
 
@@ -137,7 +137,7 @@ function render() {
           ${body}
           <div class="badges">
             <span class="badge ${t.prio}"><i class="fa-solid fa-flag"></i> ${t.prio}</span>
-            <span class="badge tag"><i class="fa-solid fa-${CAT_ICON[t.tag] || 'tag'}"></i> ${escapeHtml(t.tag)}</span>
+            <span class="badge tag" style="--h:${hue(t.tag)}"><i class="fa-solid fa-${CAT_ICON[t.tag] || 'tag'}"></i> ${escapeHtml(t.tag)}</span>
             ${dueBadge(t)}
             ${repBadges(t)}${doneBadges(t)}
             ${upBusy.has(t.id) ? '<span class="badge up"><i class="fa-solid fa-spinner fa-spin"></i> Uploading</span>' : ''}
@@ -158,6 +158,8 @@ function render() {
   if (ed) { ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length); }
 }
 
+// Each category gets its own steady color (same name, same hue)
+const hue = (s) => ({ Dev: 210, Bug: 350, Study: 270, General: 165 }[s] ?? [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7));
 const CAT_ICON = { Dev: 'code', Bug: 'bug', Study: 'book-open', General: 'layer-group' };
 let lastImg = null;
 function toast(msg, undo) {
@@ -202,13 +204,13 @@ $('task-list').addEventListener('click', (e) => {
     tasks = tasks.map(t => t.id === id ? (t.done ? Habit.reopen(t) : Habit.complete(t)) : t);
     const t = tasks.find(x => x.id === id), st = t && t.done ? Habit.streak(t) : 0;
     if (t && t.done && window.Extras) Extras.celebrate(btn, tasks.every(x => x.done));
-    if (t && t.r && st >= 2) toast(`${st} in a row for "${t.title}". Keep it going!`);
+    if (t && t.r && st >= 2) toast(`🔥 ${st} in a row for "${t.title}". Keep it going!`);
   }
   else if (act === 'delete') {
     const index = tasks.findIndex(t => t.id === id);
     lastDeleted = { task: tasks[index], index };
     tasks.splice(index, 1);
-    toast('Task deleted', true);
+    toast('🗑️ Task deleted', true);
   } else if (act === 'edit') {
     if (editingId === id) return commitEdit(id);
     return openEdit(id);
@@ -411,7 +413,7 @@ addEventListener('jaltron:user', (e) => {
   nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
   fillCats(); renderAccount(); render();
   ready();
-  if (user && !e.detail.cached) toast('Signed in');
+  if (user && !e.detail.cached) toast('Signed in 👋');
 });
 addEventListener('jaltron:error', (e) => toast(e.detail));
 $('auth-btn').addEventListener('click', () => {
@@ -512,7 +514,7 @@ $('edit-form').addEventListener('submit', (e) => {
   });
   $('edit-dlg').close();
   render();
-  toast('Task updated');
+  toast('✅ Task updated');
 });
 $('ed-reset').addEventListener('click', () => {
   tasks = tasks.map(t => t.id === editTaskId ? { ...t, s: 0, b: 0 } : t);
@@ -603,7 +605,7 @@ $('chat-form').addEventListener('submit', (e) => {
   const v = $('chat-input').value.trim();
   if (v) { $('chat-input').value = ''; ask(v); }
 });
-addMsg('ai', 'Hi, I am JALTRON. I can add, complete and delete tasks for you, plan your day, or explain the site. Try: add fix login bug tomorrow high');
+addMsg('ai', 'Hi, I am JALTRON 👋. I can add, complete and delete tasks for you, plan your day, or explain the site. Try: add fix login bug tomorrow high');
 // Warm the neural AI in the background: cached weights load at once, a first visit trains in short pauses
 window.requestIdleCallback ? requestIdleCallback(() => ensureAI(), { timeout: 4000 }) : setTimeout(ensureAI, 1500);
 

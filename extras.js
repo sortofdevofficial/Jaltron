@@ -18,7 +18,7 @@
     const overdue = list.filter(t => !t.done && t.due && c.dayDiff(t.due) < 0).length;
 
     const h = new Date().getHours();
-    const hello = h < 5 ? 'Late night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+    const hello = h < 5 ? '🌙 Late night' : h < 12 ? '☀️ Good morning' : h < 18 ? '🌤️ Good afternoon' : '🌆 Good evening';
     $('hero-hello').textContent = c.name ? `${hello}, @${c.name}` : hello;
     let title, sub;
     if (!list.length) { title = 'Your plan is empty'; sub = 'Add your first task on the left, press N, or tell the AI what you need.'; }
@@ -61,7 +61,7 @@
   $('keys-dlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 
   // ---------- Pet: grows with your streak. The streak never resets, so the pet never shrinks ----------
-  const STAGES = [['Egg', 0], ['Hatchling', 1], ['Sprout', 3], ['Explorer', 7], ['Guardian', 14], ['Champion', 30], ['Legend', 60]];
+  const STAGES = [['Egg 🥚', 0], ['Hatchling 🐣', 1], ['Sprout 🌱', 3], ['Explorer 🧭', 7], ['Guardian 🛡️', 14], ['Champion 🏆', 30], ['Legend 👑', 60]];
   const stageOf = (n) => STAGES.reduce((s, [, d], i) => (n >= d ? i : s), 0);
   let petN = 0, petAwake = false, petKey = '', lastP = {}, lastC = null;
   // A drawn pet: same growth stages, shown bigger as the streak grows
@@ -94,7 +94,7 @@
     $('pet-title').hidden = !art || !nm; $('pet-title').textContent = nm;
     if (document.activeElement !== $('pet-name')) $('pet-name').value = nm;
     const who = nm || 'Your pet';
-    $('pet-msg').textContent = !art ? 'Draw a pet and it grows with your streak.' : doneToday ? `${n}-day streak. ${who} is happy!` : `${who} is sleepy. Finish a task today to wake it up.`;
+    $('pet-msg').textContent = !art ? 'Draw a pet and it grows with your streak.' : doneToday ? `🔥 ${n}-day streak. ${who} is happy! 😄` : `😴 ${who} is sleepy. Finish a task today to wake it up.`;
     if (!art) return;
     if (st < STAGES.length - 1) {
       const [nx, d] = STAGES[st + 1], lo = STAGES[st][1];
@@ -111,7 +111,7 @@
   const SAY = ['Let\'s get something done!', 'I believe in you.', 'Small steps count.', 'Your streak never resets. Take your time.', 'Ready when you are.'];
   $('pet-btn').addEventListener('click', () => {
     $('pet-btn').classList.remove('jump'); void $('pet-btn').offsetWidth; $('pet-btn').classList.add('jump');
-    toast(`${(lastP.m || 'Pet')}: ${SAY[Math.floor(Math.random() * SAY.length)]}`);
+    toast(`🐾 ${(lastP.m || 'Pet')}: ${SAY[Math.floor(Math.random() * SAY.length)]}`);
     if (petAwake) burst($('pet-btn').getBoundingClientRect().left + 40, $('pet-btn').getBoundingClientRect().top + 30, 14);
   });
   $('pet-side').addEventListener('click', () => go('home'));
@@ -121,11 +121,12 @@
 
   // ---------- Navigation ----------
   const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans', bank: 'Bank', board: 'Leaderboard', settings: 'Settings' };
+  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', insights: '📊', plans: '⚡', bank: '🐷', board: '🏆', settings: '⚙️' };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
     document.querySelectorAll('[data-nav]').forEach(x => { const on = x.dataset.nav === p; x.classList.toggle('active', on); on ? x.setAttribute('aria-current', 'page') : x.removeAttribute('aria-current'); });
-    $('page-title').textContent = PAGES[p];
+    $('page-title').textContent = (EMO[p] || '') + ' ' + PAGES[p];
     Focus.title(`${PAGES[p]} | JALTRON`); Focus.pageChanged();
     window.Bank && Bank.pageChanged();
     window.Board && Board.pageChanged();
@@ -195,7 +196,7 @@
   function celebrate(el, allDone) {
     const r = el.getBoundingClientRect();
     burst(r.left + r.width / 2, r.top + r.height / 2, allDone ? 110 : 30);
-    if (allDone) toast('Plan cleared. Everything is done.');
+    if (allDone) toast('🎉 Plan cleared. Everything is done.');
   }
 
   // ---------- Command palette ----------
@@ -530,7 +531,7 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     if (!rows.length) return note('Nobody is on the board yet. Finish a task today to be the first.');
     const live = (d) => d && d >= Habit.addDays(Habit.today(), -1);
     $('bd-list').innerHTML = rows.map((r, i) => `<li class="bd-row${r.id === me ? ' me' : ''}${i < 3 ? ' top' + (i + 1) : ''}">
-      <span class="bd-rank">${i + 1}</span>
+      <span class="bd-rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>
       <span class="bd-name"><span>@${esc(r.n)}${r.id === me ? ' <em>you</em>' : ''}</span><small>${live(r.d) ? '<i class="bd-on"></i>active' : r.d ? 'last active ' + esc(r.d.slice(5)) : ''}${r.b ? ` · best run ${r.b}` : ''}</small></span>
       <span class="bd-n"><i class="fa-solid fa-fire"></i> ${r.t}<small>days</small></span></li>`).join('');
   }
