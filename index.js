@@ -286,13 +286,32 @@ $('clear-done').addEventListener('click', () => {
   toast(`Cleared ${n} completed task${n > 1 ? 's' : ''}. Repeating tasks are kept.`);
 });
 
-// Theme (in-memory only; follows system preference on load)
-function setTheme(dark) {
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+// Theme: Light, Dark or System. The choice is saved in this browser (jt:theme) and applied before first paint by a tiny script in index.html.
+const THEME_KEY = 'jt:theme', darkMq = matchMedia('(prefers-color-scheme: dark)');
+let themePref = 'system';
+try { const t = localStorage.getItem(THEME_KEY); if (t === 'light' || t === 'dark' || t === 'system') themePref = t; } catch {}
+const isDark = () => themePref === 'dark' || (themePref === 'system' && darkMq.matches);
+function applyTheme(animate) {
+  const dark = isDark(), root = document.documentElement;
+  if (animate) { root.classList.add('theming'); clearTimeout(applyTheme.t); applyTheme.t = setTimeout(() => root.classList.remove('theming'), 450); }
+  root.dataset.theme = dark ? 'dark' : 'light';
   $('theme-btn').innerHTML = `<i class="fa-solid fa-${dark ? 'sun' : 'moon'}"></i><span class="lbl">${dark ? 'Light' : 'Dark'}</span>`;
+  const m = $('theme-color'); if (m) m.content = dark ? '#04060f' : '#eef6fb';
+  document.querySelectorAll('input[name="theme"]').forEach(r => { r.checked = r.value === themePref; });
+  $('theme-state').textContent = themePref === 'system' ? `System (${dark ? 'dark' : 'light'} now)` : themePref === 'dark' ? 'Dark' : 'Light';
 }
-setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
-$('theme-btn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme !== 'dark'));
+function setThemePref(p) {
+  themePref = p;
+  try { localStorage.setItem(THEME_KEY, p); } catch {}
+  applyTheme(true);
+}
+applyTheme(false);
+$('theme-btn').addEventListener('click', () => setThemePref(isDark() ? 'light' : 'dark'));
+document.querySelectorAll('input[name="theme"]').forEach(r => r.addEventListener('change', () => r.checked && setThemePref(r.value)));
+darkMq.addEventListener('change', () => { if (themePref === 'system') applyTheme(true); });
+addEventListener('storage', (e) => { if (e.key === THEME_KEY && ['light', 'dark', 'system'].includes(e.newValue)) { themePref = e.newValue; applyTheme(false); } }); // another tab changed it
+$('set-acct').addEventListener('click', () => $('auth-btn').click());
+$('set-keys').addEventListener('click', () => $('keys-dlg').showModal());
 
 // "/" focuses search
 document.addEventListener('keydown', (e) => {

@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>JALTRON - AI Plan Manager</title>
+  <meta name="theme-color" id="theme-color" content="#eef6fb">
+  <script>try{var t=localStorage.getItem("jt:theme");document.documentElement.dataset.theme=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"}catch(e){}</script>
   <link id="favicon" rel="icon" type="image/png" href="favicon.png">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="modulepreload" href="db.js">
@@ -38,6 +40,7 @@
       <button class="nav-item" data-nav="bank"><i class="fa-solid fa-piggy-bank"></i><span>Bank</span></button>
       <p class="nav-label">Account</p>
       <button class="nav-item" data-nav="plans"><i class="fa-solid fa-bolt"></i><span>Plans</span><b id="nav-plan">Free</b></button>
+      <button class="nav-item" data-nav="settings"><i class="fa-solid fa-sliders"></i><span>Settings</span></button>
       <button class="nav-item nav-ai" id="nav-ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Ask AI</span></button>
     </div>
     <button class="side-pet" id="pet-side" hidden aria-label="Your pet, open Home"><span class="pet" id="pet-side-art"></span><span class="sp-t"><b id="pet-side-n">0</b><small>day streak</small></span></button>
@@ -252,6 +255,23 @@
       <li>Lite switches on by itself after 2 confirmations, about 5 minutes. Paying another way? Message staff on Discord with your account ID below.</li>
     </ol>
     <div class="plan-id" id="plan-id" hidden><span class="sub">Your account ID</span><code id="plan-uid"></code><button class="btn" id="plan-copy">Copy</button></div>
+  </section>
+  </div>
+
+  <div class="page" data-page="settings">
+  <section class="hud panel set">
+    <div class="panel-title"><span><i class="fa-solid fa-circle-half-stroke"></i> Appearance</span><span class="sub" id="theme-state"></span></div>
+    <p class="sub">Pick how JALTRON looks. Your choice is saved on this device and used every time you open the site.</p>
+    <div class="theme-opts" role="radiogroup" aria-label="Theme">
+      <label class="theme-opt"><input type="radio" name="theme" value="light"><span class="tp tp-light" aria-hidden="true"><i></i><i></i><i></i></span><b><i class="fa-solid fa-sun"></i> Light</b><small>Bright and clean</small></label>
+      <label class="theme-opt"><input type="radio" name="theme" value="dark"><span class="tp tp-dark" aria-hidden="true"><i></i><i></i><i></i></span><b><i class="fa-solid fa-moon"></i> Dark</b><small>Neon night mode</small></label>
+      <label class="theme-opt"><input type="radio" name="theme" value="system"><span class="tp tp-sys" aria-hidden="true"><i></i><i></i><i></i></span><b><i class="fa-solid fa-circle-half-stroke"></i> System</b><small>Follow your device</small></label>
+    </div>
+  </section>
+  <section class="hud panel set">
+    <div class="panel-title"><span><i class="fa-solid fa-user"></i> Account and shortcuts</span></div>
+    <div class="set-row"><div><strong>Account</strong><p class="sub">Username, picture, categories and leaderboard visibility.</p></div><button class="btn" id="set-acct"><i class="fa-solid fa-user"></i> Open account</button></div>
+    <div class="set-row"><div><strong>Keyboard shortcuts</strong><p class="sub">Work without the mouse. Press T any time to flip the theme.</p></div><button class="btn" id="set-keys"><i class="fa-solid fa-keyboard"></i> View shortcuts</button></div>
   </section>
   </div>
 
