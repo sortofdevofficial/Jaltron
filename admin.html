@@ -25,6 +25,11 @@
           <button class="btn" data-days="0">Remove (Free)</button>
         </div>
       </div>
+      <div class="adm-ltc">
+        <h2>Litecoin payments</h2>
+        <button class="btn primary" id="a-ltc">Set up / check Litecoin payments</button>
+        <pre class="sub" id="a-ltc-out" style="white-space:pre-wrap"></pre>
+      </div>
     </div>
   </main>
   <script>
@@ -38,6 +43,16 @@
       let ok = false; try { ok = await DB.isAdmin(); } catch {}
       $('a-tool').hidden = !ok; show(ok ? 'Signed in as ' + e.detail.user.email : 'This account is not an admin.');
     });
+    $('a-ltc').onclick = async () => {
+      const o = $('a-ltc-out'); o.textContent = 'Checking...';
+      try {
+        const r = await fetch('/api/pay', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await DB.token() }, body: JSON.stringify({ action: 'setup' }) });
+        const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status);
+        o.textContent = ['Address: ' + j.address, 'Site: ' + j.site, 'Confirmations needed: ' + j.confirmations, 'Litecoin price: ' + (j.rate ? '$' + j.rate : 'unavailable'),
+          'Webhooks: ' + j.hooks.map(h => h.event + ' (' + h.status + ')').join(', '), 'Open orders: ' + j.openOrders,
+          j.orphans.length ? 'Payments that matched no order (give these people Lite by hand):\n' + j.orphans.map(x => '  ' + x.ltc + ' LTC  tx ' + x.tx + '  ' + new Date(x.at).toLocaleString()).join('\n') : 'No unmatched payments.'].join('\n');
+      } catch (e) { o.textContent = 'Problem: ' + e.message; }
+    };
     $('a-login').onclick = () => DB.signIn();
     async function find(q) {
       try { cur = await DB.adminFind(q); } catch { return show('Lookup failed.'); }

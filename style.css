@@ -715,3 +715,26 @@ html[data-plan="free"] [data-page="insights"] .lock-card { display: grid; gap: .
 .bk-x:hover, .bk-x.sure { background: var(--danger); color: #fff; }
 .bk-x.sure { width: auto; padding: 0 .5rem; border-radius: 6rem; font-size: .6875rem; }
 .bk-x.sure::after { content: 'Delete?'; margin-left: .25rem; }
+
+/* Litecoin checkout */
+.ltc { margin-top: 1rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: .875rem; background: var(--panel-2); display: grid; gap: .875rem; }
+.ltc-head { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.ltc-head i { color: var(--accent); margin-right: .375rem; }
+.ltc-plans { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ltc-chip { display: grid; gap: .125rem; padding: .625rem 1rem; min-width: 6.5rem; text-align: left; border: 1px solid var(--border); border-radius: .75rem; background: var(--panel-3); color: var(--text); cursor: pointer; }
+.ltc-chip span { color: var(--muted); font-size: .8125rem; }
+.ltc-chip[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.ltc #ltc-go { justify-self: start; }
+.ltc-box { display: grid; grid-template-columns: auto 1fr; gap: 1.25rem; align-items: start; padding-top: .875rem; border-top: 1px dashed var(--border); }
+.ltc-box[hidden] { display: none; }
+.ltc-qr { width: 11.5rem; max-width: 100%; border-radius: .75rem; overflow: hidden; background: #fff; }
+.ltc-qr svg { display: block; width: 100%; height: auto; }
+.ltc-info { display: grid; gap: .625rem; min-width: 0; }
+.ltc-row { display: grid; gap: .25rem; }
+.ltc-row div { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.ltc-row code { font-family: 'JetBrains Mono', monospace; padding: .25rem .5rem; border-radius: .5rem; background: var(--panel-3); word-break: break-all; }
+.ltc-status { padding: .5rem .75rem; border-radius: .625rem; background: var(--panel-3); color: var(--text); }
+.ltc-status[data-s="ok"] { color: var(--ok, #22c55e); } .ltc-status[data-s="bad"] { color: var(--danger); } .ltc-status[data-s="seen"] { color: var(--accent); }
+.ltc-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.btn.sm { padding: .25rem .625rem; font-size: .8125rem; }
+@media (max-width: 560px) { .ltc-box { grid-template-columns: 1fr; justify-items: center; } .ltc-info { width: 100%; } }

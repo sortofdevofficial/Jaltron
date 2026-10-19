@@ -310,7 +310,11 @@ async function adminFind(q) {
 }
 const adminSet = (uid, days) => setDoc(doc(db, 's', uid), days === 0 ? { p: 'free' } : { p: 'lite', e: days < 0 ? 0 : Date.now() + days * 864e5 });
 
+// Re-reads the plan doc (used right after a Litecoin payment is confirmed)
+const refreshPlan = async () => { const s = await getDoc(doc(db, 's', auth.currentUser.uid)); return s.exists() ? { p: s.data().p, e: s.data().e || 0 } : null; };
+
 window.DB = {
+  refreshPlan,
   isAdmin, adminFind, adminSet, lbTop, setLbOptOut,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt,
   bankMoney, bankPut, bankLogDel, wsLogDel, wsCreate, wsEdit, wsRemove, wsLeave, wsAdd, wsDel, wsMoney, wsUpgrade, wsWatch, nameOf,
