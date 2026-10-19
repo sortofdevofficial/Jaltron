@@ -1018,16 +1018,22 @@
     loaded = false;
     $('rv-loading') && ($('rv-loading').style.display = 'flex');
     try {
+      let docs = [];
       const r = await fetch(`${BASE}:runQuery`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'rv' }], orderBy: [{ field: { fieldPath: 't' }, direction: 'DESCENDING' }], limit: 200 } })
       });
-      if (!r.ok) throw new Error('fetch failed');
-      const rows = await r.json();
-      allReviews = (Array.isArray(rows) ? rows : [])
-        .filter(x => x.document)
-        .map(x => ({ uid: x.document.name.split('/').pop(), ...decDoc(x.document) }));
+      if (r.ok) {
+        const rows = await r.json();
+        docs = (Array.isArray(rows) ? rows : []).filter(x => x.document).map(x => x.document);
+      } else {
+        const r2 = await fetch(`${BASE}/rv?pageSize=100`);
+        if (!r2.ok) throw new Error('fetch failed');
+        const j2 = await r2.json();
+        docs = j2.documents || [];
+      }
+      allReviews = docs.map(x => ({ uid: x.name.split('/').pop(), ...decDoc(x) }));
       loaded = true;
       loadedAt = Date.now();
     } catch (e) {

@@ -126,7 +126,7 @@
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
     document.querySelectorAll('[data-nav]').forEach(x => { const on = x.dataset.nav === p; x.classList.toggle('active', on); on ? x.setAttribute('aria-current', 'page') : x.removeAttribute('aria-current'); });
-    $('page-title').textContent = (EMO[p] || '') + ' ' + PAGES[p];
+    $('page-title').textContent = EMO[p] ? `${EMO[p]} ${PAGES[p]}` : PAGES[p];
     Focus.title(`${PAGES[p]} | JALTRON`); Focus.pageChanged();
     window.Bank && Bank.pageChanged();
     window.Board && Board.pageChanged();
