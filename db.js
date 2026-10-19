@@ -6,7 +6,7 @@
 //   s/<uid>      { p: 'lite', e: expiry ms }  the subscription, written only by staff (rules block clients)
 //   lb/<uid>     { n: username, t: streak days, b: best run, d: last active ms }  the public streak leaderboard (a projection of your own streak; rules tie n to your own username claim; o: true on u/<uid> hides you)
 //   w/<id>       { o: owner uid, nm: name, c: currency, m: [member uids, owner included], b: balance in minor units, l: log, v: 3 }  shared banks (any number per owner); members change only b and l; names are resolved from the claims below
-//   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
+//   nm/<name>    { u: uid }   username claims in their own collection; the doc ID is the name, which keeps it unique — the only place a username is stored. Old claims in u/<name> are moved here by the owner's client on login (mine()).
 //   rv/<uid>     { s: 1-5 stars (int), tx: review text (string ≤200), n: username (string), t: timestamp ms (int), a: picture (optional, refreshed on login) }  one review per user; readable by all, writable only by owner
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -79,14 +79,20 @@ function save(tasks) {
   }, 500);
 }
 
-// Firestore turns "no such doc" into permission-denied when a rule checks a field (u/<name> needs 'u' in resource.data)
+// Firestore turns "no such doc" into permission-denied when a rule checks a field (still true for reading old u/<name> claims; nm/ has no field check)
 const isPerm = (e) => !!e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
 // Claim a username atomically: fails with "taken" if another account owns it
 const NAME_RE = /^[a-z0-9_]{3,20}$/;
-// Find the username this account owns (usernames live only in u/<name>; the uid doc has no 'u' field so it never matches)
+// Find the username this account owns (claims live in nm/<name>; an old claim still in u/<name> is moved over on first sight)
 async function mine() {
-  const s = await getDocs(query(collection(db, 'u'), where('u', '==', auth.currentUser.uid), limit(1)));
-  return s.empty ? '' : s.docs[0].id;
+  const s = await getDocs(query(collection(db, 'nm'), where('u', '==', auth.currentUser.uid), limit(1))).catch(() => null);
+  if (s && !s.empty) return s.docs[0].id;
+  const o = await getDocs(query(collection(db, 'u'), where('u', '==', auth.currentUser.uid), limit(1))).catch(() => null);
+  if (!o || o.empty) return '';
+  const name = o.docs[0].id;
+  try { const b = writeBatch(db); b.set(doc(db, 'nm', name), { u: auth.currentUser.uid }); b.delete(o.docs[0].ref); await b.commit(); }
+  catch (err) { console.error(err); }
+  return name;
 }
 // Leaderboard entry for this account (skipped when hidden or empty; the last sent copy is remembered so unchanged data costs no write)
 async function pushLb(profile) {
@@ -123,18 +129,25 @@ async function pushRvAva(a) {
 }
 const lbTop = async (n = 25) => (await getDocs(query(collection(db, 'lb'), orderBy('t', 'desc'), limit(n)))).docs.map((x) => ({ id: x.id, ...x.data() }));
 
+// uid that owns a name ('' when the name is free): nm/<name> first, then an old claim still sitting in u/<name>
+async function ownerOf(name) {
+  const c = await getDoc(doc(db, 'nm', name)); // nm has no field checks, so a free name comes back as not-found, not permission-denied
+  if (c.exists()) return c.data().u || '';
+  const o = await getDoc(doc(db, 'u', name)).catch((e) => { if (isPerm(e)) return null; throw e; });
+  return o && o.exists() ? o.data().u || '' : '';
+}
+
 async function setUsername(name) {
   name = String(name).trim().toLowerCase();
   if (!NAME_RE.test(name)) throw new Error('invalid');
-  const uid = auth.currentUser.uid, nref = doc(db, 'u', name), old = await mine();
+  const uid = auth.currentUser.uid, old = await mine();
   if (old === name) return name;
-  // Reading a free name can be refused by the rules (no doc, so no 'u' field to check): that just means it is free.
-  const owner = await getDoc(nref).then((s) => (s.exists() ? s.data().u : null)).catch((e) => { if (isPerm(e)) return null; throw e; });
-  if (owner && owner !== uid) throw new Error('taken');
+  const cur = await ownerOf(name);
+  if (cur && cur !== uid) throw new Error('taken');
   // The rules only allow creating a claim, never overwriting one, so a race for the same name fails here instead of stealing it
   const b = writeBatch(db);
-  if (old) b.delete(doc(db, 'u', old));
-  b.set(nref, { u: uid });
+  if (old) b.delete(doc(db, 'nm', old));
+  b.set(doc(db, 'nm', name), { u: uid });
   try { await b.commit(); } catch (e) { throw new Error(isPerm(e) ? 'taken' : e.message || 'failed'); }
   const c = readCache(uid);
   if (c) { writeCache(uid, c.tasks, { ...c.profile, n: name }); pushLb({ ...c.profile, n: name }); }
@@ -226,14 +239,13 @@ const wsEdit = (id, nm, c) => updateDoc(wsDoc(id), { nm, c });
 const wsLogDel = (id, entry) => updateDoc(wsDoc(id), { l: arrayRemove(entry) });
 const wsRemove = (id) => deleteDoc(wsDoc(id));
 const wsLeave = (id) => updateDoc(wsDoc(id), { m: arrayRemove(auth.currentUser.uid) });
-// A claim read failing with permission-denied just means the username is unknown.
 async function wsAdd(id, name) {
   name = String(name).trim().toLowerCase();
   if (!NAME_RE.test(name)) throw new Error('invalid');
-  const c = await getDoc(doc(db, 'u', name)).catch((e) => { if (isPerm(e)) throw new Error('unknown'); throw e; });
-  if (!c.exists() || !c.data().u) throw new Error('unknown');
-  if (c.data().u === auth.currentUser.uid) throw new Error('me');
-  await updateDoc(wsDoc(id), { m: arrayUnion(c.data().u) });
+  const uid = await ownerOf(name);
+  if (!uid) throw new Error('unknown');
+  if (uid === auth.currentUser.uid) throw new Error('me');
+  await updateDoc(wsDoc(id), { m: arrayUnion(uid) });
 }
 const wsDel = (id, uid) => updateDoc(wsDoc(id), { m: arrayRemove(uid) });
 async function wsMoney(id, delta, cur) {
@@ -249,7 +261,12 @@ const wsWatch = (onNext, onErr) => onSnapshot(query(collection(db, 'w'), where('
 // Username for a uid: claims store only name -> uid, so run the reverse query once per uid and keep the answer
 const names = new Map();
 function nameOf(uid) {
-  if (!names.has(uid)) names.set(uid, getDocs(query(collection(db, 'u'), where('u', '==', uid), limit(1))).then((s) => (s.empty ? '' : s.docs[0].id)).catch(() => ''));
+  if (!names.has(uid)) names.set(uid, (async () => {
+    const s = await getDocs(query(collection(db, 'nm'), where('u', '==', uid), limit(1))).catch(() => null);
+    if (s && !s.empty) return s.docs[0].id;
+    const o = await getDocs(query(collection(db, 'u'), where('u', '==', uid), limit(1))).catch(() => null); // claim not migrated yet
+    return o && !o.empty ? o.docs[0].id : '';
+  })());
   return names.get(uid);
 }
 
@@ -304,10 +321,9 @@ async function migrate() {
 }
 
 async function load(user) {
-  // The whole account is one doc, so a single read covers profile and tasks
-  // The username is remembered from the last visit, which skips an extra server query on every load
-  const known = readCache(user.uid)?.profile?.n || '';
-  const [snap, name, plan] = await Promise.all([getDoc(ref()), known || mine(), getDoc(doc(db, 's', user.uid)).catch(() => null)]);
+  // The whole account is one doc, so a single read covers profile and tasks.
+  // mine() also moves an old claim to nm/, so it runs on every login — the leaderboard and reviews tie the name to it.
+  const [snap, name, plan] = await Promise.all([getDoc(ref()), mine(), getDoc(doc(db, 's', user.uid)).catch(() => null)]);
   let d = snap.exists() ? snap.data() : {};
   if (d.v !== 3) { await migrate(); d = (await getDoc(ref())).data() || {}; }
   const s = plan && plan.exists() ? { p: plan.data().p, e: plan.data().e || 0 } : null;
@@ -348,10 +364,10 @@ onAuthStateChanged(auth, async (user) => {
 const isAdmin = async () => !!auth.currentUser && (await getDoc(doc(db, 'admins', auth.currentUser.uid))).exists();
 async function adminFind(q) {
   q = String(q).trim();
-  const n = q.toLowerCase(), byName = NAME_RE.test(n) ? await getDoc(doc(db, 'u', n)).catch((e) => { if (isPerm(e)) return null; throw e; }) : null;
-  const uid = byName && byName.exists() && byName.data().u ? byName.data().u : q;
-  const [plan, nm] = await Promise.all([getDoc(doc(db, 's', uid)), getDocs(query(collection(db, 'u'), where('u', '==', uid), limit(1)))]);
-  return { uid, name: nm.empty ? '' : nm.docs[0].id, plan: plan.exists() ? plan.data() : null };
+  const n = q.toLowerCase();
+  const uid = (NAME_RE.test(n) ? await ownerOf(n) : '') || q;
+  const [plan, name] = await Promise.all([getDoc(doc(db, 's', uid)), nameOf(uid)]);
+  return { uid, name, plan: plan.exists() ? plan.data() : null };
 }
 const adminSet = (uid, days) => setDoc(doc(db, 's', uid), days === 0 ? { p: 'free' } : { p: 'lite', e: days < 0 ? 0 : Date.now() + days * 864e5 });
 

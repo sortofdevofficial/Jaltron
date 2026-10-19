@@ -22,13 +22,10 @@ service cloud.firestore {
       // Your own data doc: u/<uid>
       allow read, write: if request.auth != null && request.auth.uid == id;
 
-      // Username claim docs: u/<name> = { u: <uid> } (the doc ID is the unique name)
-      // resource == null: a free name has no doc yet, so the check must not fail on it (that was the 403 on sign-up)
-      allow read: if request.auth != null && (resource == null || 'u' in resource.data);
-      allow create: if request.auth != null
-        && id.matches('[a-z0-9_]{3,20}')   // usernames only, so nobody can pre-create someone's uid doc
-        && request.resource.data.keys().hasOnly(['u'])
-        && request.resource.data.u == request.auth.uid;
+      // TEMP: username claims used to live here as u/<name> = { u: <uid> }. Clients move their claim to nm/ on login
+      // (mine() in db.js). Reads stay open to every signed-in user so names resolve before that; deletes are owner-only.
+      // Remove this block once every account has signed in again.
+      allow read: if request.auth != null && id.matches('[a-z0-9_]{3,20}') && resource != null && 'u' in resource.data;
       allow delete: if request.auth != null && resource.data.u == request.auth.uid;
 
       // Legacy tasks: u/<uid>/t/<id> — tasks now live in the q map on u/<uid> (covered by the rule above).
@@ -38,6 +35,17 @@ service cloud.firestore {
       }
     }
 
+    // Username claims: nm/<name> = { u: <uid> } — their own collection; the doc ID is the name, which keeps it unique.
+    // Claims can be created but never overwritten, so a race for a free name fails instead of stealing it.
+    match /nm/{name} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && name.matches('[a-z0-9_]{3,20}')
+        && request.resource.data.keys().hasOnly(['u'])
+        && request.resource.data.u == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.u == request.auth.uid;
+    }
+
     // Streak leaderboard: lb/<uid>. Anyone signed in can read; you write only your own entry, and its name must be your own username claim.
     match /lb/{id} {
       allow read: if request.auth != null;
@@ -45,7 +53,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['n', 't', 'b', 'd'])
         && request.resource.data.n is string && request.resource.data.t is int && request.resource.data.b is int && request.resource.data.d is int
         && request.resource.data.t >= 0 && request.resource.data.t <= 20000 && request.resource.data.b >= 0 && request.resource.data.b <= 20000
-        && get(/databases/$(database)/documents/u/$(request.resource.data.n)).data.u == request.auth.uid;
+        && get(/databases/$(database)/documents/nm/$(request.resource.data.n)).data.u == request.auth.uid;
       allow delete: if request.auth != null && request.auth.uid == id;
     }
 
