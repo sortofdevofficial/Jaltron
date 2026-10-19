@@ -255,7 +255,33 @@
       <li>Send the exact amount shown to the address (scan the QR code with your wallet).</li>
       <li>Lite switches on by itself after 2 confirmations, about 5 minutes. Paying another way? Message staff on Discord with your account ID below.</li>
     </ol>
-    <div class="plan-id" id="plan-id" hidden><span class="sub">Your account ID</span><code id="plan-uid"></code><button class="btn" id="plan-copy">Copy</button></div>
+    <div class="plan-id" id="plan-id" hidden>
+      <span class="sub">Your payment reference</span>
+      <code id="plan-uid"></code>
+      <button class="btn" id="plan-copy"><i class="fa-regular fa-copy"></i> Copy</button>
+      <span class="sub plan-uid-note">Share this with staff when paying via Discord</span>
+    </div>
+  </section>
+
+  <!-- Review area -->
+  <section class="hud panel reviews-section" id="reviews-section">
+    <div class="panel-title"><span><i class="fa-solid fa-star"></i> Reviews</span><span class="sub" id="rv-count"></span></div>
+    <div class="rv-write" id="rv-write" hidden>
+      <p class="sub rv-intro">You're on Lite — leave a quick review!</p>
+      <div class="rv-stars" id="rv-stars" role="radiogroup" aria-label="Rating">
+        <button type="button" class="rv-star" data-s="1" aria-label="1 star">★</button>
+        <button type="button" class="rv-star" data-s="2" aria-label="2 stars">★</button>
+        <button type="button" class="rv-star" data-s="3" aria-label="3 stars">★</button>
+        <button type="button" class="rv-star" data-s="4" aria-label="4 stars">★</button>
+        <button type="button" class="rv-star" data-s="5" aria-label="5 stars">★</button>
+      </div>
+      <form class="rv-form" id="rv-form">
+        <textarea id="rv-text" placeholder="What do you like about JALTRON?" maxlength="200" rows="2"></textarea>
+        <button class="btn primary" type="submit"><i class="fa-solid fa-paper-plane"></i> Post review</button>
+      </form>
+      <p class="sub" id="rv-msg" aria-live="polite"></p>
+    </div>
+    <div class="rv-list" id="rv-list"><p class="rv-empty sub">No reviews yet. Be the first!</p></div>
   </section>
   </div>
 

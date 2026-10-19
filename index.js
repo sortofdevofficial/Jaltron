@@ -787,13 +787,40 @@ $('cmd-form').addEventListener('submit', (e) => {
 setStatus('demo', 'CONNECTING');
 setNn('The neural AI warms up when you open the chat. Exact commands work right away.');
 setTimeout(() => { if (!window.DB) setStatus('offline', 'OFFLINE'); }, 8000);
-// Plans page: current plan, expiry and the account ID to give staff
+// Plans page: current plan, expiry and a short random payment reference ID
+// The reference is a compact JLT-XXXXXX code (stored in localStorage per user)
+// so staff can look them up, but the raw UID is not on screen.
+function payRef(uid) {
+  if (!uid) return '';
+  const k = 'jc:ref:' + uid;
+  try {
+    const hit = localStorage.getItem(k);
+    if (hit) return hit;
+  } catch {}
+  // Generate once: 3 letters + 3 digits, e.g. JLT-X7K-291
+  const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'JLT-';
+  for (let i = 0; i < 3; i++) code += alpha[Math.floor(Math.random() * alpha.length)];
+  code += '-';
+  for (let i = 0; i < 3; i++) code += Math.floor(Math.random() * 10);
+  try { localStorage.setItem(k, code); } catch {}
+  return code;
+}
 function renderPlan() {
   $('nav-plan').textContent = Plan.name;
   $('plan-state').textContent = Plan.id === 'lite' ? (Plan.until ? `Lite until ${new Date(Plan.until).toLocaleDateString()}` : 'Lite is active') : 'Free plan';
   ['task-rep', 'ed-rep'].forEach(id => { const el = $(id); el.disabled = !Plan.can('repeat'); el.title = Plan.can('repeat') ? '' : 'Repeating tasks need Lite'; if (el.disabled) el.value = ''; });
   const uid = window.DB && DB.user ? DB.user.uid : '';
-  $('plan-id').hidden = !uid; $('plan-uid').textContent = uid;
+  const ref = payRef(uid);
+  $('plan-id').hidden = !uid;
+  $('plan-uid').textContent = ref;
+  $('plan-uid').title = uid; // full UID on hover for power users / staff
 }
-$('plan-copy').addEventListener('click', () => navigator.clipboard.writeText($('plan-uid').textContent).then(() => toast('Account ID copied'), () => toast('Select and copy the ID')));
+$('plan-copy').addEventListener('click', () => {
+  const uid = window.DB && DB.user ? DB.user.uid : '';
+  // Copy both reference and UID so staff can look up the account
+  const ref = $('plan-uid').textContent;
+  const text = uid ? `${ref} (${uid})` : ref;
+  navigator.clipboard.writeText(text).then(() => toast('Payment reference copied'), () => toast('Select and copy the reference'));
+});
 renderPlan();

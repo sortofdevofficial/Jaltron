@@ -741,6 +741,30 @@ html[data-plan="free"] [data-page="insights"] .lock-card { display: grid; gap: .
 
 .ltc-off { padding: .6rem .8rem; border: 1px dashed var(--warn); border-radius: .6rem; background: var(--warn-bg); color: var(--warn); }
 
+/* ---- Payment reference ID ---- */
+.plan-uid-note { font-size: .75rem; color: var(--muted); }
+
+/* ---- Reviews section ---- */
+.reviews-section { margin-top: 1.5rem; padding: 1.5rem; display: grid; gap: 1.25rem; }
+.rv-write { display: grid; gap: .75rem; padding: 1rem; border-radius: .75rem; border: 1px dashed var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
+.rv-intro { color: var(--muted); }
+.rv-stars { display: flex; gap: .25rem; }
+.rv-star { background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--border); transition: color .15s, transform .12s; padding: 0 .1rem; line-height: 1; }
+.rv-star[data-active="1"], .rv-star[data-hover="1"] { color: #f5b301; transform: scale(1.15); }
+.rv-form { display: grid; gap: .625rem; }
+.rv-form textarea { resize: vertical; padding: .625rem .75rem; border: 1px solid var(--border); border-radius: .625rem; background: var(--panel-2); color: var(--text); font-size: .875rem; min-height: 4rem; }
+.rv-form textarea:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+.rv-form textarea:disabled { opacity: .6; cursor: not-allowed; }
+.rv-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: .875rem; }
+.rv-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: .75rem; padding: 1rem; display: grid; gap: .5rem; }
+.rv-card-top { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.rv-name { font-weight: 600; font-size: .875rem; }
+.rv-ago { font-size: .6875rem; }
+.rv-stars-disp { font-size: 1.125rem; color: #f5b301; letter-spacing: .1em; }
+.rv-text { color: var(--muted); font-size: .8125rem; line-height: 1.5; word-break: break-word; margin: 0; }
+.rv-empty { padding: 1rem; color: var(--muted); }
+
+
 /* ---------- Smooth theme switch ---------- */
 html.theming *, html.theming *::before, html.theming *::after { transition: background-color .3s, border-color .3s, color .3s, box-shadow .3s, fill .3s, stroke .3s !important; }
 

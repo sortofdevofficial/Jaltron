@@ -7,6 +7,7 @@
 //   lb/<uid>     { n: username, t: streak days, b: best run, d: last active day }  the public streak leaderboard (self-reported; rules tie n to your own username claim; o: true on u/<uid> hides you)
 //   w/<id>       { o: owner uid, nm: name, c: currency, m: [member uids, owner included], b: balance in minor units, l: log, v: 2 }  shared banks (any number per owner); members change only b and l; names are resolved from the claims below
 //   u/<name>     { u: uid }   (same collection as the uid docs; the only place a username is stored; the doc ID is the name, which keeps it unique)
+//   rv/<uid>     { s: 1-5 stars (int), tx: review text (string ≤200), n: username (string), t: timestamp ms (int) }  one review per user; readable by all, writable only by owner
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
