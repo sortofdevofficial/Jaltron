@@ -1,7 +1,7 @@
 /* JALTRON UI. Circuit-HUD look taken from the logo: cyan to blue traces, corner brackets, segmented rings. */
 :root {
   --primary: #2563eb; --primary-hover: #1d4ed8; --accent: #0891b2;
-  --bg: #eef6fb; --grid: rgba(8,145,178,.07); --panel: rgba(255,255,255,.86); --panel-2: #f3f9fc; --panel-3: #dcebf3;
+  --bg: #eef6fb; --grid: rgba(8,145,178,.07); --panel: rgba(255,255,255,.9); --panel-2: #f3f9fc; --panel-3: #dcebf3;
   --border: #c9dfeb; --border-hover: #8fb7cc;
   --text: #0c1a2b; --muted: #50677d;
   --danger: #dc2626; --ok: #059669; --warn: #d97706;
@@ -50,7 +50,8 @@ body::before {
     linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 2.75rem 2.75rem;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
-button { cursor: pointer; }
+button { cursor: pointer; touch-action: manipulation; }
+html { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 [hidden] { display: none !important; }
 kbd { font-family: 'JetBrains Mono', monospace; font-size: 0.625rem; padding: 1px 0.375rem; border-radius: 0.3125rem; border: 1px solid var(--border); background: var(--panel-2); color: var(--muted); }
@@ -60,9 +61,13 @@ i[class*="fa-"] { font-style: normal; display: inline-flex; align-items: center;
 i[class*="fa-"] > svg { width: 1em; height: 1em; fill: currentColor; display: block; overflow: visible; }
 .fa-spin { animation: fa-spin 1s linear infinite; }
 @keyframes fa-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
 
 /* Panels carry corner brackets, like the clips on the logo ring */
-.hud { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 0.875rem; box-shadow: var(--shadow); backdrop-filter: blur(0.875rem); }
+/* No backdrop-filter here on purpose: .hud is on every card and blur is the top lag cost on weak devices. Glass stays on the floating chrome (.side, .topbar, dialogs, .tabbar). */
+.hud { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 0.875rem; box-shadow: var(--shadow); }
 .hero::before, .hero::after, .panel::before, .panel::after, .insights::before, .insights::after {
   content: ""; position: absolute; width: 1rem; height: 1rem; pointer-events: none; border: 2px solid var(--accent); opacity: .75;
 }
@@ -887,10 +892,9 @@ html.theming *, html.theming *::before, html.theming *::after { transition: back
   background: radial-gradient(circle, rgba(34,229,255,.13), transparent 65%); filter: blur(30px); animation: aurora 26s ease-in-out infinite alternate;
 }
 @keyframes aurora { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(-34vw,18vh,0) scale(1.25); } }
-@media (prefers-reduced-motion: reduce) { :root[data-theme="dark"] body::after { animation: none; } }
 
 /* glass panels with a lit top edge */
-:root[data-theme="dark"] .hud { background: linear-gradient(180deg, rgba(22,30,64,.62), rgba(10,14,32,.72)); border-color: var(--border); box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.06); backdrop-filter: blur(1rem) saturate(140%); }
+:root[data-theme="dark"] .hud { background: linear-gradient(180deg, rgba(24,32,66,.8), rgba(10,14,32,.88)); border-color: var(--border); box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.06); }
 :root[data-theme="dark"] .hero::before, :root[data-theme="dark"] .panel::before, :root[data-theme="dark"] .insights::before,
 :root[data-theme="dark"] .hero::after, :root[data-theme="dark"] .panel::after, :root[data-theme="dark"] .insights::after { border-color: var(--accent); opacity: .9; filter: drop-shadow(0 0 4px var(--accent)); }
 :root[data-theme="dark"] .side { background: linear-gradient(180deg, rgba(14,20,46,.88), rgba(6,9,22,.92)); border-right-color: rgba(110,130,255,.16); box-shadow: 1px 0 0 rgba(34,229,255,.05), 8px 0 40px -20px rgba(124,131,255,.35); }
@@ -944,12 +948,14 @@ html.theming *, html.theming *::before, html.theming *::after { transition: back
 /* ---------- Color: every area gets its own hue (light and dark) ---------- */
 [data-nav="home"] { --c: #3b82f6; } [data-nav="tasks"] { --c: #10b981; } [data-nav="focus"] { --c: #f97316; } [data-nav="insights"] { --c: #a855f7; }
 [data-nav="board"] { --c: #eab308; } [data-nav="reviews"] { --c: #fbbf24; } [data-nav="bank"] { --c: #ec4899; } [data-nav="plans"] { --c: #f59e0b; } [data-nav="settings"] { --c: #06b6d4; } #nav-ai { --c: #d946ef; }
-.nav-item i, .nav-item.active i, .nav-ai i { width: 1.75rem; height: 1.75rem; border-radius: .5rem; font-size: .8125rem; color: var(--c, var(--accent)); background: color-mix(in srgb, var(--c, var(--accent)) 16%, transparent); transition: background .2s, color .2s; }
-.nav-item.active i { background: var(--c, var(--accent)); color: #fff; box-shadow: 0 0 .875rem -2px var(--c, var(--accent)); filter: none; }
+.nav-item i, .nav-item.active i, .nav-ai i { width: 1.75rem; height: 1.75rem; border-radius: .5rem; font-size: .8125rem; color: var(--c, var(--accent)); background: linear-gradient(145deg, color-mix(in srgb, var(--c, var(--accent)) 30%, transparent), color-mix(in srgb, var(--c, var(--accent)) 8%, transparent)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, var(--accent)) 24%, transparent), inset 0 1px 0 rgba(255,255,255,.18); transition: transform .18s, box-shadow .18s, color .2s; }
+.nav-item:hover i { transform: translateY(-1px) scale(1.07); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, var(--accent)) 48%, transparent), inset 0 1px 0 rgba(255,255,255,.22), 0 .25rem .625rem -2px color-mix(in srgb, var(--c, var(--accent)) 55%, transparent); }
+.nav-item:active i { transform: scale(.9); }
+.nav-item.active i { background: linear-gradient(145deg, color-mix(in srgb, var(--c, var(--accent)) 82%, #fff), var(--c, var(--accent))); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 0 .875rem -2px var(--c, var(--accent)); filter: none; }
 .nav-item.active { background: color-mix(in srgb, var(--c, var(--accent)) 13%, transparent); border-color: color-mix(in srgb, var(--c, var(--accent)) 50%, transparent); box-shadow: none; }
 :root[data-theme="dark"] .nav-item.active { background: linear-gradient(90deg, color-mix(in srgb, var(--c, var(--accent)) 22%, transparent), transparent); border-color: color-mix(in srgb, var(--c, var(--accent)) 55%, transparent); box-shadow: inset 3px 0 0 var(--c, var(--accent)); }
 .tab[data-nav] i { color: var(--c); } .tab.active[data-nav] { color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
-.stats-grid .card .card-title i { width: 1.75rem; height: 1.75rem; border-radius: .5rem; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.stats-grid .card .card-title i { width: 1.75rem; height: 1.75rem; border-radius: .5rem; color: var(--c); background: linear-gradient(145deg, color-mix(in srgb, var(--c) 30%, transparent), color-mix(in srgb, var(--c) 8%, transparent)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 24%, transparent), inset 0 1px 0 rgba(255,255,255,.18); }
 .stats-grid .card:nth-child(1) { --c: #3b82f6; } .stats-grid .card:nth-child(2) { --c: #8b5cf6; } .stats-grid .card:nth-child(3) { --c: var(--ok); }
 .stats-grid .card:nth-child(4) { --c: var(--danger); } .stats-grid .card:nth-child(5) { --c: var(--warn); }
 .stats-grid .card { border-top: 3px solid color-mix(in srgb, var(--c) 70%, transparent); }
