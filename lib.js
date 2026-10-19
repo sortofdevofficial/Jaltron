@@ -798,13 +798,16 @@
   function chips() {
     $('ltc-plans').innerHTML = plans.map(p => `<button type="button" class="ltc-chip" role="radio" aria-checked="${p.id === sel}" data-plan="${p.id}"><b>${p.months === 12 ? '1 year' : p.months + (p.months === 1 ? ' month' : ' months')}</b><span>$${p.usd.toFixed(2)}</span></button>`).join('');
   }
+  // Say so, instead of silently hiding the box
+  function off(why) { $('ltc').hidden = false; $('ltc-plans').hidden = true; $('ltc-go').hidden = true; $('ltc-off').hidden = false; $('ltc-off').textContent = why + ' You can still get Lite on Discord.'; }
   async function load() {
     try {
-      const r = await fetch('/api/pay?action=plans'), j = await r.json();
-      if (!r.ok || !j.ok || !j.plans) return;            // not set up on the server: the box stays hidden
-      plans = j.plans; $('ltc').hidden = false; chips();
+      const r = await fetch('/api/pay?action=plans'), j = await r.json().catch(() => null);
+      if (!j) return off('Litecoin checkout is not on this site yet (the payment service is not deployed).');
+      if (!r.ok || !j.ok || !j.plans) return off('Litecoin checkout is not switched on yet.');
+      plans = j.plans; $('ltc').hidden = false; $('ltc-off').hidden = true; $('ltc-plans').hidden = false; $('ltc-go').hidden = false; chips();
       $('ltc-rate').textContent = j.rate ? `1 LTC = $${j.rate.toFixed(2)}` : '';
-    } catch {}
+    } catch { off('Could not reach the payment service. Check your connection and refresh the page.'); }
   }
   function stop() { clearTimeout(tm); tm = null; }
   function show(o) {

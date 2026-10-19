@@ -261,10 +261,34 @@ async function orderStatus(uid, id, c) {
 }
 
 // ---------- admin setup ----------
+// Is the caller listed in admins/<uid>? Asked with the caller's OWN login: the rules let you read your own admins doc, and it works
+// for both the service account and the bot login (the bot is a different user, so it can never read someone else's admins doc).
+async function isAdminCaller(req, uid) {
+  const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!uid || !token) return false;
+  try { const r = await fetch(`https://firestore.googleapis.com/v1/projects/${cfg().project}/databases/(default)/documents/admins/${uid}`, { headers: { Authorization: 'Bearer ' + token } }); return r.ok; } catch { return false; }
+}
+
+// Tests every setting and every outside service, and says in plain words what is wrong
+async function diagnose(c) {
+  const out = [], add = (name, ok, note) => out.push({ name, ok: !!ok, note: note || '' }), E = process.env, sa = account();
+  add('LTC_ADDRESS', c.address, c.address || 'Missing: the Litecoin address that receives the money.');
+  add('PAY_SECRET', c.secret, c.secret ? 'set' : 'Missing: any long random text. It protects the webhook link.');
+  add('BLOCKCYPHER_TOKEN', c.bcToken, c.bcToken ? 'set' : 'Missing: your free BlockCypher token (needed to create webhooks).');
+  if (E.FIREBASE_SERVICE_ACCOUNT && !sa) add('FIREBASE_SERVICE_ACCOUNT', false, 'It is set but cannot be read. Paste the whole service account JSON (it must contain client_email and private_key), or that JSON in base64.');
+  else if (!sa && !bot()) add('Firebase access', false, 'Missing: set FIREBASE_SERVICE_ACCOUNT, or PAY_BOT_EMAIL and PAY_BOT_PASSWORD.');
+  else {
+    try {
+      await accessToken(); const r = await fs('/pay/_ping'), good = r.ok || r.status === 404;
+      add('Firebase access', good, (sa ? 'service account' : 'bot login') + (good ? ' works' : ` signed in, but Firestore answered ${r.status}${r.status === 403 ? ' (the service account needs the Cloud Datastore User role; a bot must be listed in admins/<its uid>)' : ''}`));
+    } catch (e) { add('Firebase access', false, e.message); }
+  }
+  try { add('Litecoin price', true, '1 LTC = $' + await ltcUsd()); } catch { add('Litecoin price', false, 'Could not get the price from Coinbase or CoinGecko.'); }
+  if (c.address) { try { const r = await bc(`/addrs/${c.address}/balance`); add('BlockCypher', true, 'address found, ' + (r.n_tx || 0) + ' transactions so far'); } catch (e) { add('BlockCypher', false, e.message + ' (check the token, and that this is a Litecoin address)'); } }
+  return out;
+}
+
 async function setup(uid, req, c) {
-  if (!uid) return { code: 401, error: 'Sign in first.' };
-  if (!(await getDoc('admins/' + uid))) return { code: 403, error: 'Admins only.' };
-  if (!c.bcToken) return { code: 400, error: 'Add BLOCKCYPHER_TOKEN in Vercel first.' };
   const site = c.site || `https://${req.headers['x-forwarded-host'] || req.headers.host}`, url = `${site}/api/pay?hook=${hookKey(c)}`;
   const have = await bc('/hooks'), list = Array.isArray(have) ? have : [], hooks = [];
   for (const w of [{ event: 'unconfirmed-tx' }, { event: 'tx-confirmation', confirmations: c.conf }]) {
@@ -285,6 +309,17 @@ module.exports = async (req, res) => {
   const fail = (code, error) => send(code, { ok: false, error });
   try {
     const c = cfg(), q = new URL(req.url || '/', 'http://x').searchParams;
+    // Admin tools run before the "is it set up" gate, so they can explain what is missing
+    let body = {};
+    if (req.method === 'POST' && !q.has('hook')) { try { body = JSON.parse(await readText(req, 4000) || '{}'); } catch { return fail(400, 'Bad request.'); } }
+    if (body.action === 'setup' || body.action === 'check') {
+      const uid = await uidOf(req);
+      if (!uid) return fail(401, 'Sign in first.');
+      if (!(await isAdminCaller(req, uid))) return fail(403, 'Admins only. Add a document with your account ID as its name to the admins collection in Firestore.');
+      const checks = await diagnose(c), good = checks.every(x => x.ok);
+      if (body.action === 'check' || !good) return send(200, { ok: true, ready: good, checks });
+      const r = await setup(uid, req, c); return r.body ? send(r.code, { ...r.body, ready: true, checks }) : fail(r.code, r.error);
+    }
     if (!c.address || !c.secret || !ready()) return fail(503, 'Litecoin payments are not set up yet.');
 
     if (q.has('hook')) { // BlockCypher webhook. The payload is ignored: it only triggers a look at the chain, so it cannot be faked into crediting anyone.
@@ -299,15 +334,13 @@ module.exports = async (req, res) => {
       return send(200, { ok: true, rate: r, need: c.conf, address: c.address, plans: plans(c) });
     }
     if (req.method !== 'POST') return fail(405, 'POST only');
-    let body = {}; try { body = JSON.parse(await readText(req, 4000) || '{}'); } catch { return fail(400, 'Bad request.'); }
     const uid = await uidOf(req);
-    if (body.action === 'setup') { const r = await setup(uid, req, c); return r.body ? send(r.code, r.body) : fail(r.code, r.error); }
     if (!uid) return fail(401, 'Sign in to pay with Litecoin.');
     const r = body.action === 'create' ? await createOrder(uid, String(body.plan || ''), c)
       : body.action === 'status' ? await orderStatus(uid, String(body.o || ''), c) : { code: 400, error: 'Unknown action.' };
     return r.body ? send(r.code, r.body) : fail(r.code, r.error);
   } catch (e) {
-    console.error('pay', e && e.message);
+    console.error('pay', e && e.stack || e);
     return fail(500, 'Something went wrong. Your money is safe; try again in a minute.');
   }
 };

@@ -47,8 +47,12 @@
       const o = $('a-ltc-out'); o.textContent = 'Checking...';
       try {
         const r = await fetch('/api/pay', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await DB.token() }, body: JSON.stringify({ action: 'setup' }) });
-        const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status);
-        o.textContent = ['Address: ' + j.address, 'Site: ' + j.site, 'Confirmations needed: ' + j.confirmations, 'Litecoin price: ' + (j.rate ? '$' + j.rate : 'unavailable'),
+        const j = await r.json().catch(() => null);
+        if (!j) throw new Error('The payment service answered with a page, not data (' + r.status + '). Is api/pay.js deployed?');
+        if (!r.ok || !j.ok) throw new Error(j.error || r.status);
+        const list = (j.checks || []).map(x => (x.ok ? 'OK       ' : 'PROBLEM  ') + x.name + ': ' + x.note).join('\n');
+        if (!j.ready) { o.textContent = list + '\n\nFix the lines marked PROBLEM in Vercel > Settings > Environment Variables, redeploy, then press the button again.'; return; }
+        o.textContent = list + '\n\n' + ['Address: ' + j.address, 'Site: ' + j.site, 'Confirmations needed: ' + j.confirmations, 'Litecoin price: ' + (j.rate ? '$' + j.rate : 'unavailable'),
           'Webhooks: ' + j.hooks.map(h => h.event + ' (' + h.status + ')').join(', '), 'Open orders: ' + j.openOrders,
           j.orphans.length ? 'Payments that matched no order (give these people Lite by hand):\n' + j.orphans.map(x => '  ' + x.ltc + ' LTC  tx ' + x.tx + '  ' + new Date(x.at).toLocaleString()).join('\n') : 'No unmatched payments.'].join('\n');
       } catch (e) { o.textContent = 'Problem: ' + e.message; }

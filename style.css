@@ -738,3 +738,5 @@ html[data-plan="free"] [data-page="insights"] .lock-card { display: grid; gap: .
 .ltc-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .btn.sm { padding: .25rem .625rem; font-size: .8125rem; }
 @media (max-width: 560px) { .ltc-box { grid-template-columns: 1fr; justify-items: center; } .ltc-info { width: 100%; } }
+
+.ltc-off { padding: .6rem .8rem; border: 1px dashed var(--warn); border-radius: .6rem; background: var(--warn-bg); color: var(--warn); }
