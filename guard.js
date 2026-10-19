@@ -2,10 +2,14 @@
 // Real protection lives in firestore.rules and the api/ checks. Local development (localhost) is left alone.
 (function () {
   if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
-  const log = console.log.bind(console), field = (e) => e.target.closest && e.target.closest('input, textarea');
+  const log = console.log.bind(console), field = (e) => e.target.closest && e.target.closest('input, textarea, [contenteditable="true"]');
   document.addEventListener('contextmenu', (e) => { if (!field(e)) e.preventDefault(); }, true);   // text fields keep paste
+  document.addEventListener('selectstart', (e) => { if (!field(e)) e.preventDefault(); }, true);   // block dragging cursor to select HTML text
+  document.addEventListener('copy', (e) => { if (!field(e)) e.preventDefault(); }, true);          // block copying HTML text
+  document.addEventListener('dragstart', (e) => { if (!field(e)) e.preventDefault(); }, true);      // block dragging text
   document.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase(), m = e.ctrlKey || e.metaKey;
+    if (m && (k === 'c' || k === 'a') && !field(e)) { e.preventDefault(); e.stopPropagation(); }
     if (e.key === 'F12' || (m && e.shiftKey && 'ijckm'.includes(k)) || (m && e.altKey && 'ijcu'.includes(k)) || (m && !e.shiftKey && k === 'u')) { e.preventDefault(); e.stopPropagation(); }
   }, true);
   // Silence the console, then look for it opening: the page covers itself until it is closed.
