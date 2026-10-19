@@ -293,17 +293,19 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     const n = Math.round(Number(s) * 10 ** e);
     return n >= 1 && n <= 1e6 * 10 ** e ? n : 0;
   };
-  const dayShort = (iso) => new Date(iso + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  // Log day segment is Unix ms since v: 3 (a string after split('|')); old ISO-string days still render until the owner upgrades the bank
+  const dayNum = (x) => typeof x === 'number' ? x : (/^\d{4}-\d{2}-\d{2}$/.test(x) ? Habit.dayMs(x) : +x || 0);
+  const dayShort = (x) => new Date(dayNum(x)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   const AMT_MSG = (c) => exp(c) ? 'Enter an amount like 12.50 (up to 1,000,000)' : 'Enter a whole amount (up to 1,000,000)';
   const ADD_ERR = { invalid: 'Usernames are 3 to 20 letters, numbers or _.', unknown: 'No account with that name.', me: 'That is you, you are already in this bank.' };
   // The w collection is only reachable once the updated firestore.rules are published; say so instead of blaming the network
   const isPerm = (e) => !!e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
   const why = (e) => isPerm(e) ? 'Firestore rules block this: publish the latest firestore.rules in the Firebase console, then reload.' : 'Check your connection.';
-  // Old data: whole dollars, no v: 2. View it as cents.
+  // Old data: whole dollars, no v mark. View it as cents.
   const scaleLog = (l) => (l || []).map(e => { const p = String(e).split('|'); const n = Number(p[1]) * 100; p[1] = (n > 0 ? '+' : '') + n; return p.join('|'); });
-  const norm = (b, legacy) => legacy ? { m: Math.round((b.m || 0) * 100), l: scaleLog(b.l), c: 'USD', v: 2 } : { m: b.m || 0, l: b.l || [], c: b.c || 'USD', v: 2 };
+  const norm = (b, legacy) => legacy ? { m: Math.round((b.m || 0) * 100), l: scaleLog(b.l), c: 'USD', v: 3 } : { m: b.m || 0, l: b.l || [], c: b.c || 'USD', v: 3 };
 
-  let signedIn = false, mine = { m: 0, l: [], c: 'USD', v: 2 }, mineStored = false, banks = [], banksReady = false, banksErr = false;
+  let signedIn = false, mine = { m: 0, l: [], c: 'USD', v: 3 }, mineStored = false, banks = [], banksReady = false, banksErr = false;
   let unwatch = null, watchUid = null, busy = false, creating = false;
   const potBusy = new Set(), upgrading = new Set(), deleting = new Set();
   let delArm = '', delTimer = 0;
@@ -390,7 +392,9 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     if (snap.metadata.fromCache && !banks.length) return renderBanks(); // an empty cached answer is not proof: wait for the server before claiming "no banks"
     banksReady = true; banksErr = false;
     const uid = DB.user.uid;
-    banks.filter(p => !p.v && p.id === uid && !upgrading.has(p.id)).forEach(p => {   // old pot of mine: convert it once
+    const own = (p) => (p.o || p.id) === uid;
+    const stale = (p) => !p.v || p.v < 3 || (p.l || []).some((e) => /^\d{4}-/.test(String(e))); // old shape or old day format
+    banks.filter(p => own(p) && stale(p) && !upgrading.has(p.id)).forEach(p => {   // my outdated bank: convert it once
       upgrading.add(p.id);
       const v = view(p);
       DB.wsUpgrade(p.id, v.m, v.l).catch((e) => { upgrading.delete(p.id); console.error(e); });
@@ -420,9 +424,9 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     signedIn = !!user;
     if (user) {
       const raw = b && typeof b.m === 'number' ? b : { m: 0, l: [] };
-      mineStored = raw.v === 2; mine = norm(raw, raw.v !== 2);
+      mineStored = raw.v >= 2; mine = norm(raw, raw.v !== 2);
       syncWatch(user);
-    } else { mine = { m: 0, l: [], c: 'USD', v: 2 }; mineStored = false; syncWatch(null); }
+    } else { mine = { m: 0, l: [], c: 'USD', v: 3 }; mineStored = false; syncWatch(null); }
     paint();
   });
 
@@ -530,16 +534,17 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     if (!me) return note('Sign in to see the leaderboard.');
     if (!rows) return note(busy ? 'Loading...' : 'Could not load the leaderboard. Publish the latest firestore.rules, then press Refresh.');
     if (!rows.length) return note('Nobody is on the board yet. Finish a task today to be the first.');
-    const live = (d) => d && d >= Habit.addDays(Habit.today(), -1);
+    const live = (d) => d && d >= Habit.dayMs(Habit.addDays(Habit.today(), -1));
     $('bd-list').innerHTML = rows.map((r, i) => `<li class="bd-row${r.id === me ? ' me' : ''}${i < 3 ? ' top' + (i + 1) : ''}">
       <span class="bd-rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>
-      <span class="bd-name"><span>@${esc(r.n)}${r.id === me ? ' <em>you</em>' : ''}</span><small>${live(r.d) ? '<i class="bd-on"></i>active' : r.d ? 'last active ' + esc(r.d.slice(5)) : ''}${r.b ? ` · best run ${r.b}` : ''}</small></span>
+      <span class="bd-name"><span>@${esc(r.n)}${r.id === me ? ' <em>you</em>' : ''}</span><small>${live(r.d) ? '<i class="bd-on"></i>active' : r.d ? 'last active ' + esc(Habit.msDay(r.d).slice(5)) : ''}${r.b ? ` · best run ${r.b}` : ''}</small></span>
       <span class="bd-n"><i class="fa-solid fa-fire"></i> ${r.t}<small>days</small></span></li>`).join('');
   }
   async function load() {
     if (busy || !window.DB || !DB.user) return paint();
     busy = true; paint();
-    try { rows = await DB.lbTop(25); at = Date.now(); } catch (e) { console.error(e); rows = null; }
+    // d is Unix ms; each owner's entry self-migrates on their next visit, until then old ISO days are read fine
+    try { rows = (await DB.lbTop(25)).map((r) => ({ ...r, d: typeof r.d === 'string' ? Habit.dayMs(r.d) : (r.d || 0) })); at = Date.now(); } catch (e) { console.error(e); rows = null; }
     busy = false; paint();
   }
   $('bd-refresh').addEventListener('click', load);

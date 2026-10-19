@@ -66,6 +66,8 @@
   const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const today = () => iso(new Date());
   const addDays = (s, n) => { const d = new Date(s + 'T00:00'); d.setDate(d.getDate() + n); return iso(d); };
+  const dayMs = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '') ? new Date(s + 'T00:00').getTime() : 0; // ISO day -> local-midnight ms (the stored form)
+  const msDay = (n) => iso(new Date(Number(n) || 0)); // ms -> ISO day
   const dow = (s) => new Date(s + 'T00:00').getDay();
   const isWeekend = (s) => dow(s) === 0 || dow(s) === 6;
   const esc = (x) => String(x).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
@@ -234,7 +236,7 @@
     return Array.from({ length: 7 }, (_, i) => { const d = addDays(end, i - 6); return `<i class="dot${h.has(d) ? ' on' : ''}" title="${d}"></i>`; }).join('');
   }
 
-  root.Habit = { REP, nextReset, fmtLeft, resetBadge, tickResets, today, addDays, complete, reopen, streak, rollover, completions, lastDays, activeStreak, bestActive, group, donut, bars, heatmap, week7 };
+  root.Habit = { REP, nextReset, fmtLeft, resetBadge, tickResets, today, addDays, dayMs, msDay, complete, reopen, streak, rollover, completions, lastDays, activeStreak, bestActive, group, donut, bars, heatmap, week7 };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.Habit;
 })(typeof window !== 'undefined' ? window : globalThis);
 
