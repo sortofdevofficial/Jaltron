@@ -717,6 +717,8 @@
 // ================= reviews =================
 // Full reviews page. Stored in rv/<uid> in Firestore (REST, no extra import needed).
 // Lite users can write/update their own review. Anyone can read.
+// Reviewer names are not stored on the review: cards resolve uid -> name from the public nm claims
+// (old docs may still carry a legacy n copy, used as fallback until those reviewers sign in once more).
 (function (root) {
   const $ = (id) => document.getElementById(id);
   const toast = (m) => root.Extras && Extras.toast(m);
@@ -725,7 +727,8 @@
   const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 
   // ---- state ----
-  let allReviews = [];          // all loaded, [{uid, s, tx, n, t}]
+  let allReviews = [];          // all loaded, [{uid, s, tx, t, a, n? legacy}]
+  const names = new Map();      // uid -> username, resolved from the nm claims (cached for the session)
   let myReview = null;          // own doc fields object (Firestore format) or null
   let selScore = 5.0;           // default rating (supports 4.1, 2.2, etc.)
   let filterStar = 0;           // 0 = all, 1-5 = bucket
@@ -753,6 +756,32 @@
     const rawS = dec(f.s);
     return { s: typeof rawS === 'number' ? Math.round(rawS * 10) / 10 : 5.0, tx: dec(f.tx) || '', n: dec(f.n) || '', t: dec(f.t) || 0, a: dec(f.a) || '' };
   };
+
+  // ---- reviewer names: resolved from the public nm claims (where u == uid), up to 30 uids per query ----
+  async function resolveNames(list) {
+    const want = [...new Set(list.map((r) => r.uid))].filter((u) => !names.has(u));
+    if (!want.length) return;
+    const head = {};
+    if (root.DB && DB.user) { try { head.Authorization = 'Bearer ' + await DB.token(); } catch {} }
+    const chunks = Array.from({ length: Math.ceil(want.length / 30) }, (_, i) => want.slice(i * 30, i * 30 + 30));
+    await Promise.all(chunks.map(async (chunk) => {
+      try {
+        const r = await fetch(`${BASE}:runQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...head },
+          body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'nm' }], where: { fieldFilter: { field: { fieldPath: 'u' }, op: 'IN', value: { arrayValue: { values: chunk.map((u) => ({ stringValue: u })) } } } } } })
+        });
+        if (!r.ok) return; // rules not published yet or offline: cards fall back to the legacy n / "Anonymous Friend"
+        const rows = await r.json();
+        for (const x of Array.isArray(rows) ? rows : []) {
+          if (!x.document) continue;
+          const uid = dec(x.document.fields && x.document.fields.u);
+          if (uid) names.set(uid, x.document.name.split('/').pop());
+        }
+        for (const u of chunk) if (!names.has(u)) names.set(u, ''); // miss: remember so we do not re-query every visit
+      } catch {}
+    }));
+  }
 
   // ---- cozy sentiment label based on decimal score ----
   function scoreLabel(s) {
@@ -821,7 +850,7 @@
     const filledStars = Math.round(rv.s);
     const stars = Array.from({ length: 5 }, (_, i) =>
       `<span class="${i < filledStars ? 'rv-cs on' : 'rv-cs'}">${i < filledStars ? '★' : '☆'}</span>`).join('');
-    const name = rv.n ? esc(rv.n) : 'Anonymous Friend';
+    const name = esc(names.get(rv.uid) || rv.n || '') || 'Anonymous Friend';
     const initials = name.slice(0, 2).toUpperCase();
     // Picture first; if it cannot load (or there is none) the initials show instead
     const ava = rv.a ? `<img class="rv-avatar" src="${esc(Img.parts(rv.a).t)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;rv-avatar&quot; aria-hidden=&quot;true&quot;>${initials}</div>'">` : `<div class="rv-avatar" aria-hidden="true">${initials}</div>`;
@@ -888,6 +917,7 @@
         docs = j2.documents || [];
       }
       allReviews = docs.map(x => ({ uid: x.name.split('/').pop(), ...decDoc(x) }));
+      await resolveNames(allReviews);
       loaded = true;
       loadedAt = Date.now();
     } catch (e) {
@@ -982,31 +1012,28 @@
     const msg = $('rv-form-msg'); if (msg) msg.textContent = 'Publishing…';
     const sub = $('rv-submit'); if (sub) sub.disabled = true;
     try {
-      const uid = DB.user.uid, token = await DB.token();
-      let name = '', av = '';
-      try { const c = localStorage.getItem('jc:' + uid); if (c) { const p = JSON.parse(c); name = (p.profile && p.profile.n) || ''; av = (p.profile && p.profile.a) || ''; } } catch {}
+      const uid = DB.user.uid;
+      let av = '';
+      try { const c = localStorage.getItem('jc:' + uid); if (c) { const p = JSON.parse(c); av = (p.profile && p.profile.a) || ''; } } catch {}
       // Public copy of your picture: the uploaded one if you have it, otherwise your Google photo. Never the delete code (3rd part).
       av = av ? String(av).split('|').slice(0, 2).join('|') : '';
       if (!av || av.length > 200) av = DB.user.photoURL || '';
       if (av.length > 200) av = '';
-      const fields = { s: fNum(selScore), tx: fStr(txt), n: fStr(name), t: { integerValue: String(Date.now()) } };
-      if (av) fields.a = fStr(av);
-      const body = { fields };
-      const r = await fetch(`${BASE}/rv/${uid}`, {
-        method: 'PATCH',
-        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error((j.error && j.error.message) || 'Could not publish.'); }
-      myReview = body.fields;
+      const now = Date.now();
+      const fields = { s: selScore, tx, t: now };
+      if (av) fields.a = av;
+      await DB.rvPublish(fields); // full replace, so a legacy stored name is dropped along the way
+      myReview = { s: fNum(selScore), tx: fStr(txt), t: { integerValue: String(now) } };
+      if (av) myReview.a = fStr(av);
       if (msg) msg.textContent = '✨ Published! Thanks for making JALTRON cozier.';
       if (sub) { sub.disabled = true; sub.innerHTML = '<i class="fa-solid fa-check"></i> Published'; }
       const ta = $('rv-text'); if (ta) ta.disabled = true;
       setScore(selScore, true);
       toast('Review published! ☕🎉');
       const existing = allReviews.findIndex(r => r.uid === uid);
-      const rv = { uid, s: selScore, tx: txt, n: name, t: Date.now(), a: av };
+      const rv = { uid, s: selScore, tx, t: now, a: av };
       if (existing >= 0) allReviews[existing] = rv; else allReviews.unshift(rv);
+      await resolveNames(allReviews); // picks up my uid if this is my first review
       renderAvg();
       renderGrid();
     } catch (err) {

@@ -33,9 +33,10 @@ service cloud.firestore {
     }
 
     // Username claims: nm/<name> = { u: <uid> } — their own collection; the doc ID is the name, which keeps it unique.
+    // Public read (signed-out too) so the reviews page can resolve reviewer uids to names; a claim only links two ids that are already public.
     // Claims can be created but never overwritten, so a race for a free name fails instead of stealing it.
     match /nm/{name} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow create: if request.auth != null
         && name.matches('[a-z0-9_]{3,20}')
         && request.resource.data.keys().hasOnly(['u'])
@@ -77,16 +78,16 @@ service cloud.firestore {
       allow delete: if request.auth != null && owner();
     }
 
-    // Reviews: rv/<uid>. Anyone can read. A signed-in user can write/overwrite only their own review.
-    // Fields: s (1.0-5.0 score, number), tx (text, string ≤280), n (username, string), t (timestamp ms, int), a (picture, optional string ≤200 — refreshed by the owner's client on login).
+    // Reviews: rv/<uid>. Anyone can read — including signed-out visitors, who resolve reviewer names from the public nm claims.
+    // Fields: s (1.0-5.0 score, number), tx (text, string ≤280), t (timestamp ms, int), a (picture, optional string ≤200 — refreshed by the owner's client on login).
+    // No username field: the reviewer's name comes from nm, so it also follows renames.
     match /rv/{id} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == id
-        && request.resource.data.keys().hasOnly(['s', 'tx', 'n', 't', 'a'])
+        && request.resource.data.keys().hasOnly(['s', 'tx', 't', 'a'])
         && (request.resource.data.s is int || request.resource.data.s is float)
         && request.resource.data.s >= 1.0 && request.resource.data.s <= 5.0
         && request.resource.data.tx is string && request.resource.data.tx.size() <= 280
-        && request.resource.data.n is string && request.resource.data.n.size() <= 20
         && request.resource.data.t is int
         && (!('a' in request.resource.data) || (request.resource.data.a is string && request.resource.data.a.size() <= 200));
     }

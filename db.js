@@ -7,7 +7,7 @@
 //   lb/<uid>     { n: username, t: streak days, b: best run, d: last active ms }  the public streak leaderboard (a projection of your own streak; rules tie n to your own username claim; o: true on u/<uid> hides you)
 //   w/<id>       { o: owner uid, nm: name, c: currency, m: [member uids, owner included], b: balance in minor units, l: log, v: 3 }  shared banks (any number per owner); members change only b and l; names are resolved from the claims below
 //   nm/<name>    { u: uid }   username claims in their own collection; the doc ID is the name, which keeps it unique — the only place a username is stored. Old claims in u/<name> are moved here by the owner's client on login (mine()).
-//   rv/<uid>     { s: 1-5 stars (int), tx: review text (string ≤200), n: username (string), t: timestamp ms (int), a: picture (optional, refreshed on login) }  one review per user; readable by all, writable only by owner
+//   rv/<uid>     { s: 1-5 stars (number), tx: review text (string ≤280), t: timestamp ms (int), a: picture (optional, refreshed on login) }  one review per user; readable by all, writable only by owner. No username stored — cards resolve it from nm/<name>
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, getCountFromServer, setDoc, addDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
@@ -133,7 +133,8 @@ async function pushRvAva(a) {
   const k = 'jr:' + user.uid;
   try { if (localStorage.getItem(k) === pic) return; } catch {}
   try {
-    await updateDoc(doc(db, 'rv', user.uid), pic ? { a: pic } : { a: deleteField() });
+    // n: deleteField also strips the username legacy copy off old review docs in the same write
+    await updateDoc(doc(db, 'rv', user.uid), pic ? { a: pic, n: deleteField() } : { a: deleteField(), n: deleteField() });
     try { localStorage.setItem(k, pic); } catch {}
   } catch (err) {
     // No review yet: nothing to refresh, remember it so we stop retrying (publishing includes the picture itself)
@@ -141,6 +142,11 @@ async function pushRvAva(a) {
     if (!err || err.code !== 'not-found') console.error(err);
   }
 }
+// Publish your review: a full set (no merge), so any legacy field on the old doc (like the stored username) is dropped.
+async function rvPublish(f) {
+  await setDoc(doc(db, 'rv', auth.currentUser.uid), f);
+}
+
 const lbTop = async (n = 10) => (await getDocs(query(collection(db, 'lb'), orderBy('t', 'desc'), limit(n)))).docs.map((x) => ({ id: x.id, ...x.data() }));
 
 // uid that owns a name ('' when the name is free): nm/<name> first, then an old claim still sitting in u/<name>
@@ -392,7 +398,7 @@ window.DB = {
   refreshPlan,
   isAdmin, adminFind, adminSet, lbTop, lbRank, setLbOptOut,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt,
-  bankMoney, bankPut, bankLogDel, wsLogDel, wsCreate, wsEdit, wsRemove, wsLeave, wsAdd, wsDel, wsMoney, wsUpgrade, wsWatch, nameOf,
+  bankMoney, bankPut, bankLogDel, wsLogDel, wsCreate, wsEdit, wsRemove, wsLeave, wsAdd, wsDel, wsMoney, wsUpgrade, wsWatch, nameOf, rvPublish,
   token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),
   get user() { return auth.currentUser; },
   signIn: () => signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver).catch(e => { if (e.code !== 'auth/popup-closed-by-user') emit('error', 'Sign-in failed: ' + e.code); }),
