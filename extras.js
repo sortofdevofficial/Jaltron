@@ -527,7 +527,8 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
 (function () {
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
-  let rows = null, at = 0, busy = false;
+  const TOP = 10;
+  let rows = null, mine = null, at = 0, busy = false;
   const note = (t) => { $('bd-list').innerHTML = `<li class="bd-note">${t}</li>`; };
   function paint() {
     const me = window.DB && DB.user ? DB.user.uid : '';
@@ -538,13 +539,20 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     $('bd-list').innerHTML = rows.map((r, i) => `<li class="bd-row${r.id === me ? ' me' : ''}${i < 3 ? ' top' + (i + 1) : ''}">
       <span class="bd-rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>
       <span class="bd-name"><span>@${esc(r.n)}${r.id === me ? ' <em>you</em>' : ''}</span><small>${live(r.d) ? '<i class="bd-on"></i>active' : r.d ? 'last active ' + esc(Habit.msDay(r.d).slice(5)) : ''}${r.b ? ` · best run ${r.b}` : ''}</small></span>
-      <span class="bd-n"><i class="fa-solid fa-fire"></i> ${r.t}<small>days</small></span></li>`).join('');
+      <span class="bd-n"><i class="fa-solid fa-fire"></i> ${r.t}<small>days</small></span></li>`).join('')
+      + (mine && !rows.some((r) => r.id === me) ? `<li class="bd-gap" aria-hidden="true">...</li><li class="bd-row me">
+      <span class="bd-rank">${mine.rank}</span>
+      <span class="bd-name"><span>@${esc(mine.n)} <em>you</em></span><small>not in the top ${TOP} yet</small></span>
+      <span class="bd-n"><i class="fa-solid fa-fire"></i> ${mine.t}<small>days</small></span></li>` : '');
   }
   async function load() {
     if (busy || !window.DB || !DB.user) return paint();
     busy = true; paint();
     // d is Unix ms; each owner's entry self-migrates on their next visit, until then old ISO days are read fine
-    try { rows = (await DB.lbTop(25)).map((r) => ({ ...r, d: typeof r.d === 'string' ? Habit.dayMs(r.d) : (r.d || 0) })); at = Date.now(); } catch (e) { console.error(e); rows = null; }
+    try { rows = (await DB.lbTop(TOP)).slice(0, TOP).map((r) => ({ ...r, d: typeof r.d === 'string' ? Habit.dayMs(r.d) : (r.d || 0) })); at = Date.now(); } catch (e) { console.error(e); rows = null; }
+    // Not in the top 10? Show where you stand, below the list
+    mine = null;
+    if (rows && DB.lbRank && !rows.some((r) => r.id === DB.user.uid)) { try { mine = await DB.lbRank(); } catch (e) { console.error(e); } }
     busy = false; paint();
   }
   $('bd-refresh').addEventListener('click', load);

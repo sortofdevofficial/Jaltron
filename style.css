@@ -957,3 +957,5 @@ html.theming *, html.theming *::before, html.theming *::after { transition: back
 .dc-pay-head { display: flex; align-items: center; gap: .75rem; }
 .dc-pay-head > div { display: flex; flex-direction: column; gap: .125rem; }
 .dc-pay-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+.bd-gap { list-style: none; text-align: center; color: var(--muted); letter-spacing: .3em; padding: .125rem 0; }

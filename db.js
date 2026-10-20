@@ -10,7 +10,7 @@
 //   rv/<uid>     { s: 1-5 stars (int), tx: review text (string ≤200), n: username (string), t: timestamp ms (int), a: picture (optional, refreshed on login) }  one review per user; readable by all, writable only by owner
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, getCountFromServer, setDoc, addDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyDlqQYIPue53vx1tpm7-DYYKMZB4OatiDg',
@@ -102,6 +102,15 @@ async function pushLb(profile) {
   try { if (localStorage.getItem(k) === j) return; } catch {}
   try { await setDoc(doc(db, 'lb', user.uid), e); try { localStorage.setItem(k, j); } catch {} } catch (err) { console.error(err); }
 }
+// Your own place when you are outside the top 10: your public entry plus how many people are ahead of you (one cheap count, no extra reads)
+async function lbRank() {
+  const user = auth.currentUser;
+  if (!user) return null;
+  const s = await getDoc(doc(db, 'lb', user.uid));
+  if (!s.exists()) return null;
+  const me = s.data(), ahead = (await getCountFromServer(query(collection(db, 'lb'), where('t', '>', me.t)))).data().count;
+  return { ...me, id: user.uid, rank: ahead + 1 };
+}
 async function setLbOptOut(o) {
   const uid = auth.currentUser.uid, c = readCache(uid);
   try {
@@ -132,7 +141,7 @@ async function pushRvAva(a) {
     if (!err || err.code !== 'not-found') console.error(err);
   }
 }
-const lbTop = async (n = 25) => (await getDocs(query(collection(db, 'lb'), orderBy('t', 'desc'), limit(n)))).docs.map((x) => ({ id: x.id, ...x.data() }));
+const lbTop = async (n = 10) => (await getDocs(query(collection(db, 'lb'), orderBy('t', 'desc'), limit(n)))).docs.map((x) => ({ id: x.id, ...x.data() }));
 
 // uid that owns a name ('' when the name is free): nm/<name> first, then an old claim still sitting in u/<name>
 async function ownerOf(name) {
@@ -381,7 +390,7 @@ const refreshPlan = async () => { const s = await getDoc(doc(db, 's', auth.curre
 
 window.DB = {
   refreshPlan,
-  isAdmin, adminFind, adminSet, lbTop, setLbOptOut,
+  isAdmin, adminFind, adminSet, lbTop, lbRank, setLbOptOut,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt,
   bankMoney, bankPut, bankLogDel, wsLogDel, wsCreate, wsEdit, wsRemove, wsLeave, wsAdd, wsDel, wsMoney, wsUpgrade, wsWatch, nameOf,
   token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),
