@@ -816,6 +816,12 @@ function renderPlan() {
   $('plan-uid').textContent = ref;
   $('plan-uid').title = uid; // full UID on hover for power users / staff
 }
+$('plan-copy-msg').addEventListener('click', () => {
+  const uid = window.DB && DB.user ? DB.user.uid : '';
+  if (!uid) return toast('Sign in first, so your payment reference is in the message.');
+  const msg = `Hi! I want to get JALTRON Lite. My payment reference: ${$('plan-uid').textContent} (${uid})`;
+  navigator.clipboard.writeText(msg).then(() => toast('Message copied. Paste it to staff on Discord.'), () => toast('Select and copy your payment reference below.'));
+});
 $('plan-copy').addEventListener('click', () => {
   const uid = window.DB && DB.user ? DB.user.uid : '';
   // Copy both reference and UID so staff can look up the account

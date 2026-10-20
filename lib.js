@@ -52,7 +52,7 @@
   const limit = (f) => PLANS[id][f];
   const can = (f) => !!PLANS[id][f];
   // Message shown when a Free account hits a Lite feature
-  const msg = (f) => `${NEED[f]}${f === 'tasks' || f === 'cats' ? '' : ' is a Lite feature.'} Open Plans to get Lite (pay with Litecoin or on Discord).`;
+  const msg = (f) => `${NEED[f]}${f === 'tasks' || f === 'cats' ? '' : ' is a Lite feature.'} Open Plans to get Lite (pay by talking to staff on Discord).`;
   root.Plan = { set, limit, can, msg, get id() { return id; }, get name() { return PLANS[id].name; }, get until() { return until; } };
   set(null);
 })(window);
@@ -714,156 +714,6 @@
     .catch(() => { /* widget disabled or offline: keep the static card */ });
 })();
 
-// ================= qr =================
-// Tiny QR code maker (byte mode, error correction M, versions 1 to 10). Qr.svg(text) returns an <svg> string.
-(function (root) {
-  const ECC = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26], BLK = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5];
-  const mul = (x, y) => { let z = 0; for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; } return z; };
-  function rs(data, deg) {
-    const g = new Array(deg).fill(0); g[deg - 1] = 1; let r = 1;
-    for (let i = 0; i < deg; i++) { for (let j = 0; j < g.length; j++) { g[j] = mul(g[j], r); if (j + 1 < g.length) g[j] ^= g[j + 1]; } r = mul(r, 2); }
-    const out = new Array(deg).fill(0);
-    for (const b of data) { const f = b ^ out.shift(); out.push(0); g.forEach((c, i) => { out[i] ^= mul(c, f); }); }
-    return out;
-  }
-  const total = (v) => { let r = (16 * v + 128) * v + 64; if (v >= 2) { const n = Math.floor(v / 7) + 2; r -= (25 * n - 10) * n - 55; if (v >= 7) r -= 36; } return r; };
-  function matrix(text) {
-    const bytes = [...new TextEncoder().encode(text)];
-    let ver = 1; const cap = (v) => Math.floor(total(v) / 8) - ECC[v] * BLK[v];
-    while (ver <= 10 && cap(ver) < bytes.length + (ver < 10 ? 2 : 3)) ver++;
-    if (ver > 10) throw new Error('too long for QR');
-    const bits = []; const put = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
-    put(4, 4); put(bytes.length, ver < 10 ? 8 : 16); bytes.forEach(b => put(b, 8));
-    const need = cap(ver) * 8; put(0, Math.min(4, need - bits.length)); while (bits.length % 8) bits.push(0);
-    const data = []; for (let i = 0; i < bits.length; i += 8) data.push(parseInt(bits.slice(i, i + 8).join(''), 2));
-    for (let p = 0xEC; data.length < cap(ver); p ^= 0xEC ^ 0x11) data.push(p);
-    const nb = BLK[ver], ec = ECC[ver], rawCw = Math.floor(total(ver) / 8), short = nb - rawCw % nb, sl = Math.floor(rawCw / nb), blocks = [];
-    for (let i = 0, k = 0; i < nb; i++) { const d = data.slice(k, k + sl - ec + (i < short ? 0 : 1)); k += d.length; blocks.push({ d, e: rs(d, ec) }); }
-    const cw = []; for (let i = 0; i < sl - ec + 1; i++) blocks.forEach((b, j) => { if (i < b.d.length) cw.push(b.d[i]); });
-    for (let i = 0; i < ec; i++) blocks.forEach(b => cw.push(b.e[i]));
-    const n = ver * 4 + 17, m = Array.from({ length: n }, () => new Array(n).fill(false)), fn = Array.from({ length: n }, () => new Array(n).fill(false));
-    const set = (x, y, d) => { m[y][x] = d; fn[y][x] = true; };
-    for (let i = 0; i < n; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
-    for (const [cx, cy] of [[3, 3], [n - 4, 3], [3, n - 4]]) for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
-      const x = cx + dx, y = cy + dy, d = Math.max(Math.abs(dx), Math.abs(dy)); if (x >= 0 && x < n && y >= 0 && y < n) set(x, y, d !== 2 && d !== 4);
-    }
-    const na = ver === 1 ? 0 : Math.floor(ver / 7) + 2, step = na ? Math.ceil((ver * 4 + 4) / (na * 2 - 2)) * 2 : 0, pos = [6];
-    for (let p = n - 7; pos.length < na; p -= step) pos.splice(1, 0, p);
-    pos.forEach((a, i) => pos.forEach((b, j) => { if ((i === 0 && j === 0) || (i === 0 && j === na - 1) || (i === na - 1 && j === 0)) return;
-      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(a + dx, b + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1); }));
-    const fmt = (mask) => { let d = (0 << 3) | mask, r = d; for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537); const bitsF = ((d << 10) | r) ^ 0x5412, g = (i) => ((bitsF >>> i) & 1) === 1;
-      for (let i = 0; i <= 5; i++) set(8, i, g(i)); set(8, 7, g(6)); set(8, 8, g(7)); set(7, 8, g(8)); for (let i = 9; i < 15; i++) set(14 - i, 8, g(i));
-      for (let i = 0; i < 8; i++) set(n - 1 - i, 8, g(i)); for (let i = 8; i < 15; i++) set(8, n - 15 + i, g(i)); set(8, n - 8, true); };
-    fmt(0);
-    if (ver >= 7) { let r = ver; for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11) * 0x1F25); const v = (ver << 12) | r;
-      for (let i = 0; i < 18; i++) { const b = ((v >>> i) & 1) === 1, a = n - 11 + i % 3, c = Math.floor(i / 3); set(a, c, b); set(c, a, b); } }
-    const fits = [...cw.flatMap(b => [7, 6, 5, 4, 3, 2, 1, 0].map(i => ((b >>> i) & 1) === 1))];
-    for (let i = 0, right = n - 1; right >= 1; right -= 2) { if (right === 6) right = 5;
-      for (let v = 0; v < n; v++) for (let j = 0; j < 2; j++) { const x = right - j, up = ((right + 1) & 2) === 0, y = up ? n - 1 - v : v;
-        if (!fn[y][x] && i < fits.length) { m[y][x] = fits[i++]; } } }
-    const masks = [(x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, (x, y) => x % 3 === 0, (x, y) => (x + y) % 3 === 0, (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0,
-      (x, y) => x * y % 2 + x * y % 3 === 0, (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0];
-    const penalty = (g) => { let p = 0;
-      for (let t = 0; t < 2; t++) for (let a = 0; a < n; a++) { let run = 1; for (let b = 1; b < n; b++) { const c = t ? g[b][a] : g[a][b], q = t ? g[b - 1][a] : g[a][b - 1]; if (c === q) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1; } }
-      for (let y = 0; y < n - 1; y++) for (let x = 0; x < n - 1; x++) { const c = g[y][x]; if (c === g[y][x + 1] && c === g[y + 1][x] && c === g[y + 1][x + 1]) p += 3; }
-      const pat = [1, 0, 1, 1, 1, 0, 1]; for (let t = 0; t < 2; t++) for (let a = 0; a < n; a++) for (let b = 0; b + 6 < n; b++) { if (pat.every((v, k) => (t ? g[b + k][a] : g[a][b + k]) === (v === 1))) {
-        const w = (k) => k < 0 || k >= n ? false : (t ? g[k][a] : g[a][k]); if ([1, 2, 3, 4].every(k => !w(b - k)) || [1, 2, 3, 4].every(k => !w(b + 6 + k))) p += 40; } }
-      const dark = g.flat().filter(Boolean).length; p += Math.floor(Math.abs(dark * 20 - n * n * 10) / (n * n)) * 10; return p; };
-    let best = null, bestP = Infinity, bestM = 0;
-    masks.forEach((f, k) => { const g = m.map((row, y) => row.map((v, x) => (fn[y][x] ? v : v !== f(x, y)))); const p = penalty(g); if (p < bestP) { bestP = p; best = g; bestM = k; } });
-    const saved = m; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) saved[y][x] = best[y][x];
-    fmt(bestM); return m;
-  }
-  function svg(text, label) {
-    const m = matrix(text), n = m.length, q = 4; let d = '';
-    m.forEach((row, y) => { for (let x = 0; x < n; x++) if (row[x]) d += `M${x + q} ${y + q}h1v1h-1z`; });
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + q * 2} ${n + q * 2}" shape-rendering="crispEdges" role="img" aria-label="${label || 'QR code'}"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
-  }
-  root.Qr = { svg, matrix };
-})(typeof window !== 'undefined' ? window : globalThis);
-
-// ================= pay =================
-// Litecoin checkout on the Plans page. The server (api/pay.js) makes the order, watches the chain and switches Lite on.
-(function (root) {
-  const $ = (id) => document.getElementById(id), KEY = 'jc:ltc';
-  const toast = (m) => root.Extras && Extras.toast(m);
-  let plans = [], sel = '1m', order = null, tm = null, tries = 0;
-  async function api(body) {
-    const token = root.DB && DB.user ? await DB.token() : null;
-    const r = await fetch('/api/pay', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || j.ok === false) throw new Error(j.error || 'Something went wrong. Try again.');
-    return j;
-  }
-  const say = (t, cls) => { const s = $('ltc-status'); s.textContent = t; s.dataset.s = cls || ''; };
-  const left = (ms) => { const m = Math.max(0, Math.ceil(ms / 60000)); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m} min`; };
-  function chips() {
-    $('ltc-plans').innerHTML = plans.map(p => `<button type="button" class="ltc-chip" role="radio" aria-checked="${p.id === sel}" data-plan="${p.id}"><b>${p.months === 12 ? '1 year' : p.months + (p.months === 1 ? ' month' : ' months')}</b><span>$${p.usd.toFixed(2)}</span></button>`).join('');
-  }
-  // Say so, instead of silently hiding the box
-  function off(why) { $('ltc').hidden = false; $('ltc-plans').hidden = true; $('ltc-go').hidden = true; $('ltc-off').hidden = false; $('ltc-off').textContent = why + ' You can still get Lite on Discord.'; }
-  async function load() {
-    try {
-      const r = await fetch('/api/pay?action=plans'), j = await r.json().catch(() => null);
-      if (!j) return off('Litecoin checkout is not on this site yet (the payment service is not deployed).');
-      if (!r.ok || !j.ok || !j.plans) return off('Litecoin checkout is not switched on yet.');
-      plans = j.plans; $('ltc').hidden = false; $('ltc-off').hidden = true; $('ltc-plans').hidden = false; $('ltc-go').hidden = false; chips();
-      $('ltc-rate').textContent = j.rate ? `1 LTC = $${j.rate.toFixed(2)}` : '';
-    } catch { off('Could not reach the payment service. Check your connection and refresh the page.'); }
-  }
-  function stop() { clearTimeout(tm); tm = null; }
-  function show(o) {
-    order = o; tries = 0;
-    $('ltc-box').hidden = false;
-    $('ltc-qr').innerHTML = root.Qr.svg(o.uri, 'Litecoin payment QR code');
-    $('ltc-amt').textContent = o.amt + ' LTC'; $('ltc-addr').textContent = o.addr; $('ltc-open').href = o.uri;
-    $('ltc-check').hidden = false; say(`Waiting for your payment. This order is held for ${left(o.exp - Date.now())}.`, 'wait');
-    try { localStorage.setItem(KEY, sel); } catch {}
-    stop(); tm = setTimeout(poll, 4000);
-  }
-  async function poll(now) {
-    if (!order) return;
-    stop();
-    try {
-      const j = await api({ action: 'status', o: order.o });
-      if (j.st === 'paid') return paid(j);
-      if (j.st === 'expired') { say('This order expired. Press Pay with Litecoin to start a new one.', 'bad'); $('ltc-check').hidden = true; try { localStorage.removeItem(KEY); } catch {} return; }
-      if (j.st === 'seen') say(`Payment seen. Waiting for confirmations (${j.n}/${j.need}). This takes a few minutes.`, 'seen');
-      else say(`Waiting for your payment. This order is held for ${left(j.exp - Date.now())}.`, 'wait');
-    } catch (e) { say(e.message, 'bad'); }
-    if (now === true) return;
-    tries++;
-    if (tries < 400) tm = setTimeout(poll, tries < 100 ? 6000 : 30000);   // about 10 minutes quickly, then gently
-  }
-  async function paid(j) {
-    stop(); try { localStorage.removeItem(KEY); } catch {}
-    say(`Paid. Lite is active${j.until ? ' until ' + new Date(j.until).toLocaleDateString() : ''}. Thank you!`, 'ok');
-    $('ltc-check').hidden = true;
-    try { const s = await DB.refreshPlan(); Plan.set(s); } catch { Plan.set({ p: 'lite', e: j.until || 0 }); }
-    if (typeof root.renderPlan === 'function') root.renderPlan();
-    if (typeof root.render === 'function') root.render();
-    toast('Lite is on. Enjoy!'); if (root.Extras && Extras.burst) Extras.burst(innerWidth / 2, innerHeight / 3, 60);
-  }
-  async function go() {
-    if (!(root.DB && DB.user)) { toast('Sign in first, then pay.'); return root.DB ? DB.signIn() : null; }
-    const b = $('ltc-go'); b.disabled = true;
-    try { show(await api({ action: 'create', plan: sel })); } catch (e) { toast(e.message); }
-    b.disabled = false;
-  }
-  document.addEventListener('click', (e) => {
-    const c = e.target.closest('.ltc-chip'); if (c) { sel = c.dataset.plan; chips(); return; }
-    const cp = e.target.closest('[data-copy]'); if (cp) { navigator.clipboard.writeText($(cp.dataset.copy).textContent.replace(' LTC', '')).then(() => toast('Copied'), () => toast('Select and copy it by hand')); }
-  });
-  $('ltc-go').addEventListener('click', go);
-  $('ltc-check').addEventListener('click', () => { say('Checking...', 'wait'); poll(true); });
-  $('ltc-close').addEventListener('click', () => { stop(); order = null; $('ltc-box').hidden = true; });
-  addEventListener('jaltron:user', (e) => { // come back to an unfinished payment after a refresh
-    let s = ''; try { s = localStorage.getItem(KEY) || ''; } catch {}
-    if (e.detail && e.detail.user && s && !e.detail.cached && !order) { sel = s; api({ action: 'create', plan: s }).then(show, () => { try { localStorage.removeItem(KEY); } catch {} }); }
-  });
-  load();
-})(window);
-
 // ================= reviews =================
 // Full reviews page. Stored in rv/<uid> in Firestore (REST, no extra import needed).
 // Lite users can write/update their own review. Anyone can read.
@@ -973,7 +823,8 @@
       `<span class="${i < filledStars ? 'rv-cs on' : 'rv-cs'}">${i < filledStars ? '★' : '☆'}</span>`).join('');
     const name = rv.n ? esc(rv.n) : 'Anonymous Friend';
     const initials = name.slice(0, 2).toUpperCase();
-    const ava = rv.a ? `<img class="rv-avatar" src="${esc(Img.parts(rv.a).t)}" alt="" loading="lazy">` : `<div class="rv-avatar" aria-hidden="true">${initials}</div>`;
+    // Picture first; if it cannot load (or there is none) the initials show instead
+    const ava = rv.a ? `<img class="rv-avatar" src="${esc(Img.parts(rv.a).t)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;rv-avatar&quot; aria-hidden=&quot;true&quot;>${initials}</div>'">` : `<div class="rv-avatar" aria-hidden="true">${initials}</div>`;
     const txt = rv.tx ? `<p class="rv-card-txt">${esc(rv.tx)}</p>` : '';
     const isMe = root.DB && DB.user && rv.uid === DB.user.uid;
     const scoreVal = Number(rv.s).toFixed(1);
@@ -1134,6 +985,10 @@
       const uid = DB.user.uid, token = await DB.token();
       let name = '', av = '';
       try { const c = localStorage.getItem('jc:' + uid); if (c) { const p = JSON.parse(c); name = (p.profile && p.profile.n) || ''; av = (p.profile && p.profile.a) || ''; } } catch {}
+      // Public copy of your picture: the uploaded one if you have it, otherwise your Google photo. Never the delete code (3rd part).
+      av = av ? String(av).split('|').slice(0, 2).join('|') : '';
+      if (!av || av.length > 200) av = DB.user.photoURL || '';
+      if (av.length > 200) av = '';
       const fields = { s: fNum(selScore), tx: fStr(txt), n: fStr(name), t: { integerValue: String(Date.now()) } };
       if (av) fields.a = fStr(av);
       const body = { fields };

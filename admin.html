@@ -16,7 +16,7 @@
     <p class="sub" id="a-state">Loading...</p>
     <button class="btn primary" id="a-login" hidden>Sign in with Google</button>
     <div id="a-tool" hidden>
-      <form class="cmd-form" id="a-form"><input id="a-q" placeholder="Username or account ID" autocomplete="off" required><button class="btn primary">Find</button></form>
+      <form class="cmd-form" id="a-form"><input id="a-q" placeholder="Username, account ID, or the message the person sent" autocomplete="off" required><button class="btn primary">Find</button></form>
       <div id="a-user" hidden>
         <p><strong id="a-name"></strong> <code id="a-uid"></code></p>
         <p class="sub" id="a-plan"></p>
@@ -26,11 +26,6 @@
           <button class="btn" data-days="-1">Forever</button>
           <button class="btn" data-days="0">Remove (Free)</button>
         </div>
-      </div>
-      <div class="adm-ltc">
-        <h2>Litecoin payments</h2>
-        <button class="btn primary" id="a-ltc">Set up / check Litecoin payments</button>
-        <pre class="sub" id="a-ltc-out" style="white-space:pre-wrap"></pre>
       </div>
     </div>
   </main>
@@ -45,26 +40,13 @@
       let ok = false; try { ok = await DB.isAdmin(); } catch {}
       $('a-tool').hidden = !ok; show(ok ? 'Signed in as ' + e.detail.user.email : 'This account is not an admin.');
     });
-    $('a-ltc').onclick = async () => {
-      const o = $('a-ltc-out'); o.textContent = 'Checking...';
-      try {
-        const r = await fetch('/api/pay', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await DB.token() }, body: JSON.stringify({ action: 'setup' }) });
-        const j = await r.json().catch(() => null);
-        if (!j) throw new Error('The payment service answered with a page, not data (' + r.status + '). Is api/pay.js deployed?');
-        if (!r.ok || !j.ok) throw new Error(j.error || r.status);
-        const list = (j.checks || []).map(x => (x.ok ? 'OK       ' : 'PROBLEM  ') + x.name + ': ' + x.note).join('\n');
-        if (!j.ready) { o.textContent = list + '\n\nFix the lines marked PROBLEM in Vercel > Settings > Environment Variables, redeploy, then press the button again.'; return; }
-        o.textContent = list + '\n\n' + ['Address: ' + j.address, 'Site: ' + j.site, 'Confirmations needed: ' + j.confirmations, 'Litecoin price: ' + (j.rate ? '$' + j.rate : 'unavailable'),
-          'Webhooks: ' + j.hooks.map(h => h.event + ' (' + h.status + ')').join(', '), 'Open orders: ' + j.openOrders,
-          j.orphans.length ? 'Payments that matched no order (give these people Lite by hand):\n' + j.orphans.map(x => '  ' + x.ltc + ' LTC  tx ' + x.tx + '  ' + new Date(x.at).toLocaleString()).join('\n') : 'No unmatched payments.'].join('\n');
-      } catch (e) { o.textContent = 'Problem: ' + e.message; }
-    };
     $('a-login').onclick = () => DB.signIn();
     async function find(q) {
       try { cur = await DB.adminFind(q); } catch { return show('Lookup failed.'); }
       $('a-user').hidden = false; $('a-name').textContent = cur.name || '(no username)'; $('a-uid').textContent = cur.uid; $('a-plan').textContent = 'Plan: ' + plan(cur.plan);
     }
-    $('a-form').onsubmit = (e) => { e.preventDefault(); find($('a-q').value); };
+    // People paste "Hi! I want to get JALTRON Lite. My payment reference: JLT-XXX-123 (account ID)": the ID in brackets is picked out for you
+    $('a-form').onsubmit = (e) => { e.preventDefault(); const q = $('a-q').value, m = q.match(/\(([A-Za-z0-9]{20,40})\)/); find(m ? m[1] : q.trim()); };
     document.querySelectorAll('[data-days]').forEach(b => b.onclick = async () => {
       if (!cur) return;
       try { await DB.adminSet(cur.uid, Number(b.dataset.days)); show('Done.'); find(cur.uid); } catch { show('Could not save. Is this account in the admins collection?'); }

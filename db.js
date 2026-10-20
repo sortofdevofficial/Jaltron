@@ -116,14 +116,19 @@ async function setLbOptOut(o) {
 async function pushRvAva(a) {
   const user = auth.currentUser;
   if (!user) return;
+  // The review is public, so it only gets the picture address (never the delete code, the 3rd part).
+  // Your uploaded picture comes first; without one, your Google photo.
+  let pic = a ? String(a).split('|').slice(0, 2).join('|') : '';
+  if (!pic || pic.length > 200) pic = user.photoURL || '';
+  if (pic.length > 200) pic = '';
   const k = 'jr:' + user.uid;
-  try { if (localStorage.getItem(k) === (a || '')) return; } catch {}
+  try { if (localStorage.getItem(k) === pic) return; } catch {}
   try {
-    await updateDoc(doc(db, 'rv', user.uid), a ? { a } : { a: deleteField() });
-    try { localStorage.setItem(k, a || ''); } catch {}
+    await updateDoc(doc(db, 'rv', user.uid), pic ? { a: pic } : { a: deleteField() });
+    try { localStorage.setItem(k, pic); } catch {}
   } catch (err) {
     // No review yet: nothing to refresh, remember it so we stop retrying (publishing includes the picture itself)
-    try { if (err && err.code === 'not-found') localStorage.setItem(k, a || ''); } catch {}
+    try { if (err && err.code === 'not-found') localStorage.setItem(k, pic); } catch {}
     if (!err || err.code !== 'not-found') console.error(err);
   }
 }
@@ -371,7 +376,7 @@ async function adminFind(q) {
 }
 const adminSet = (uid, days) => setDoc(doc(db, 's', uid), days === 0 ? { p: 'free' } : { p: 'lite', e: days < 0 ? 0 : Date.now() + days * 864e5 });
 
-// Re-reads the plan doc (used right after a Litecoin payment is confirmed)
+// Re-reads the plan doc (staff switch Lite on by hand, so this picks it up without a full reload)
 const refreshPlan = async () => { const s = await getDoc(doc(db, 's', auth.currentUser.uid)); return s.exists() ? { p: s.data().p, e: s.data().e || 0 } : null; };
 
 window.DB = {

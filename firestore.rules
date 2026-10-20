@@ -15,9 +15,6 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == id;
     }
 
-    // Litecoin orders and payment markers: written only by the server (the service account, or the bot admin login), never by normal users
-    match /pay/{id} { allow read, write: if isAdmin(); }
-
     match /u/{id} {
       // Your own data doc: u/<uid>
       allow read, write: if request.auth != null && request.auth.uid == id;
