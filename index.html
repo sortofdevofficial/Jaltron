@@ -35,6 +35,7 @@
       <button class="nav-item active" data-nav="home"><i class="fa-solid fa-house"></i><span>Home</span></button>
       <button class="nav-item" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span><b id="nav-tasks-n">0</b></button>
       <button class="nav-item" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span><b class="live" id="nav-focus-t" hidden>25:00</b></button>
+      <button class="nav-item" data-nav="ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Assistant</span></button>
       <button class="nav-item" data-nav="reviews"><i>⭐</i><span>Reviews</span></button>
       <button class="nav-item" data-nav="links"><i>🔗</i><span>Links</span></button>
       <p class="nav-label">Grow</p>
@@ -44,7 +45,6 @@
       <p class="nav-label">Account</p>
       <button class="nav-item" data-nav="plans"><i class="fa-solid fa-bolt"></i><span>Plans</span><b id="nav-plan">Free</b></button>
       <button class="nav-item" data-nav="settings"><i class="fa-solid fa-sliders"></i><span>Settings</span></button>
-      <button class="nav-item nav-ai" id="nav-ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Ask AI</span></button>
     </div>
     <button class="side-pet" id="pet-side" hidden aria-label="Your pet, open Home"><span class="pet" id="pet-side-art"></span><span class="sp-t"><b id="pet-side-n">0</b><small>day streak</small></span></button>
     <div class="nav tools">
@@ -59,6 +59,7 @@
     <button class="tab" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span></button>
     <button class="tab tab-add" id="tab-add" aria-label="New task"><i class="fa-solid fa-plus"></i></button>
     <button class="tab" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span></button>
+    <button class="tab" data-nav="ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI</span></button>
     <button class="tab" id="tab-more" aria-label="Open menu" aria-expanded="false"><i class="fa-solid fa-bars"></i><span>Menu</span></button>
   </nav>
   <div class="content">
@@ -556,17 +557,54 @@
     </section>
   </main>
   </div>
+  <div class="page" data-page="ai">
+    <div class="ai-layout">
+      <section class="hud ai-chat" aria-label="JALTRON AI chat">
+        <div class="chat-head">
+          <span><i class="fa-solid fa-wand-magic-sparkles"></i> Ask JALTRON</span>
+          <button type="button" class="icon-btn sm" id="chat-clear" title="Start a new conversation" aria-label="Start a new conversation"><i class="fa-solid fa-rotate-left"></i></button>
+        </div>
+        <div class="ai-bar"><span class="sub" id="nn-state">Starting neural AI...</span></div>
+        <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
+        <div class="chips" id="chips">
+          <button data-ask="Plan my day">🗓️ Plan my day</button>
+          <button data-ask="What should I do first?">🎯 Do first</button>
+          <button data-ask="What's due today?">⏰ Due today</button>
+          <button data-ask="Summary">📊 Summary</button>
+          <button data-ask="Show my streaks">🔥 Streaks</button>
+          <button data-ask="Tell me a joke">😄 Joke</button>
+        </div>
+        <form class="chat-form" id="chat-form">
+          <input id="chat-input" placeholder="Ask about your plan, or say focus on login" autocomplete="off" aria-label="Message JALTRON">
+          <button class="btn primary" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
+        </form>
+      </section>
+      <aside class="ai-side">
+        <section class="hud panel ai-panel">
+          <div class="panel-title"><span><i class="fa-solid fa-satellite-dish"></i> Today at a glance</span></div>
+          <div class="ai-glance" id="ai-glance"></div>
+        </section>
+        <section class="hud panel ai-panel">
+          <div class="panel-title"><span><i class="fa-solid fa-shoe-prints"></i> Up next</span><button type="button" class="btn ai-focus-btn" id="ai-focus"><i class="fa-solid fa-bullseye"></i> Focus</button></div>
+          <ol class="ai-next" id="ai-next"></ol>
+        </section>
+        <section class="hud panel ai-panel">
+          <div class="panel-title"><span><i class="fa-solid fa-bolt"></i> Quick asks</span></div>
+          <div class="ai-asks" id="ai-asks">
+            <button data-ask="Break down my first task">🧩 Break it down</button>
+            <button data-ask="Motivate me">💪 Motivate me</button>
+            <button data-ask="What can you do?">🧠 What can you do</button>
+            <button data-ask="How am I doing?">📈 How am I doing</button>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+  </div>
   </div>
   </div>
 
   <button class="fab" id="chat-fab" aria-label="Open AI assistant"><i class="fa-solid fa-comment-dots"></i></button>
-  <section class="chat" id="chat" aria-label="JALTRON AI assistant" hidden>
-    <div class="chat-head"><span><i class="fa-solid fa-wand-magic-sparkles"></i> Ask JALTRON</span><button class="icon-btn sm" id="chat-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="ai-bar"><span class="sub" id="nn-state">Starting neural AI...</span></div>
-    <div class="chat-log" id="chat-log"></div>
-    <div class="chips" id="chips"><button>Wsp</button><button>Add a study task</button><button>Plan my day</button><button>Summary</button><button>My streaks</button><button>What can you do?</button></div>
-    <form class="chat-form" id="chat-form"><input id="chat-input" placeholder="Ask about your plan" autocomplete="off"><button class="btn primary" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
-  </section>
 
   <dialog id="acct" class="acct" aria-label="Account">
     <div class="acct-head">
@@ -653,7 +691,7 @@
       <kbd>Space</kbd><span>Start or pause (Focus page)</span>
       <kbd>N</kbd><span>New task</span>
       <kbd>/</kbd><span>Search tasks</span>
-      <kbd>C</kbd><span>Open the AI chat</span>
+      <kbd>C</kbd><span>Open the AI assistant</span>
       <kbd>F</kbd><span>Open the Focus page</span>
       <kbd>T</kbd><span>Switch theme</span>
       <kbd>?</kbd><span>Show this list</span>

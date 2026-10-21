@@ -120,13 +120,14 @@
   setInterval(() => Habit.tickResets(), 20000);
 
   // ---------- Navigation ----------
-  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', insights: 'Insights', plans: 'Plans', bank: 'Bank', links: 'Links', board: 'Leaderboard', reviews: 'Reviews', settings: 'Settings' };
-  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', insights: '📊', plans: '⚡', bank: '🐷', links: '🔗', board: '🏆', reviews: '⭐', settings: '⚙️' };
+  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', ai: 'AI Assistant', insights: 'Insights', plans: 'Plans', bank: 'Bank', links: 'Links', board: 'Leaderboard', reviews: 'Reviews', settings: 'Settings' };
+  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', ai: '✨', insights: '📊', plans: '⚡', bank: '🐷', links: '🔗', board: '🏆', reviews: '⭐', settings: '⚙️' };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
     document.querySelectorAll('[data-nav]').forEach(x => { const on = x.dataset.nav === p; x.classList.toggle('active', on); on ? x.setAttribute('aria-current', 'page') : x.removeAttribute('aria-current'); });
     $('page-title').textContent = EMO[p] ? `${EMO[p]} ${PAGES[p]}` : PAGES[p];
+    if ($('chat-fab')) $('chat-fab').hidden = p === 'ai';
     Focus.title(`${PAGES[p]} | JALTRON`); Focus.pageChanged();
     window.Bank && Bank.pageChanged();
     window.Links && Links.pageChanged();
@@ -139,7 +140,6 @@
   const newTask = () => { go('tasks'); setTimeout(() => { $('task-title').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('task-title').focus(); }, 30); };
   document.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => go(b.dataset.nav)));
   addEventListener('hashchange', () => go(location.hash.slice(1), true));
-  $('nav-ai').addEventListener('click', () => jaltron.openChat(true));
   $('nav-add').addEventListener('click', newTask);
   $('top-add').addEventListener('click', newTask);
   $('nav-keys').addEventListener('click', () => $('keys-dlg').showModal());
@@ -213,7 +213,7 @@
     { i: 'piggy-bank', l: 'Go to Bank', k: 'money workspace pot', run: () => go('bank') },
     { i: 'up-right-from-square', l: 'Go to Links', k: 'bookmarks saved urls private', run: () => go('links') },
     { i: 'plus', l: 'New task', k: 'add create', run: newTask },
-    { i: 'comment-dots', l: 'Open AI chat', k: 'ask assistant', run: () => jaltron.openChat(true) },
+    { i: 'wand-magic-sparkles', l: 'Open AI assistant', k: 'ask chat assistant', run: () => jaltron.openChat() },
     { i: 'stopwatch', l: 'Go to Focus timer', k: 'pomodoro timer', run: () => go('focus') },
     { i: 'bullseye', l: 'Start focus session', k: 'timer pomodoro start', run: () => startFocus(next3[0] || null) },
     { i: 'bolt', l: 'Smart sort my plan', k: 'optimize order', run: () => { go('tasks'); clickEl('#ai-sort-btn'); } },
@@ -265,7 +265,7 @@
     const k = e.key.toLowerCase();
     if (k === 'n') { e.preventDefault(); newTask(); }
     else if (k === '1') go('home'); else if (k === '2') go('tasks'); else if (k === '3') go('focus'); else if (k === '4') go('insights');
-    else if (k === 'c') { e.preventDefault(); jaltron.openChat(true); }
+    else if (k === 'c') { e.preventDefault(); jaltron.openChat(); }
     else if (k === 'f') { e.preventDefault(); go('focus'); }
     else if (k === 't') $('theme-btn').click();
     else if (e.key === '?') $('keys-dlg').showModal();

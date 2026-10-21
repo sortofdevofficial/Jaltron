@@ -276,8 +276,7 @@ input:focus, select:focus { border-color: var(--accent); outline: none; box-shad
 /* Chat */
 .fab { position: fixed; right: 1.5rem; bottom: 1.5rem; width: 3.5rem; height: 3.5rem; border-radius: 50%; border: none; background: linear-gradient(135deg, var(--accent), var(--primary)); color: #fff; font-size: 1.25rem; box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--primary) 55%, transparent), var(--glow); transition: transform .2s; z-index: 40; }
 .fab:hover { transform: scale(1.08); }
-.fab[hidden], .chat[hidden] { display: none; }
-.chat { position: fixed; right: 1.5rem; bottom: 1.5rem; width: min(24.375rem, calc(100vw - 2rem)); height: min(33.75rem, calc(100vh - 3rem)); background: var(--panel); backdrop-filter: blur(1rem); border: 1px solid var(--accent); border-radius: 1rem; box-shadow: 0 1rem 3rem rgba(0,0,0,.35), var(--glow); display: flex; flex-direction: column; z-index: 42; animation: pop .2s ease; }
+.fab[hidden] { display: none; }
 @keyframes pop { from { opacity: 0; transform: translateY(0.75rem) scale(.98); } }
 .chat-head { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1rem; border-bottom: 1px solid var(--panel-3); font-weight: 600; font-size: 0.75rem; background: var(--panel-2); border-radius: 0.9375rem 0.9375rem 0 0; }
 .chat-head i { color: var(--accent); margin-right: 0.375rem; }
@@ -292,6 +291,50 @@ input:focus, select:focus { border-color: var(--accent); outline: none; box-shad
 .chips button:hover { border-color: var(--accent); color: var(--accent); }
 .chat-form { flex-direction: row; gap: 0.5rem; padding: 0.75rem 0.875rem; border-top: 1px solid var(--panel-3); }
 .chat-form input { flex: 1; }
+
+/* AI page */
+.ai-layout { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; gap: 1rem; align-items: start; }
+.ai-chat { display: flex; flex-direction: column; height: clamp(28rem, calc(100vh - 12rem), 46rem); padding: 0; overflow: hidden; border-color: color-mix(in srgb, var(--accent) 26%, var(--border)); }
+.ai-chat .chat-head { border-radius: 0.8125rem 0.8125rem 0 0; }
+.ai-chat .chat-log { flex: 1; min-height: 0; }
+.ai-chat .msg.ai { max-width: 92%; }
+.ai-chat .chips { padding-top: 0.125rem; }
+.ai-side { display: flex; flex-direction: column; gap: 1rem; }
+.ai-panel { padding: 0.9375rem; gap: 0.75rem; }
+.ai-panel .panel-title { padding-bottom: 0.5rem; }
+.ai-glance { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.ai-gl { display: flex; align-items: center; gap: 0.5rem; padding: 0.5625rem 0.625rem; background: var(--panel-2); border: 1px solid var(--border); border-radius: 0.625rem; }
+.ai-gl .emo { font-size: 1rem; line-height: 1; }
+.ai-gl b { display: block; font-size: 1.0625rem; line-height: 1.15; }
+.ai-gl span { font-size: 0.625rem; color: var(--muted); }
+.ai-next { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+.ai-next-item { width: 100%; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.5625rem; border: 1px solid var(--border); background: var(--panel-2); border-radius: 0.5625rem; color: var(--text); font-size: 0.75rem; text-align: left; transition: border-color .2s, transform .2s, box-shadow .2s; }
+.ai-next-item:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: var(--glow); }
+.ai-next-item .emo { font-style: normal; }
+.ai-next-t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ai-next-d { font-size: 0.625rem; color: var(--muted); white-space: nowrap; }
+.ai-next-item .fa-bullseye { color: var(--muted); font-size: 0.6875rem; }
+.ai-next-item:hover .fa-bullseye { color: var(--accent); }
+.ai-next .ai-empty { padding: 0.5rem 0; font-size: 0.75rem; color: var(--muted); }
+.ai-asks { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.ai-asks button { display: flex; align-items: center; gap: 0.375rem; padding: 0.5rem 0.5625rem; border: 1px solid var(--border); background: var(--panel-2); border-radius: 0.5625rem; font-size: 0.6875rem; text-align: left; color: var(--text); transition: border-color .2s, color .2s, transform .2s; }
+.ai-asks button:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+.ai-focus-btn { padding: 0.25rem 0.5625rem; font-size: 0.65rem; }
+.ai-focus-btn:disabled { opacity: .45; cursor: default; }
+@media (max-width: 1000px) {
+  .ai-layout { grid-template-columns: 1fr; }
+  .ai-side { display: grid; grid-template-columns: 1fr 1fr; }
+  .ai-side .ai-panel:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  .ai-side { grid-template-columns: 1fr; }
+  .ai-side .ai-panel:last-child { grid-column: auto; }
+  .ai-chat { height: auto; }
+  .ai-chat .chat-log { flex: 0 0 auto; height: min(52vh, 30rem); min-height: 14rem; max-height: none; }
+  .ai-chat .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .ai-chat .chips::-webkit-scrollbar { display: none; }
+  .ai-chat .chips button { white-space: nowrap; }
+}
 .cmd-form { flex-direction: row; gap: 0.5rem; margin-top: 0.625rem; }
 .cmd-form input { flex: 1; }
 .ai-prog { height: 0.375rem; background: var(--panel-3); border-radius: 6.1875rem; overflow: hidden; }
@@ -425,7 +468,6 @@ input:focus, select:focus { border-color: var(--accent); outline: none; box-shad
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .fab { bottom: 5.25rem; right: 1rem; }
   .focus-dock { bottom: 5.25rem; left: 0.75rem; }
-  .chat { bottom: 4.75rem; right: 0.75rem; height: min(32.5rem, calc(100vh - 6.25rem)); }
   .task-list { max-height: none; }
 }
 

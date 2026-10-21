@@ -46,7 +46,7 @@ root.catReply = () => {
     E('site_add', ['how do i add a task', 'how to add tasks', 'where do i add a task', 'how can i create a task', 'adding tasks help'], 'Use Quick Add on the left: type the task, choose priority, category and an optional due date, then press Add to plan. You can also tell me in plain words, for example "add fix login bug tomorrow high".'),
     E('site_edit', ['how do i edit a task', 'how to rename a task', 'can i change a task name', 'edit task help', 'how do i change the title'], 'Double-click a task title or press the pencil button. Enter saves and Esc cancels. You can also say "rename login to fix auth".'),
     E('site_drag', ['can i drag tasks', 'how do i reorder tasks', 'how to move tasks up and down', 'drag and drop help', 'change the order of tasks'], 'In the All view with no search or filter active, drag a task up or down to reorder it. Smart sort reorders everything by priority and deadlines.'),
-    E('site_undo', ['how do i undo delete', 'i deleted a task by mistake', 'can i restore a deleted task', 'undo help', 'bring back deleted task'], 'After you delete from the list, an Undo button appears at the bottom for a few seconds. Deletes made through chat have no Undo, so be careful with them.'),
+    E('site_undo', ['how do i undo delete', 'i deleted a task by mistake', 'can i restore a deleted task', 'undo help', 'bring back deleted task'], 'After you delete from the list, an Undo button appears at the bottom for a few seconds. You can also say "undo" in chat to put back the last deleted task.'),
     E('site_search', ['how do i search tasks', 'how to find a task', 'is there a search bar', 'keyboard shortcut for search', 'how do i filter tasks'], 'Use the search box above the list (press / to jump to it), the category dropdown, and the All, Pending and Completed tabs. In chat, say "find login" or "show bugs".'),
     E('site_optimize', ['what does smart sort do', 'how does the optimizer work', 'how does sorting work', 'what is smart sort', 'how are tasks ranked'], 'Smart sort scores each open task: priority counts most, then deadline pressure (overdue is highest), then category (bugs get a boost). Completed tasks go last, and the top task is shown after sorting.'),
     E('site_theme', ['how do i change the theme', 'is there dark mode', 'how to turn on dark mode', 'light mode please', 'change colors'], 'Open Settings in the menu and pick Light, Dark or System, or press the moon or sun button in the top right (or T). Your choice is saved on this device.'),
@@ -55,7 +55,7 @@ root.catReply = () => {
     E('site_category', ['what are the categories', 'what is the difference between dev and bug', 'how do categories work', 'what categories exist', 'what is a category'], () => window.catReply()),
     E('site_due', ['how do due dates work', 'how do i set a deadline', 'what do the due badges mean', 'can i add a deadline', 'overdue badge meaning'], 'Pick a date in Quick Add or say "add pay hosting friday". Badges show Due today, Due tomorrow, a date, or how many days overdue (red). Say "move login to monday" to change one.'),
     E('site_stats', ['what do the cards at the top mean', 'what is the high priority count', 'what does in progress mean', 'explain the stats', 'what is the progress bar'], 'The cards count all tasks, open tasks (In Progress), completed tasks, open High priority tasks and overdue tasks. The bar shows the percent of tasks completed.'),
-    E('site_assistant', ['how do i use the ai chat', 'what commands can i say', 'how do i talk to you', 'how to use the assistant', 'examples of things to say'], 'Type naturally, for example: "add task for my study tomorrow", "complete login", "make docs low priority", "move login to friday", "plan my day", "what is due today", "summary". Say "what can you do" for the full list.'),
+    E('site_assistant', ['how do i use the ai chat', 'what commands can i say', 'how do i talk to you', 'how to use the assistant', 'examples of things to say'], 'Type naturally, for example: "add task for my study tomorrow", "complete login", "focus on login", "move login to friday", "plan my day", "what is due today", "summary", "undo". Say "what can you do" for the full list.'),
     E('site_neural', ['how does your ai work', 'what model are you', 'are you chatgpt', 'how were you trained', 'are you a real ai'], 'I am a small neural network trained from scratch in your browser on characters and example phrases. It guesses what you mean, then my code finds the task and date in your sentence. I am far smaller than ChatGPT-style models, so I only know this site, planning, studying and coding habits.'),
     E('site_about', ['who are you', 'what is jaltron', 'what is your name', 'who made you', 'what are you'], 'I am JALTRON, an AI task and context planner. I manage your plan, suggest what to do first and answer questions about planning, studying and this site.'),
     E('site_privacy', ['is my data private', 'do you send my tasks anywhere', 'is this safe', 'who can see my tasks', 'privacy question'], 'Yes. The neural AI runs in your browser, so your messages are not sent to any AI service. Tasks are saved only if you sign in, and only your account can read them.'),
@@ -147,8 +147,8 @@ root.catReply = () => {
 // JALTRON training data. Edit this file to teach the AI new phrases, then redeploy.
 // {slots} are filled with random words from "slots" so one template makes many examples.
 // Question/answer knowledge lives in knowledge.js. This file covers actions on your tasks.
-// Intents: add complete delete reopen prio due tag search breakdown plan first summary overdue
-//          optimize clear_done complete_all help greet thanks motivate chat unknown
+// Intents: add complete delete reopen prio due tag search breakdown focus plan first summary overdue
+//          undo optimize clear_done complete_all help greet thanks motivate chat unknown
 //          deposit withdraw balance (fake bank — the regex cascade answers exact phrasing, the net catches fuzzy ones)
 (function (root) {
   root.TRAIN = {
@@ -169,6 +169,8 @@ root.catReply = () => {
       tag: ['tag {task} as {cat}', 'put {task} under {cat}', 'mark {task} as a {cat} task', 'change the category of {task} to {cat}', '{task} is a {cat} thing', 'move {task} to {cat}', 'set {task} category to {cat}', 'file {task} under {cat}'],
       search: ['find {task}', 'search for {task}', 'where is {task}', 'show me {task}', 'look for {task}', 'do i have {task}', 'find my {task} task', 'search {task}', 'is {task} on my list'],
       breakdown: ['break down {task}', 'how do i finish {task}', 'split {task} into steps', 'help me start {task}', 'steps for {task}', 'how should i approach {task}', 'give me steps to {task}', 'break {task} into smaller tasks', 'how do i tackle {task}'],
+      focus: ['focus on {task}', 'start focus on {task}', 'start a focus session for {task}', 'start the timer for {task}', 'work on {task}', 'begin working on {task}', 'focus on my {subject} task', 'begin focus mode for {task}'],
+      undo: ['undo', 'undo that', 'undo the delete', 'undo last delete', 'bring back the task i deleted', 'restore the deleted task', 'i deleted a task by mistake', 'put back what you deleted', 'undo removing the task'],
       plan: ['plan my day', 'what should i do today', 'make me a schedule', 'organise my day', 'whats the plan', 'give me a plan for today', 'help me plan', 'what is my agenda', 'plan my tasks', 'what is on my plate', 'what do i have to do', 'show me my plan', 'what is todo', 'order my tasks', 'whats on my list'],
       first: ['what should i do first', 'whats next', 'where do i start', 'what is most important', 'top priority?', 'what do i do now', 'which task first', 'what should i focus on', 'what is my next task', 'what to do next', 'tell me what to work on', 'pick a task for me', 'what is the most urgent thing'],
       summary: ['how am i doing', 'give me a summary', 'how many tasks do i have', 'progress report', 'show my stats', 'overview please', 'how much have i done', 'status', 'how r we doing', 'how am i doing with my tasks', 'am i making progress', 'how is my plan going', 'how many are left', 'how many done'],
@@ -204,7 +206,7 @@ root.catReply = () => {
 (function (root) {
   'use strict';
   const DIM = 4096, HID = 128, EPOCHS = 16, CHUNK = 300;
-  const BASE = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'deposit', 'withdraw', 'balance', 'unknown'];
+  const BASE = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'focus', 'undo', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'deposit', 'withdraw', 'balance', 'unknown'];
   let INTENTS = BASE.slice(), K = INTENTS.length;
   let W1, b1, W2, b2, ready = false, seed = 1;
 
@@ -478,7 +480,7 @@ const FAQ = [
   [/on-?device|real ai|llm|language model|which model/, 'I work in two layers: fast built-in commands for exact requests, and an optional on-device AI model (tap "Enable real AI" in this chat) that understands free-form requests. It runs in your browser, so your tasks are not sent to any AI service.'],
   [/drag|reorder|move (a )?task/, 'Drag a task up or down in the All view to reorder it. Dragging is off while a search or filter is active.'],
   [/edit|rename|change (the )?(name|title)/, 'Double-click a task title, or press the pencil button. Enter saves and Esc cancels.'],
-  [/undo|restore|deleted by mistake/, 'After you delete a task, an Undo button appears for a few seconds at the bottom.'],
+  [/undo|restore|deleted by mistake/, 'After you delete a task, an Undo button appears for a few seconds at the bottom, or say "undo" in chat.'],
   [/search|shortcut|keyboard|hotkey/, 'Press / anywhere to jump to the search box. You can also filter by category next to it.'],
   [/optimi[sz]|score|rank/, 'The optimizer ranks open tasks by priority, deadline pressure (overdue counts most) and category (bugs get a boost), then puts completed tasks last.'],
   [/dark|light|theme|mode/, 'Open Settings and pick Light, Dark or System, or use the moon or sun button in the header. Your choice is saved.'],
@@ -549,6 +551,11 @@ function respond(msg, tasksIn, history) {
     return open.length ? say(`Marked all ${open.length} open tasks as done.`, [{ type: 'complete_all' }]) : say('Nothing is open right now.');
   if (/^(?:delete|remove|clear|wipe)\s+(?:all|everything)(?:\s+(?:my\s+)?tasks?)?$/.test(l))
     return tasks.length ? say(`This will delete all ${tasks.length} tasks. Reply "yes" to confirm.`) : say('Your plan is already empty.');
+  if (/^(?:undo(?: that| this| the (?:last )?(?:delete|deletion|removal))?|bring back (?:the |my )?(?:last )?deleted task|restore (?:the |my )?deleted task|put (?:it|that) back)$/.test(l)
+    || (/\bundo\b/.test(l) && /\b(?:delete|deleted|removal|removed)\b/.test(l))) {
+    if (window.jaltron && jaltron.hasDeleted && !jaltron.hasDeleted()) return say('There is nothing to undo right now.');
+    return say('Put your last deleted task back.', [{ type: 'undo' }]);
+  }
   if ((r = m.match(/^(?:reopen|uncheck|restore)\s+(.+)$/i))) {
     const t = find(tasks.filter(x => x.done), r[1]);
     return t ? say(`Reopened "${t.title}".`, [{ type: 'reopen', id: t.id }]) : say(`I could not find a completed task matching "${r[1]}".`);
@@ -623,12 +630,19 @@ function respond(msg, tasksIn, history) {
     const t = named || open[0];
     return t ? say(`To finish "${t.title}":\n` + (STEPS[t.tag] || STEPS.General).map((s, i) => `${i + 1}. ${s}`).join('\n')) : say('Add a task first and I will break it down.');
   }
+  if ((r = m.match(/^(?:please\s+)?(?:start\s+(?:a\s+)?focus(?:\s+session)?(?:\s+(?:on|for|with))?|focus(?:\s+(?:on|for))?|work\s+on|begin\s+(?:working|focusing)\s+on)\s+(.+)$/i))) {
+    const t = find(open, r[1]);
+    return t ? say(`Focus mode: "${t.title}". The timer is ready on the Focus page.`, [{ type: 'focus', id: t.id }]) : say(`I could not find an open task matching "${r[1]}".`);
+  }
+  if (/^(?:start|begin)\s+(?:a\s+)?focus(?:\s+session)?$/.test(l)) {
+    return open.length ? say(`Focus mode: "${open[0].title}". The timer is ready on the Focus page.`, [{ type: 'focus', id: open[0].id }]) : say('Add a task first and I will start a focus session on it.');
+  }
   if (/\b(plan|schedule|today|my day)\b/.test(l))
     return open.length ? say('Suggested order:\n' + open.slice(0, 5).map((t, i) => `${i + 1}. ${t.title} (${why(t)})`).join('\n')) : say('Your plan is empty. Add a task and I will plan around it.');
   if (/\b(first|next|start|focus|priorit)/.test(l))
     return open.length ? say(`Do this first: "${open[0].title}" (${why(open[0])}).` + (open[1] ? `\nThen: "${open[1].title}".` : '')) : say('Your plan is empty. Add a task and I will tell you what to do first.');
   if (/\b(help|what can you|commands|features|how do you work)\b/.test(l))
-    return say('I can:\n- add tasks: "add task for my study", "add fix login bug tomorrow high", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "delete old task"\n- edit: "rename login to fix auth", "move login to friday", "make login low priority", "tag docs as study"\n- find and filter: "find login", "show pending", "show bugs", "clear filters"\n- think: "plan my day", "what\'s due today", "summary", "overdue", "break down login"\n- repeat and streaks: \"add gym daily\", \"add read every weekday\", \"show my streaks\"\n- explain the site: drag, edit, themes, saving, status');
+    return say('I can:\n- add tasks: "add task for my study", "add fix login bug tomorrow high", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "delete old task"\n- undo a delete: "undo"\n- edit: "rename login to fix auth", "move login to friday", "make login low priority", "tag docs as study"\n- focus: "focus on login" (opens the Focus page with that task ready)\n- find and filter: "find login", "show pending", "show bugs", "clear filters"\n- think: "plan my day", "what\'s due today", "summary", "overdue", "break down login"\n- repeat and streaks: \"add gym daily\", \"add read every weekday\", \"show my streaks\"\n- explain the site: drag, edit, themes, saving, status');
   for (const [re, ans] of FAQ) if (re.test(l)) return say(typeof ans === 'function' ? ans() : ans);
 
   return Object.assign(say('I did not get that. Try "add physics exam tomorrow urgent", "complete login", "plan my day" or ask "what do you know".'), { unknown: true });
@@ -671,7 +685,7 @@ function neuralRespond(text, tasks) {
   }
   let intent = p.intent;
   if (intent === 'reopen' && /\b(finished|finish|done|completed)\b/i.test(text) && !/\b(not|didnt|did not|never|still|yet)\b/i.test(text)) intent = 'complete';
-  const canned = { plan: 'plan my day', first: 'what should i do first', summary: 'summary', overdue: "what's overdue", help: 'what can you do', greet: 'hi', thanks: 'thanks', optimize: 'optimize', clear_done: 'clear completed', complete_all: 'complete all', balance: 'balance' };
+  const canned = { plan: 'plan my day', first: 'what should i do first', summary: 'summary', overdue: "what's overdue", help: 'what can you do', greet: 'hi', thanks: 'thanks', optimize: 'optimize', clear_done: 'clear completed', complete_all: 'complete all', undo: 'undo', balance: 'balance' };
   const strip = (s, extra) => s.replace(extra, ' ').replace(/\b(?:bro|pls|please|can you|could you|i|im|just|already|the|my|a|an|task|tasks|is|are|was|now|lol|from|list|on|it|me|to|of)\b/gi, ' ').replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
   const known = (t) => t && Brain.find(tasks, t);
   let cmd = canned[intent] || null, res = null, t;
@@ -702,6 +716,13 @@ function neuralRespond(text, tasks) {
       if (!known(t)) return null; cmd = `tag ${t} as ${c}`; break;
     }
     case 'breakdown': t = strip(text, /\b(?:break down|split|steps|how do finish|how should approach|help start|into|how)\b/gi); cmd = 'break down' + (t ? ' ' + t : ''); break;
+    case 'focus': {
+      t = strip(text, /\b(?:start|begin|focusing|focus|session|timer|mode|on|for|with|work|working)\b/gi);
+      if (!t) cmd = 'start focus';
+      else if (known(t)) cmd = 'focus on ' + t;
+      else return null;
+      break;
+    }
     case 'deposit': { const n = (text.match(/\d[\d,]*/) || [])[0]; if (!n) return null; cmd = `deposit ${n}`; break; }
     case 'withdraw': { const n = (text.match(/\d[\d,]*/) || [])[0]; if (!n) return null; cmd = `withdraw ${n}`; break; }
   }

@@ -19,7 +19,7 @@ let custom = [];
 const catList = () => [...DEFAULT_CATS, ...custom];
 window.CATS = catList;
 window.catReply = () => `Categories group your tasks. Built in: ${DEFAULT_CATS.join(', ')}.` + (custom.length ? ` Yours: ${custom.join(', ')}.` : ' Create your own with the New button in Quick Add.');
-window.jaltron = { complete: (id) => { const el = document.querySelector(`.task-item[data-id="${id}"] .check-btn`); if (el) el.click(); return !!el; }, openChat: (o) => toggleChat(o), openAccount: () => $('auth-btn').click(), clearDone: () => $('clear-done').click() }; // ai.js reads this so the chat knows your own categories
+window.jaltron = { complete: (id) => { const el = document.querySelector(`.task-item[data-id="${id}"] .check-btn`); if (el) el.click(); return !!el; }, openChat: () => openAI(), hasDeleted: () => !!lastDeleted, openAccount: () => $('auth-btn').click(), clearDone: () => $('clear-done').click() }; // ai.js reads this so the chat knows your own categories
 
 const WEIGHT = { high: 3, medium: 2, low: 1 };
 const PRIO_EMO = { high: '🔥', medium: '🌤️', low: '🌿' };
@@ -103,6 +103,7 @@ function render() {
   $('progress-bar').style.width = pct + '%';
   $('progress-text').textContent = `${pct}% (${done}/${total})`;
   renderInsights();
+  renderAI();
   applyCover();
   trackImages();
   if (window.Extras) Extras.update(tasks, { name: profile.n, signedIn: !!(window.DB && DB.user) || !!bootName, pet: profile.p || {}, art: profile.y && Plan.can('pet') ? Img.parts(profile.y).u : '', focus: profile.f || {}, setFocus: (f) => { profile.f = f; if (window.DB && DB.user && DB.setFocus) DB.setFocus(f); }, canSavePet: !syncing && !fromCache && !bootName, setPet: (p) => { profile.p = p; if (window.DB && DB.user && DB.setPet) DB.setPet(p); }, score, dayDiff, view });
@@ -163,6 +164,25 @@ function render() {
 
   const ed = listEl.querySelector('.edit-input');
   if (ed) { ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length); }
+}
+
+// AI page side panel: a live snapshot of the plan with one-click next steps
+function renderAI() {
+  const open = tasks.filter(t => !t.done);
+  const top = open.slice().sort((a, b) => score(b) - score(a)).slice(0, 3);
+  const glance = [
+    ['🗂️', open.length, 'open'],
+    ['⏰', open.filter(t => t.due && dayDiff(t.due) === 0).length, 'due today'],
+    ['⌛', open.filter(t => t.due && dayDiff(t.due) < 0).length, 'overdue'],
+    ['🔥', open.filter(t => t.prio === 'high').length, 'high priority']
+  ];
+  $('ai-glance').innerHTML = glance.map(([emo, n, label]) => `<div class="ai-gl"><span class="emo" aria-hidden="true">${emo}</span><div><b>${n}</b><span>${label}</span></div></div>`).join('');
+  $('ai-next').innerHTML = top.length ? top.map(t => {
+    const d = t.due ? dayDiff(t.due) : null;
+    const due = d === null ? '' : d < 0 ? `${-d}d late` : d === 0 ? 'today' : d === 1 ? 'tomorrow' : new Date(t.due + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `<li><button type="button" class="ai-next-item" data-focus-id="${t.id}" title="Start a focus session"><span class="emo" aria-hidden="true">${PRIO_EMO[t.prio] || '🌤️'}</span><span class="ai-next-t">${escapeHtml(t.title)}</span>${due ? `<span class="ai-next-d">${due}</span>` : ''}<i class="fa-solid fa-bullseye" aria-hidden="true"></i></button></li>`;
+  }).join('') : '<li class="ai-empty">Nothing open. Add a task and it will show up here.</li>';
+  $('ai-focus').disabled = !top.length;
 }
 
 // Each category gets its own steady color (same name, same hue)
@@ -548,11 +568,15 @@ function applyActions(actions) {
     if (a.type === 'add' && a.title && tasks.length < Plan.limit('tasks')) tasks.unshift(mkTask({ title: String(a.title).slice(0, 140), prio: WEIGHT[a.prio] ? a.prio : 'medium', tag: a.tag || 'General', due: a.due || '', r: REPS.includes(a.rep) ? a.rep : '' }));
     else if (a.type === 'add' && a.title) toast(Plan.msg('tasks'));
     else if (a.type === 'complete') tasks = tasks.map(t => t.id === a.id ? Habit.complete(t) : t);
-    else if (a.type === 'delete') tasks = tasks.filter(t => t.id !== a.id);
+    else if (a.type === 'delete') { const i = tasks.findIndex(t => t.id === a.id); if (i >= 0) { lastDeleted = { task: tasks[i], index: i }; tasks = tasks.filter(t => t.id !== a.id); } }
+    else if (a.type === 'undo') {
+      if (lastDeleted) { tasks.splice(Math.min(lastDeleted.index, tasks.length), 0, lastDeleted.task); lastDeleted = null; toast('♻️ Task restored'); }
+    }
+    else if (a.type === 'focus') { const ft = tasks.find(t => t.id === a.id); if (ft && window.Extras) setTimeout(() => Extras.startFocus(ft), 60); }
     else if (a.type === 'prio' && WEIGHT[a.prio]) tasks = tasks.map(t => t.id === a.id ? { ...t, prio: a.prio } : t);
-    else if (a.type === 'clear_done') tasks = tasks.filter(t => !(t.done && !t.r));
+    else if (a.type === 'clear_done') { tasks = tasks.filter(t => !(t.done && !t.r)); lastDeleted = null; }
     else if (a.type === 'complete_all') tasks = tasks.map(t => t.done ? t : Habit.complete(t));
-    else if (a.type === 'clear_all') tasks = [];
+    else if (a.type === 'clear_all') { tasks = []; lastDeleted = null; }
     else if (a.type === 'reopen') tasks = tasks.map(t => t.id === a.id ? Habit.reopen(t) : t);
     else if (a.type === 'rename' && a.title) tasks = tasks.map(t => t.id === a.id ? { ...t, title: String(a.title).slice(0, 140) } : t);
     else if (a.type === 'due') tasks = tasks.map(t => t.id === a.id ? { ...t, due: a.due || '' } : t);
@@ -581,7 +605,7 @@ function addMsg(cls, text) {
   log.scrollTop = log.scrollHeight;
   return d;
 }
-// ---- AI (everything lives in ai.js) ----
+// ---- AI page (everything lives in ai.js) ----
 function setNn(text) { const el = $('nn-state'); if (el) el.textContent = text; }
 let aiTraining = null;
 // The net warms up on its own after the page loads (saved weights load instantly), so the chat is ready before you open it
@@ -603,16 +627,39 @@ async function ask(text) {
   chatMsgs.push({ role: 'assistant', content: res.reply });
   if (res.actions && res.actions.length) applyActions(res.actions);
 }
-const toggleChat = (open) => { $('chat').hidden = !open; $('chat-fab').hidden = open; if (open) { $('chat-input').focus(); ensureAI(); } };
-$('chat-fab').addEventListener('click', () => toggleChat(true));
-$('chat-close').addEventListener('click', () => toggleChat(false));
-$('chips').addEventListener('click', (e) => { if (e.target.matches('button')) ask(e.target.textContent); });
+// The assistant has its own page; the FAB, sidebar bar and C shortcut all land here
+function openAI() {
+  const leaving = document.querySelector('.page.active')?.dataset.page !== 'ai';
+  if (leaving) location.hash = '#ai';
+  setTimeout(() => { $('chat-input').focus(); ensureAI(); }, leaving ? 80 : 0);
+}
+const AI_HELLO = 'Hi, I am JALTRON 👋. I can add, complete, delete and focus tasks, plan your day, or explain the site. Try: add fix login bug tomorrow high';
+function newChat() {
+  chatMsgs.length = 0;
+  log.innerHTML = '';
+  addMsg('ai', AI_HELLO);
+  $('chat-input').focus();
+}
+$('chat-fab').addEventListener('click', openAI);
+$('chat-clear').addEventListener('click', newChat);
+$('chips').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) ask(b.dataset.ask || b.textContent); });
+$('ai-asks').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) ask(b.dataset.ask || b.textContent); });
+$('ai-next').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-focus-id]');
+  if (!b) return;
+  const t = tasks.find(x => x.id === Number(b.dataset.focusId));
+  if (t && window.Extras) Extras.startFocus(t);
+});
+$('ai-focus').addEventListener('click', () => {
+  const t = tasks.filter(x => !x.done).sort((a, b) => score(b) - score(a))[0];
+  if (t && window.Extras) Extras.startFocus(t);
+});
 $('chat-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const v = $('chat-input').value.trim();
   if (v) { $('chat-input').value = ''; ask(v); }
 });
-addMsg('ai', 'Hi, I am JALTRON 👋. I can add, complete and delete tasks for you, plan your day, or explain the site. Try: add fix login bug tomorrow high');
+addMsg('ai', AI_HELLO);
 // Warm the neural AI in the background: cached weights load at once, a first visit trains in short pauses
 window.requestIdleCallback ? requestIdleCallback(() => ensureAI(), { timeout: 4000 }) : setTimeout(ensureAI, 1500);
 
@@ -783,17 +830,17 @@ try {
   }
 } catch {}
 render();
-// Sidebar AI command bar: opens the chat and runs the command
+// Sidebar AI command bar: opens the AI page and runs the command
 $('cmd-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const v = $('cmd-input').value.trim();
   if (!v) return;
   $('cmd-input').value = '';
-  toggleChat(true);
+  openAI();
   ask(v);
 });
 setStatus('demo', 'CONNECTING');
-setNn('The neural AI warms up when you open the chat. Exact commands work right away.');
+setNn('The neural AI warms up in the background. Exact commands work right away.');
 setTimeout(() => { if (!window.DB) setStatus('offline', 'OFFLINE'); }, 8000);
 // Plans page: current plan and expiry
 function renderPlan() {
