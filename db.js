@@ -1,5 +1,5 @@
 // JALTRON cloud: Google sign-in + Firestore. Email, photo, name and last login come from Auth, so none are stored.
-//   u/<uid>      { v: 3 format mark, k: [custom categories], a: profile picture, c: home cover picture, p: pet and streak {n total days, d last day ms, r run, b best run}, f: focus timer {d day ms, m minutes today, s sessions today, t all-time minutes, c settings}, y: drawn pet picture, b: fake bank { m: balance, l: ["<day ms>|+N|<uid>|<ms>", ...] },
+//   u/<uid>      { v: 3 format mark, k: [custom categories], a: profile picture, c: home cover picture, p: pet and streak {n total days, d last day ms, r run, b best run}, f: focus timer {d day ms, m minutes today, s sessions today, t all-time minutes, c settings}, y: drawn pet picture, b: fake bank { m: balance, l: ["<day ms>|+N|<uid>|<ms>", ...] }, l: private links { "<id>": { t: title, u: http(s) URL, i: optional picture, o: order } },
 //                 q: task map { "<id>": { t: title, p: h|m|l, c: category, d: due ms, x: done, o: order, r/s/b/l/h: repeat, streak, best, last day ms, history ms, z: finished day ms, i: ["path|thumb"] pictures (ImgBB, host removed) } } }
 //                 The whole account is one doc: one read loads it, one update saves only the tasks that changed ("q.<id>" field paths). Order comes from o, sorted in JS. Stored times are Unix ms; migrate() rewrites older docs in place.
 //   u/<uid>/t/<id>  legacy one-doc-per-task layout, replaced by q. Kept readable while old accounts self-migrate (migrate() below); the rules block can go once they are all on v: 3.
@@ -199,6 +199,35 @@ async function setCover(c) {
   } catch (err) { console.error(err); emit('error', 'Could not save your cover picture.'); }
 }
 
+// Private links: one dotted field per link, so two tabs editing different links never overwrite each other.
+// Returns false (no emit) on failure: the Links page shows the error inline, next to the form.
+async function linkPut(id, v) {
+  const uid = auth.currentUser && auth.currentUser.uid;
+  if (!uid) return false;
+  try {
+    try { await updateDoc(ref(), { ['l.' + id]: v }); }
+    catch (e) {
+      if (!e || e.code !== 'not-found') throw e;
+      await setDoc(ref(), { v: 3 }, { merge: true });
+      await updateDoc(ref(), { ['l.' + id]: v });
+    }
+    const c = readCache(uid);
+    if (c) writeCache(uid, c.tasks, { ...c.profile, l: { ...(c.profile.l || {}), [id]: v } });
+    return true;
+  } catch (err) { console.error(err); return false; }
+}
+
+async function linkDel(id) {
+  const uid = auth.currentUser && auth.currentUser.uid;
+  if (!uid) return false;
+  try {
+    await updateDoc(ref(), { ['l.' + id]: deleteField() });
+    const c = readCache(uid);
+    if (c) { const l = { ...(c.profile.l || {}) }; delete l[id]; writeCache(uid, c.tasks, { ...c.profile, l }); }
+    return true;
+  } catch (err) { console.error(err); return false; }
+}
+
 async function setPet(p) {
   try {
     await setDoc(ref(), { p: p && p.d ? { ...p, d: dayMs(p.d) } : p }, { merge: true });
@@ -347,7 +376,7 @@ async function load(user) {
   let d = snap.exists() ? snap.data() : {};
   if (d.v !== 3) { await migrate(); d = (await getDoc(ref())).data() || {}; }
   const s = plan && plan.exists() ? { p: plan.data().p, e: plan.data().e || 0 } : null;
-  const profile = { s, n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? { ...d.p, d: d.p.d ? msDay(d.p.d) : (d.p.d || '') } : {}, f: d.f && typeof d.f === 'object' ? { ...d.f, d: d.f.d ? msDay(d.f.d) : (d.f.d || '') } : {}, y: typeof d.y === 'string' ? d.y : '', o: !!d.o, b: d.b && typeof d.b === 'object' ? d.b : { m: 0, l: [] } };
+  const profile = { s, n: name || await claim(user), k: Array.isArray(d.k) ? d.k : [], a: typeof d.a === 'string' ? d.a : '', c: typeof d.c === 'string' ? d.c : '', p: d.p && typeof d.p === 'object' ? { ...d.p, d: d.p.d ? msDay(d.p.d) : (d.p.d || '') } : {}, f: d.f && typeof d.f === 'object' ? { ...d.f, d: d.f.d ? msDay(d.f.d) : (d.f.d || '') } : {}, y: typeof d.y === 'string' ? d.y : '', o: !!d.o, l: d.l && typeof d.l === 'object' && !Array.isArray(d.l) ? d.l : {}, b: d.b && typeof d.b === 'object' ? d.b : { m: 0, l: [] } };
   const tasks = Object.entries(d.q || {}).sort((a, b) => (a[1].o || 0) - (b[1].o || 0)).map(([id, td]) => unpack(id, td));
   synced = new Map(tasks.map((t, o) => [String(t.id), JSON.stringify(pack(t, o))]));
   writeCache(user.uid, tasks, profile);
@@ -397,7 +426,7 @@ const refreshPlan = async () => { const s = await getDoc(doc(db, 's', auth.curre
 window.DB = {
   refreshPlan,
   isAdmin, adminFind, adminSet, lbTop, lbRank, setLbOptOut,
-  save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt,
+  save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt, linkPut, linkDel,
   bankMoney, bankPut, bankLogDel, wsLogDel, wsCreate, wsEdit, wsRemove, wsLeave, wsAdd, wsDel, wsMoney, wsUpgrade, wsWatch, nameOf, rvPublish,
   token: () => (auth.currentUser ? auth.currentUser.getIdToken() : null),
   get user() { return auth.currentUser; },

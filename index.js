@@ -630,6 +630,7 @@ function trackImages() {
   const cur = new Set(), add = (s) => { const d = s && Img.delId(s); if (d) cur.add(d); };
   tasks.forEach(t => (t.i || []).forEach(add));
   add(profile.a); add(profile.c); add(profile.y);
+  (window.Links ? Links.pics() : []).forEach(add);
   imgNow = cur;
   if (imgPrev) imgPrev.forEach(d => { if (!cur.has(d)) setTimeout(() => { if (!imgNow.has(d)) Img.remove(d); }, 7000); });
   imgPrev = cur;
@@ -663,7 +664,7 @@ async function attachFiles(files, store) {
   if (files.length > room) toast(`Only ${room} more fit. The rest were skipped.`);
   await Promise.all(files.slice(0, room).map(async (f) => {
     store.busy++; store.render();
-    try { store.list.push(await Img.upload(f)); } catch (err) { toast(err.message || 'Upload failed. Try again.'); }
+    try { const s = await Img.upload(f); if (s) store.list.push(s); } catch (err) { toast(err.message || 'Upload failed. Try again.'); }
     store.busy--; store.render();
   }));
 }
@@ -677,7 +678,7 @@ async function attachToTask(id, files) {
   files = files.slice(0, room);
   upBusy.set(id, (upBusy.get(id) || 0) + files.length); render();
   const got = [];
-  await Promise.all(files.map(async (f) => { try { got.push(await Img.upload(f)); } catch (err) { toast(err.message || 'Upload failed. Try again.'); } }));
+  await Promise.all(files.map(async (f) => { try { const s = await Img.upload(f); if (s) got.push(s); } catch (err) { toast(err.message || 'Upload failed. Try again.'); } }));
   const left = (upBusy.get(id) || 0) - files.length;
   left > 0 ? upBusy.set(id, left) : upBusy.delete(id);
   if (got.length) { tasks = tasks.map(x => x.id === id ? { ...x, i: [...(x.i || []), ...got].slice(0, Img.MAX) } : x); toast(`${got.length} image${got.length > 1 ? 's' : ''} added`); }
@@ -734,7 +735,7 @@ $('pet-draw').addEventListener('click', () => {
   if (!Plan.can('pet')) return toast(Plan.msg('pet'));
   Draw.open({
     src: profile.y ? Img.parts(profile.y).u : '',
-    onSave: async (file) => { const s = await Img.upload(file); profile.y = s; DB.setPetArt(s); render(); toast('Your pet is saved'); },
+    onSave: async (file) => { const s = await Img.upload(file, { crop: false }); if (!s) return; profile.y = s; DB.setPetArt(s); render(); toast('Your pet is saved'); },
     onReset: () => { profile.y = ''; DB.setPetArt(''); render(); toast('Pet removed'); }
   });
 });
@@ -750,7 +751,7 @@ $('cover-file').addEventListener('change', async (e) => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
   toast('Uploading cover...');
-  try { profile.c = await Img.upload(f); DB.setCover(profile.c); applyCover(); toast('Cover updated'); }
+  try { const s = await Img.upload(f, { crop: { preset: '16:9' } }); if (!s) return; profile.c = s; DB.setCover(profile.c); applyCover(); toast('Cover updated'); }
   catch (err) { toast(err.message || 'Upload failed. Try again.'); }
 });
 $('cover-reset').addEventListener('click', () => { profile.c = ''; DB.setCover(''); applyCover(); toast('Cover removed'); });
@@ -760,7 +761,7 @@ $('av-file').addEventListener('change', async (e) => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
   setMsg('Uploading picture...', true);
-  try { profile.a = await Img.upload(f, { square: 256 }); DB.setAvatar(profile.a); renderAccount(); setMsg('Picture updated.', true); }
+  try { const s = await Img.upload(f, { square: 256, crop: { preset: '1:1', w: 256, h: 256 } }); if (!s) return; profile.a = s; DB.setAvatar(profile.a); renderAccount(); setMsg('Picture updated.', true); }
   catch (err) { setMsg(err.message || 'Upload failed. Try again.'); }
 });
 $('av-reset').addEventListener('click', () => { profile.a = ''; DB.setAvatar(''); renderAccount(); setMsg('Using your Google photo.', true); });

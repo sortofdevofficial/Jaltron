@@ -300,12 +300,21 @@
     });
   }
 
-  // upload(file, { square: 256 }) -> short string to store
+  // upload(file, { square: 256, crop: false | { preset, w, h } }) -> short string to store, or null if cancelled
   async function upload(file, opt = {}) {
     if (!root.Plan.can('img')) throw new Error(root.Plan.msg('img'));
     if (!file || !/^image\//.test(file.type)) throw new Error('Choose an image file (JPG, PNG, GIF or WebP).');
     if (file.size > 25e6) throw new Error('That picture is over 25 MB.');
-    const data = await send(await shrink(file, opt.square));
+    let data;
+    // Every picture goes through the cropper (GIFs keep their animation, pet art opts out).
+    // A cropped picture is already the exact pixels, so it skips the second resize.
+    if (opt.crop !== false && file.type !== 'image/gif' && root.Crop) {
+      const cut = await root.Crop.open(file, opt.crop || {});
+      if (!cut) return null;
+      data = cut.cropped ? await send(cut.file) : await send(await shrink(file, opt.square));
+    } else {
+      data = await send(await shrink(file, opt.square));
+    }
     const u = short(data.url), t = data.thumb ? short(data.thumb) : '', d = (data.del || '').replace(/^https?:\/\/(?:www\.)?ibb\.co\//, '');
     if (d) return `${u}|${t !== u ? t : ''}|${d}`;
     return t && t !== u ? `${u}|${t}` : u;
@@ -342,6 +351,299 @@
   $('lightbox').addEventListener('close', () => { $('lb-img').removeAttribute('src'); });
 
   root.Img = { MAX, upload, parts, short, full, open, delId, remove };
+})(window);
+
+// ================= crop =================
+// JALTRON picture cropper: opens before a picture is uploaded, so you pick the visible area
+// (drag, wheel/pinch or slide to zoom) and the exact output pixel size.
+// Cancel (or Esc / backdrop) skips the picture; "Use full image" keeps the original file.
+(function (root) {
+  const $ = (id) => document.getElementById(id);
+  const dlg = $('crop-dlg'), stage = $('cr-stage'), frame = $('cr-frame'), cv = $('cr-canvas');
+  const cx = cv.getContext('2d'), zoomEl = $('cr-zoom'), wEl = $('cr-w'), hEl = $('cr-h');
+  const MIN = 16, MAX = 4096, LIMIT = 4.4e6, MAX_SRC = 4096;
+  const RATIOS = { original: 0, '1:1': 1, '4:3': 4 / 3, '16:9': 16 / 9 };
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+  let chain = Promise.resolve(), queued = 0, skipAll = false;   // one dialog at a time, even for a whole batch of files
+  let st = null, pending = null, done = true, busy = false, url = '';
+  const pts = new Map();
+  let drag = null, pinch = null;
+
+  const msg = (t) => { $('cr-msg').textContent = t || ''; };
+  // clientWidth/Height ignore the dialog's pop-in transform, unlike getBoundingClientRect
+  const stageSize = () => ({ w: stage.clientWidth || 480, h: stage.clientHeight || 320 });
+  const stageOrigin = () => { const r = stage.getBoundingClientRect(); return { x: r.left + stage.clientLeft, y: r.top + stage.clientTop }; };
+  const stagePoint = (e) => { const o = stageOrigin(); return { x: e.clientX - o.x, y: e.clientY - o.y }; };
+
+  function measure() { const s = stageSize(); st.W = s.w; st.H = s.h; }
+  function paintFrame() {
+    frame.style.left = st.fx + 'px'; frame.style.top = st.fy + 'px';
+    frame.style.width = st.fw + 'px'; frame.style.height = st.fh + 'px';
+  }
+  // Largest frame with the chosen ratio that fits the stage with a little padding
+  function fitFrame() {
+    const pad = 16;
+    const k = Math.min(Math.max(40, st.W - pad * 2) / st.aw, Math.max(40, st.H - pad * 2) / st.ah);
+    st.fw = Math.round(st.aw * k); st.fh = Math.round(st.ah * k);
+    st.fx = Math.round((st.W - st.fw) / 2); st.fy = Math.round((st.H - st.fh) / 2);
+    paintFrame();
+  }
+  function clampView() {
+    st.dw = st.sw * st.base * st.z; st.dh = st.sh * st.base * st.z;
+    st.ox = st.dw <= st.fw ? st.fx + (st.fw - st.dw) / 2 : clamp(st.ox, st.fx + st.fw - st.dw, st.fx);
+    st.oy = st.dh <= st.fh ? st.fy + (st.fh - st.dh) / 2 : clamp(st.oy, st.fy + st.fh - st.dh, st.fy);
+  }
+  function render() {
+    if (!st) return;
+    const dpr = Math.min(2, root.devicePixelRatio || 1);
+    const W = Math.max(1, Math.round(st.W * dpr)), H = Math.max(1, Math.round(st.H * dpr));
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, W, H);
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cx.imageSmoothingQuality = 'medium';
+    cx.drawImage(st.src, st.ox, st.oy, st.dw, st.dh);
+  }
+  function resetView() {
+    st.z = 1; zoomEl.value = '1';
+    st.base = Math.max(st.fw / st.sw, st.fh / st.sh);
+    st.ox = st.fx; st.oy = st.fy;
+    clampView(); render();
+  }
+  function zoomTo(z, ax, ay) {
+    if (!st) return;
+    z = clamp(z, 1, 8);
+    const s0 = st.base * st.z, s1 = st.base * z;
+    st.ox = ax - ((ax - st.ox) / s0) * s1;
+    st.oy = ay - ((ay - st.oy) / s0) * s1;
+    st.z = z; zoomEl.value = z;
+    clampView(); render();
+  }
+  function syncOut(master) {
+    if (!st) return;
+    const r = st.ah / st.aw;
+    let w, h;
+    if (master === 'h') { h = clamp(Math.round(+hEl.value || MIN), MIN, MAX); w = clamp(Math.round(h / r), MIN, MAX); h = clamp(Math.round(w * r), MIN, MAX); }
+    else { w = clamp(Math.round(+wEl.value || MIN), MIN, MAX); h = clamp(Math.round(w * r), MIN, MAX); w = clamp(Math.round(h / r), MIN, MAX); }
+    st.ow = w; st.oh = h; wEl.value = w; hEl.value = h;
+  }
+  function defaultOut() {
+    const w = clamp(Math.round(st.fw / st.base), MIN, MAX);
+    let h = clamp(Math.round(w * st.ah / st.aw), MIN, MAX);
+    st.ow = clamp(Math.round(h * st.aw / st.ah), MIN, MAX); st.oh = h;
+    wEl.value = st.ow; hEl.value = st.oh;
+    $('cr-px').textContent = `Source ${st.iw} × ${st.ih} px`;
+  }
+
+  function cleanup() {
+    if (url) { URL.revokeObjectURL(url); url = ''; }
+    st = null; busy = false; pts.clear(); drag = null; pinch = null;
+    stage.classList.remove('grabbing');
+    msg(''); $('cr-go').disabled = false;
+  }
+  function settle(v) {
+    if (done) return;
+    done = true;
+    if (v === null) skipAll = true;
+    cleanup();
+    if (dlg.open) dlg.close();
+    const r = pending; pending = null;
+    if (r) r(v);
+  }
+
+  // Shrink the crop region to the requested pixels, then keep shrinking until the upload fits
+  async function exportFile() {
+    const png = st.file.type === 'image/png';
+    const scale = st.base * st.z;
+    let sx = clamp((st.fx - st.ox) / scale, 0, st.sw), sy = clamp((st.fy - st.oy) / scale, 0, st.sh);
+    let sw = Math.min(st.fw / scale, st.sw - sx), sh = Math.min(st.fh / scale, st.sh - sy);
+    let w = st.ow, h = st.oh, q = 0.92;
+    for (let i = 0; i < 6; i++) {
+      const out = document.createElement('canvas');
+      out.width = w; out.height = h;
+      const x = out.getContext('2d');
+      if (!png) { x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); }
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+      x.drawImage(st.src, sx, sy, sw, sh, 0, 0, w, h);
+      const blob = await new Promise(r => out.toBlob(r, png ? 'image/png' : 'image/jpeg', q));
+      if (!blob) throw new Error('Could not prepare the picture.');
+      if (blob.size <= LIMIT) {
+        const base = (st.file.name || 'image').replace(/\.[^.\\/]+$/, '') || 'image';
+        return new File([blob], base + (png ? '.png' : '.jpg'), { type: blob.type || (png ? 'image/png' : 'image/jpeg') });
+      }
+      if (!png && q > 0.62) { q = Math.round((q - 0.1) * 100) / 100; continue; }
+      const k = Math.sqrt(LIMIT / blob.size) * 0.9;
+      w = Math.max(MIN, Math.round(w * k)); h = Math.max(MIN, Math.round(h * k));
+      q = 0.82;
+    }
+    throw new Error('That picture is too big. Try a smaller crop.');
+  }
+
+  function pinchInfo() {
+    const [a, b] = [...pts.values()], o = stageOrigin();
+    return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2 - o.x, cy: (a.y + b.y) / 2 - o.y, z: st.z, ox: st.ox, oy: st.oy };
+  }
+
+  // ---- pointer: drag to move, pinch to zoom ----
+  stage.addEventListener('pointerdown', (e) => {
+    if (!st) return;
+    e.preventDefault();
+    try { stage.setPointerCapture(e.pointerId); } catch {}
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    stage.classList.add('grabbing');
+    if (pts.size === 1) drag = { x: e.clientX, y: e.clientY, ox: st.ox, oy: st.oy };
+    else if (pts.size === 2) { drag = null; pinch = pinchInfo(); }
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!st || !pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size >= 2 && pinch) {
+      const [a, b] = [...pts.values()], o = stageOrigin();
+      const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const z = clamp(pinch.z * d / pinch.d, 1, 8);
+      const s0 = st.base * pinch.z, s1 = st.base * z;
+      const sx = (pinch.cx - pinch.ox) / s0, sy = (pinch.cy - pinch.oy) / s0;
+      st.ox = ((a.x + b.x) / 2 - o.x) - sx * s1;
+      st.oy = ((a.y + b.y) / 2 - o.y) - sy * s1;
+      st.z = z; zoomEl.value = z;
+      clampView(); render();
+    } else if (drag) {
+      st.ox = drag.ox + (e.clientX - drag.x);
+      st.oy = drag.oy + (e.clientY - drag.y);
+      clampView(); render();
+    }
+  });
+  function release(e) {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    if (!pts.size) { drag = null; stage.classList.remove('grabbing'); }
+    else if (pts.size === 1 && st) { const p = [...pts.values()][0]; drag = { x: p.x, y: p.y, ox: st.ox, oy: st.oy }; }
+  }
+  stage.addEventListener('pointerup', release);
+  stage.addEventListener('pointercancel', release);
+  stage.addEventListener('lostpointercapture', release);
+
+  stage.addEventListener('wheel', (e) => {
+    if (!st) return;
+    e.preventDefault();
+    const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+    const p = stagePoint(e);
+    zoomTo(st.z * Math.exp(-d * 0.0015), p.x, p.y);
+  }, { passive: false });
+
+  zoomEl.addEventListener('input', () => { if (st) zoomTo(+zoomEl.value, st.fx + st.fw / 2, st.fy + st.fh / 2); });
+  $('cr-fit').addEventListener('click', () => { if (st) resetView(); });
+  wEl.addEventListener('change', () => syncOut('w'));
+  hEl.addEventListener('change', () => syncOut('h'));
+
+  $('cr-ar').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ar]');
+    if (!b || !st) return;
+    const name = b.dataset.ar;
+    if (!Object.prototype.hasOwnProperty.call(RATIOS, name)) return;
+    if (name === 'original') { st.aw = st.sw; st.ah = st.sh; }
+    else { st.aw = RATIOS[name]; st.ah = 1; }
+    document.querySelectorAll('#cr-ar button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    measure(); fitFrame(); resetView(); defaultOut(); msg('');
+  });
+
+  $('cr-close').addEventListener('click', () => settle(null));
+  $('cr-cancel').addEventListener('click', () => settle(null));
+  $('cr-full').addEventListener('click', () => {
+    if (!st) return;
+    const v = { file: st.file, cropped: false, w: st.iw, h: st.ih };
+    settle(v);
+  });
+  $('cr-go').addEventListener('click', async () => {
+    if (!st || busy) return;
+    busy = true; $('cr-go').disabled = true; msg('Preparing...');
+    try {
+      syncOut('w');
+      const file = await exportFile();
+      const v = { file, cropped: true, w: st.ow, h: st.oh };
+      settle(v);
+    } catch (err) {
+      busy = false; $('cr-go').disabled = false;
+      msg(err.message || 'Could not crop this picture.');
+    }
+  });
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) settle(null); });
+  dlg.addEventListener('cancel', (e) => { e.preventDefault(); settle(null); });   // Esc
+  dlg.addEventListener('close', () => {
+    if (done) return;             // reached via settle()
+    done = true; skipAll = true;  // closed some other way: treat it like Cancel
+    cleanup();
+    const r = pending; pending = null;
+    if (r) r(null);
+  });
+  root.addEventListener('resize', () => {
+    if (!st || !dlg.open) return;
+    measure(); fitFrame();
+    st.base = Math.max(st.fw / st.sw, st.fh / st.sh);
+    clampView(); render();
+  });
+
+  async function run(file, opt) {
+    const u = URL.createObjectURL(file);
+    let img;
+    try {
+      img = new Image();
+      const loaded = new Promise((ok, no) => { img.onload = ok; img.onerror = () => no(new Error('This picture could not be read. Try a JPG or PNG.')); });
+      img.src = u;
+      await (img.decode ? img.decode().catch(() => loaded) : loaded);
+    } catch (e) { URL.revokeObjectURL(u); throw e; }
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    if (!iw || !ih) { URL.revokeObjectURL(u); throw new Error('This picture could not be read.'); }
+    url = u;
+
+    let src = img, sw = iw, sh = ih;
+    const k = Math.min(1, MAX_SRC / Math.max(iw, ih));   // very large photos stay light in memory
+    if (k < 1) {
+      src = document.createElement('canvas');
+      src.width = Math.max(1, Math.round(iw * k)); src.height = Math.max(1, Math.round(ih * k));
+      src.getContext('2d').drawImage(img, 0, 0, src.width, src.height);
+      sw = src.width; sh = src.height;
+    }
+
+    const preset = Object.prototype.hasOwnProperty.call(RATIOS, opt.preset) ? opt.preset : 'original';
+    st = {
+      file, iw, ih, src, sw, sh, W: 0, H: 0, z: 1, base: 1, dw: 0, dh: 0, ox: 0, oy: 0,
+      fx: 0, fy: 0, fw: 0, fh: 0, ow: MIN, oh: MIN, aw: sw, ah: sh
+    };
+    done = false; busy = false; msg('');
+    if (preset === 'original') { st.aw = sw; st.ah = sh; }
+    else { st.aw = RATIOS[preset]; st.ah = 1; }
+    $('cr-orig').textContent = `${iw} × ${ih} px · drag to move · scroll or slide to zoom`;
+    document.querySelectorAll('#cr-ar button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ar === preset)));
+    $('cr-go').disabled = false;
+    $('cr-px').textContent = `Source ${iw} × ${ih} px`;
+
+    const p = new Promise((resolve) => { pending = resolve; });
+    dlg.showModal();
+    // Measure right away: background/hidden tabs never run requestAnimationFrame
+    measure(); fitFrame(); resetView();
+    if (opt.w || opt.h) {
+      st.ow = clamp(Math.round(opt.w || 1), MIN, MAX);
+      st.oh = clamp(Math.round(opt.h || 1), MIN, MAX);
+      wEl.value = st.ow; hEl.value = st.oh;
+      syncOut('w');
+    } else {
+      defaultOut();
+    }
+    return p;
+  }
+
+  // open(file, { preset, w, h }) -> Promise<null | { file, cropped, w, h }>
+  function open(file, opt = {}) {
+    if (skipAll) return Promise.resolve(null);
+    queued++;
+    const next = chain.then(() => (skipAll ? null : run(file, opt)));
+    chain = next.then(() => {}, () => {});
+    return next.finally(() => { queued--; if (queued <= 0) { queued = 0; skipAll = false; } });
+  }
+
+  root.Crop = { open };
 })(window);
 
 // ================= draw =================

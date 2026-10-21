@@ -36,6 +36,7 @@
       <button class="nav-item" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span><b id="nav-tasks-n">0</b></button>
       <button class="nav-item" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span><b class="live" id="nav-focus-t" hidden>25:00</b></button>
       <button class="nav-item" data-nav="reviews"><i>⭐</i><span>Reviews</span></button>
+      <button class="nav-item" data-nav="links"><i>🔗</i><span>Links</span></button>
       <p class="nav-label">Grow</p>
       <button class="nav-item" data-nav="insights"><i class="fa-solid fa-chart-pie"></i><span>Insights</span></button>
       <button class="nav-item" data-nav="board"><i class="fa-solid fa-trophy"></i><span>Leaderboard</span></button>
@@ -351,6 +352,38 @@
     </div>
   </div>
 
+  <div class="page" data-page="links">
+  <div class="lk-off hud" id="lk-off" hidden>
+    <strong>Sign in to keep your links</strong>
+    <p class="sub">Links live in your account: only you can see them, on every device.</p>
+    <button class="btn primary" id="lk-signin"><i class="fa-brands fa-google"></i> Sign in</button>
+  </div>
+  <div class="lk-grid" id="lk-main" hidden>
+    <section class="hud panel">
+      <div class="panel-title"><span><i class="fa-solid fa-up-right-from-square"></i> Save a link</span><span class="sub" id="lk-editing"></span></div>
+      <form class="lk-form" id="lk-form">
+        <input type="text" id="lk-url" inputmode="url" maxlength="500" placeholder="Paste a link, e.g. github.com" aria-label="Link address" autocomplete="off" spellcheck="false">
+        <input type="text" id="lk-title" maxlength="80" placeholder="Title (optional — the site name is used)" aria-label="Link title" autocomplete="off">
+        <div class="lk-cover-row">
+          <button type="button" class="btn" id="lk-pick"><i class="fa-regular fa-image"></i> <span id="lk-pick-l">Add cover</span></button>
+          <div class="lk-prev" id="lk-prev" hidden><img id="lk-prev-img" alt="" referrerpolicy="no-referrer"><button type="button" class="x" id="lk-prev-x" aria-label="Remove cover"><i class="fa-solid fa-xmark"></i></button></div>
+        </div>
+        <input type="file" id="lk-file" accept="image/*" hidden>
+        <div class="lk-actions">
+          <button type="submit" class="btn primary" id="lk-save"><i class="fa-solid fa-plus"></i> Save link</button>
+          <button type="button" class="btn" id="lk-cancel" hidden>Cancel</button>
+        </div>
+        <p class="lk-msg" id="lk-msg" aria-live="polite"></p>
+      </form>
+    </section>
+    <section class="hud panel">
+      <div class="panel-title"><span><i class="fa-solid fa-book-open"></i> Your links</span><span class="sub" id="lk-count"></span></div>
+      <div class="lk-cards" id="lk-cards"></div>
+      <div class="empty lk-empty" id="lk-empty"><i class="fa-solid fa-mug-hot"></i><p>No links yet. Save your first one on the left.</p></div>
+    </section>
+  </div>
+  </div>
+
   <div class="page" data-page="settings">
   <section class="hud panel set">
     <div class="panel-title"><span><i class="fa-solid fa-circle-half-stroke"></i> Appearance</span><span class="sub" id="theme-state"></span></div>
@@ -659,6 +692,41 @@
       <button type="button" class="btn primary" id="dr-save"><i class="fa-solid fa-floppy-disk"></i> Save pet</button>
     </div>
     <p class="sub" id="dr-msg" aria-live="polite"></p>
+  </dialog>
+
+  <dialog id="crop-dlg" class="acct crop-dlg" aria-label="Crop picture">
+    <div class="acct-head">
+      <div class="acct-id"><i class="fa-regular fa-image ed-ico"></i><div><strong>Crop picture</strong><div class="sub" id="cr-orig">Drag to move · scroll or slide to zoom</div></div></div>
+      <button type="button" class="icon-btn sm" id="cr-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="cr-stage" id="cr-stage">
+      <canvas id="cr-canvas" aria-label="Picture to crop"></canvas>
+      <div class="cr-frame" id="cr-frame" aria-hidden="true"></div>
+    </div>
+    <div class="cr-row">
+      <div class="cr-ar" id="cr-ar" role="group" aria-label="Aspect ratio">
+        <button type="button" data-ar="original" aria-pressed="true">Original</button>
+        <button type="button" data-ar="1:1" aria-pressed="false">1:1</button>
+        <button type="button" data-ar="4:3" aria-pressed="false">4:3</button>
+        <button type="button" data-ar="16:9" aria-pressed="false">16:9</button>
+      </div>
+    </div>
+    <div class="cr-row">
+      <label class="cr-zoom"><span>Zoom</span><input type="range" id="cr-zoom" min="1" max="8" step="0.01" value="1"></label>
+      <button type="button" class="btn" id="cr-fit"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+    </div>
+    <div class="cr-row cr-size">
+      <label><span>Width</span><input type="number" id="cr-w" min="16" max="4096" step="1"> px</label>
+      <span class="sub">×</span>
+      <label><span>Height</span><input type="number" id="cr-h" min="16" max="4096" step="1"> px</label>
+      <span class="sub" id="cr-px"></span>
+    </div>
+    <p class="sub cr-msg" id="cr-msg" aria-live="polite"></p>
+    <div class="cr-actions">
+      <button type="button" class="btn" id="cr-cancel">Cancel</button>
+      <button type="button" class="btn" id="cr-full">Use full image</button>
+      <button type="button" class="btn primary" id="cr-go"><i class="fa-solid fa-check"></i> Crop &amp; upload</button>
+    </div>
   </dialog>
 
   <canvas id="fx" aria-hidden="true"></canvas>
