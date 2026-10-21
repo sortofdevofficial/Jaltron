@@ -22,6 +22,7 @@ window.catReply = () => `Categories group your tasks. Built in: ${DEFAULT_CATS.j
 window.jaltron = { complete: (id) => { const el = document.querySelector(`.task-item[data-id="${id}"] .check-btn`); if (el) el.click(); return !!el; }, openChat: (o) => toggleChat(o), openAccount: () => $('auth-btn').click(), clearDone: () => $('clear-done').click() }; // ai.js reads this so the chat knows your own categories
 
 const WEIGHT = { high: 3, medium: 2, low: 1 };
+const PRIO_EMO = { high: '🔥', medium: '🌤️', low: '🌿' };
 const REPS = ['d', 'wd', 'we', 'w'];
 // One place that builds a task, so every field (including repeat and streak data) always exists
 const mkTask = (o) => ({ id: nextId++, title: '', prio: 'medium', tag: 'General', due: '', done: false, r: '', s: 0, b: 0, l: '', h: [], z: '', i: [], ...o });
@@ -43,19 +44,20 @@ function dueBadge(t) {
   else if (d === 0) { label = 'Due today'; cls = t.done ? '' : 'soon'; }
   else if (d === 1) { label = 'Due tomorrow'; cls = t.done ? '' : 'soon'; }
   else label = `Due ${new Date(t.due + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
-  return `<span class="badge due ${cls}"><i class="fa-regular fa-calendar"></i> ${label}</span>`;
+  const ico = d < 0 ? '⌛' : d === 0 ? '⏰' : '📅';
+  return `<span class="badge due ${cls}"><span class="emo" aria-hidden="true">${ico}</span> ${label}</span>`;
 }
 
 function doneBadges(t) {
   const today = Habit.today();
   const doneToday = t.done && (t.z === today || t.l === today);
-  return (doneToday ? '<span class="badge okd"><i class="fa-solid fa-check"></i> Done today</span>' : '') + Habit.resetBadge(t);
+  return (doneToday ? '<span class="badge okd"><span class="emo" aria-hidden="true">✅</span> Done today</span>' : '') + Habit.resetBadge(t);
 }
 function repBadges(t) {
   if (!t.r) return '';
   const s = Habit.streak(t);
-  return `<span class="badge rep"><i class="fa-solid fa-repeat"></i> ${Habit.REP[t.r]}</span>`
-    + (s ? `<span class="badge streak" title="Best streak: ${t.b || s}"><i class="fa-solid fa-fire"></i> ${s}</span>` : '');
+  return `<span class="badge rep"><span class="emo" aria-hidden="true">🔁</span> ${Habit.REP[t.r]}</span>`
+    + (s ? `<span class="badge streak" title="Best streak: ${t.b || s}"><span class="emo" aria-hidden="true">🔥</span> ${s}</span>` : '');
 }
 
 // ---- Insights: streak cards, pie charts, weekly bars, heatmap, habit list ----
@@ -129,8 +131,9 @@ function render() {
     const body = editingId === t.id
       ? `<input class="edit-input" data-edit="${t.id}" value="${escapeHtml(t.title)}" maxlength="140" aria-label="Edit task">`
       : `<div class="task-title">${escapeHtml(t.title)}</div>`;
-    // The first picture doubles as the card cover, so a task with images reads at a glance
+    // The first picture is the card cover (cropped to fill); the rest stay as small thumbs underneath
     const cover = t.i && t.i.length ? Img.parts(t.i[0]).t : '';
+    const extra = t.i ? t.i.length - 1 : 0;
     return `
     <div class="task-item p-${t.prio} ${t.done ? 'completed' : ''} ${window.Extras && Extras.focusId() === t.id ? 'focusing' : ''} ${cover ? 'has-img' : ''}" data-id="${t.id}" ${canDrag ? 'draggable="true"' : ''}>
       ${cover ? `<span class="task-bg" aria-hidden="true"><img src="${escapeHtml(cover)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>` : ''}
@@ -139,14 +142,15 @@ function render() {
         <div class="task-main">
           ${body}
           <div class="badges">
-            <span class="badge ${t.prio}"><i class="fa-solid fa-flag"></i> ${t.prio}</span>
+            <span class="badge ${t.prio}"><span class="emo" aria-hidden="true">${PRIO_EMO[t.prio] || '🌤️'}</span> ${t.prio}</span>
             <span class="badge tag" style="--h:${hue(t.tag)}"><i class="fa-solid fa-${CAT_ICON[t.tag] || 'tag'}"></i> ${escapeHtml(t.tag)}</span>
             ${dueBadge(t)}
             ${repBadges(t)}${doneBadges(t)}
             ${upBusy.has(t.id) ? '<span class="badge up"><i class="fa-solid fa-spinner fa-spin"></i> Uploading</span>' : ''}
           </div>
-          ${picsHtml(t)}
+          ${picsHtml(t, cover ? 1 : 0)}
         </div>
+        ${cover ? `<span class="pic-wrap task-cover-wrap"><button type="button" class="task-cover" data-pic="0" title="Open picture" aria-label="View image 1${extra ? ` of ${t.i.length}` : ''}"><img src="${escapeHtml(cover)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></button><button class="pic-x" data-picdel="0" title="Remove image" aria-label="Remove image 1"><i class="fa-solid fa-xmark"></i></button>${extra ? `<span class="task-cover-n" aria-hidden="true">📸 ${t.i.length}</span>` : ''}</span>` : ''}
       </div>
       <div class="task-actions">
         ${t.done ? '' : '<button class="del-btn" data-act="focus" title="Focus on this" aria-label="Focus on this"><i class="fa-solid fa-bullseye"></i></button>'}
@@ -640,8 +644,8 @@ function trackImages() {
 }
 let cardTarget = null;
 const upBusy = new Map(); // task id -> pictures still uploading
-const picsHtml = (t) => (t.i && t.i.length
-  ? `<div class="pics">${t.i.map((p, k) => `<span class="pic-wrap"><button class="pic" data-pic="${k}" aria-label="View image ${k + 1}"><img src="${escapeHtml(Img.parts(p).t)}" alt="" loading="lazy"></button><button class="pic-x" data-picdel="${k}" title="Remove image" aria-label="Remove image ${k + 1}"><i class="fa-solid fa-xmark"></i></button></span>`).join('')}</div>` : '');
+const picsHtml = (t, from = 0) => (t.i && t.i.length > from
+  ? `<div class="pics">${t.i.slice(from).map((p, k) => { const i = k + from; return `<span class="pic-wrap"><button class="pic" data-pic="${i}" aria-label="View image ${i + 1}"><img src="${escapeHtml(Img.parts(p).t)}" alt="" loading="lazy"></button><button class="pic-x" data-picdel="${i}" title="Remove image" aria-label="Remove image ${i + 1}"><i class="fa-solid fa-xmark"></i></button></span>`; }).join('')}</div>` : '');
 function removeTaskImage(id, k) {
   const t = tasks.find(x => x.id === id);
   if (!t || !t.i || !t.i[k]) return t ? t.i : [];
