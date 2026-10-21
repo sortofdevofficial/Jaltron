@@ -614,8 +614,8 @@ async function trainAI() {
   if (typeof JaltronAI === 'undefined') return setNn('ai.js did not load. Upload ai.js next to index.html.');
   setNn('Training neural AI...');
   try {
-    const r = await JaltronAI.init((ep, total) => setNn(`Training neural AI... ${Math.round(ep / total * 100)}%`));
-    setNn(`Neural AI ready: ${r.examples} examples, ${Math.round(r.acc * 100)}% accuracy on unseen phrases`);
+    await JaltronAI.init((ep, total) => setNn(`Training neural AI... ${Math.round(ep / total * 100)}%`));
+    setNn(JaltronAI.status());
   } catch (err) { console.error(err); setNn('Neural AI failed to train. Built-in commands still work.'); }
 }
 async function ask(text) {
@@ -626,6 +626,7 @@ async function ask(text) {
   addMsg('ai', res.reply);
   chatMsgs.push({ role: 'assistant', content: res.reply });
   if (res.actions && res.actions.length) applyActions(res.actions);
+  setNn(JaltronAI.status());
 }
 // The assistant has its own page; the FAB, sidebar bar and C shortcut all land here
 function openAI() {

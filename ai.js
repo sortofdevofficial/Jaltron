@@ -196,6 +196,46 @@ root.catReply = () => {
       ["yo whats good", 'greet'], ["got it, thx", 'thanks'], ["any tasks left?", 'summary'], ["what's late??", 'overdue']
     ]
   };
+
+  // Extra natural phrasings, kept separate so the dataset is easy to grow.
+  (function (T) {
+    const add = (intent, list) => { T.templates[intent] = (T.templates[intent] || []).concat(list); };
+    T.slots.task = T.slots.task.concat(['clean the kitchen', 'fix the roof', 'learn react', 'update my resume', 'call the dentist', 'buy a gift', 'plan the trip', 'write the blog', 'study history', 'practice piano', 'send the invoice', 'book tickets', 'repair the bike', 'organize photos', 'apply for jobs', 'finish the course', 'test the app', 'design a banner', 'read a book', 'water the plants']);
+    add('add', ['i need to get {task} done', 'remind me about {task}', 'jot down {task}', 'put {task} on my schedule', '{task} needs doing', 'remember that i need to {task}', 'i have a new task: {task}', 'put {task} into my todo', 'i should probably {task}', 'get {task} on my list']);
+    add('complete', ['{task} is all done', 'ive done {task}', 'i have done {task}', 'cross {task} off', 'mark {task} off my list', '{task} is complete now', "i'm through with {task}", 'just wrapped up {task}', 'i got {task} finished', '{task} has been finished']);
+    add('delete', ["i don't need {task} anymore", 'i do not need {task}', '{task} is no longer needed', 'get {task} off my list', "i'm not doing {task} anymore", 'remove {task} completely', '{task} can go', 'throw away the {task} task', 'take {task} out of my plan']);
+    add('reopen', ["{task} isn't done", "i didn't do {task}", '{task} still needs doing', 'put {task} back on my list', '{task} is not complete yet', 'unfinish {task}', '{task} was never finished']);
+    add('prio', ['{task} matters most', '{task} is top priority', '{task} is not important right now', 'make {task} less urgent', 'bump {task} down', 'lower {task} priority', '{task} is high on my list', '{task} is a high priority item']);
+    add('due', ['{task} needs to be done by {when}', 'give {task} a deadline of {when}', 'set {task} for {when}', 'make the deadline for {task} {when}', "{task}'s deadline is {when}", '{task} has to be finished by {when}']);
+    add('tag', ['{task} belongs in {cat}', 'make {task} a {cat} task', 'put {task} in the {cat} category', '{task} should be tagged {cat}']);
+    add('search', ['do i have a task about {task}', 'where did {task} go', 'look up {task}', 'find anything about {task}', 'is there a task for {task}']);
+    add('breakdown', ['{task} is too big, break it down', 'help me break {task} into steps', 'where do i start with {task}', '{task} needs smaller steps', 'i am stuck on {task}', 'help me get started on {task}']);
+    add('focus', ["let's focus on {task}", "i'm going to work on {task}", 'start a timer for {task}', 'focus session for {task}', 'put me in focus mode for {task}', 'start working on {task}']);
+    add('plan', ['what should i get done today', 'give me a game plan for today', 'how should i spend today', 'map out my day', "what's the best order", 'help me get organised']);
+    add('first', ['what do i tackle first', 'which one should i start with', "what's the highest priority", 'where should i begin', 'what deserves my attention']);
+    add('summary', ['how much progress have i made', 'quick status update', "what's my progress", 'how many tasks are done', 'give me the numbers', 'where do i stand']);
+    add('overdue', ['anything past due', "what's late", 'am i missing any deadlines', 'anything behind', 'what slipped']);
+    add('optimize', ['put my tasks in a smart order', 'make a sensible order', 'prioritize my list', 'arrange my tasks properly']);
+    add('clear_done', ['delete everything i finished', 'clear the done list', 'remove completed items', 'clean out the completed tasks']);
+    add('complete_all', ['check everything off', 'finish everything', 'mark the whole list done', 'complete the entire list']);
+    add('motivate', ["i'm exhausted", 'i have no energy', "i can't get started", 'i need a push', 'i keep procrastinating', 'i am losing focus']);
+    add('unknown', ['i like pizza', 'what is love', 'the sky is blue', 'open the pod bay doors', 'i had a weird dream', 'my phone is broken', 'the quick brown fox', 'do a barrel roll']);
+    T.examples.push(
+      ["please get the report done by friday", 'due'], ["the essay needs to be finished by tomorrow", 'due'],
+      ["i dont need the old domain anymore", 'delete'], ["remove that task about milk", 'delete'],
+      ["i already finished the quiz", 'complete'], ["cross the laundry off", 'complete'],
+      ["put the meeting back on my list", 'reopen'], ["the poster isnt done yet", 'reopen'],
+      ["make the newsletter less urgent", 'prio'], ["the api is top priority", 'prio'],
+      ["i want to get the dishes done", 'add'], ["jot down buy new headphones", 'add'],
+      ["where did the invoice task go", 'search'], ["i am stuck on the landing page", 'breakdown'],
+      ["lets start working on the thesis", 'focus'], ["map out tomorrow for me", 'plan'],
+      ["what deserves my attention first", 'first'], ["where do i stand with my tasks", 'summary'],
+      ["what slipped through the cracks", 'overdue'], ["arrange my tasks properly", 'optimize'],
+      ["clean out everything i finished", 'clear_done'], ["mark the whole list done", 'complete_all'],
+      ["i keep procrastinating", 'motivate'], ["i like pizza", 'unknown'],
+      ["open the pod bay doors", 'unknown'], ["the sky is blue", 'unknown']
+    );
+  })(root.TRAIN);
 })(typeof window !== 'undefined' ? window : globalThis);
 
 // ===== 3. TINYBRAIN =====
@@ -209,6 +249,12 @@ root.catReply = () => {
   const BASE = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'focus', 'undo', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'deposit', 'withdraw', 'balance', 'unknown'];
   let INTENTS = BASE.slice(), K = INTENTS.length;
   let W1, b1, W2, b2, ready = false, seed = 1;
+  // Words that carry no intent signal. Used by the evidence gate, not by the network.
+  const STOP = new Set('a an the i me my you your we us is are am was were be been being do does did doing to of and or it its in on at for with from this that these those as can could would should will just please pls bro hey yo ok okay so if then than there here what which who whom whose how why when where all any some no not'.split(' '));
+  let CUES = {}, SLOT_WORDS = new Set();
+  const tok = (s) => String(s).toLowerCase().replace(/\{(\w+)\}/g, ' ').replace(/[^a-z0-9\s']/g, ' ').split(/\s+/).filter(w => w.length > 1 && !STOP.has(w));
+  const stem = (w) => (w.length > 4 ? w.replace(/(?:ing|ed|es|s)$/, '') : w);
+  const sameWord = (a, b) => a === b || stem(a) === stem(b) || (a.length > 3 && b.startsWith(a)) || (b.length > 3 && a.startsWith(b));
 
   const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   const pick = (a) => a[Math.floor(rnd() * a.length)];
@@ -221,6 +267,40 @@ root.catReply = () => {
     for (let n = 1; n <= 4; n++) for (let i = 0; i + n <= s.length; i++) set.add(hash(n + s.slice(i, i + n)));
     for (const w of s.split(' ')) if (w) set.add(hash('w' + w));
     return Array.from(set);
+  }
+
+  // ---- Learned phrases (self-training) ----
+  // Every phrase the rule layer understands is saved here, so the net can learn how this
+  // person actually talks. Kept small and deduped; n counts how often it was reinforced.
+  const store = typeof localStorage !== 'undefined' ? localStorage : null;
+  const LEARN_KEY = 'jc:learn';
+  let LEARN = [];
+  try {
+    const saved = JSON.parse((store && store.getItem(LEARN_KEY)) || '[]');
+    if (Array.isArray(saved)) LEARN = saved.filter(e => e && e.t && e.i).slice(-600).map(e => ({ t: String(e.t).slice(0, 160), i: String(e.i), n: Math.min(5, Number(e.n) || 1) }));
+  } catch {}
+
+  // The network alone is overconfident: it always names some intent. The evidence index
+  // (command words from the templates plus learned phrases) lets it say "none of these".
+  function addCue(intent, list) { const set = CUES[intent] || (CUES[intent] = new Set()); for (const w of list) set.add(w); }
+  function buildCues(cfg) {
+    CUES = {}; SLOT_WORDS = new Set();
+    for (const vals of Object.values(cfg.slots || {})) for (const v of vals) for (const w of tok(v)) SLOT_WORDS.add(stem(w));
+    for (const [intent, list] of Object.entries(cfg.templates || {})) for (const t of list) addCue(intent, tok(t));
+    const fromPhrase = (t, intent) => addCue(intent, tok(t).filter(w => !SLOT_WORDS.has(stem(w))));
+    for (const [t, i] of cfg.examples || []) fromPhrase(t, i);
+    for (const e of LEARN) fromPhrase(e.t, e.i);
+    const df = {};
+    for (const set of Object.values(CUES)) for (const w of set) df[stem(w)] = (df[stem(w)] || 0) + 1;
+    const limit = Math.max(4, Math.ceil(Object.keys(CUES).length * 0.35));
+    for (const set of Object.values(CUES)) for (const w of [...set]) if (df[stem(w)] > limit) set.delete(w);
+  }
+  function support(text, intent) {
+    const set = CUES[intent];
+    if (!set) return 0;
+    let hits = 0;
+    for (const w of tok(text)) { for (const c of set) if (sameWord(w, c)) { hits++; break; } }
+    return hits;
   }
 
   function init() {
@@ -273,6 +353,7 @@ root.catReply = () => {
     }
     for (const k of root.KNOWLEDGE || []) for (const ph of k.phrases) for (let r = 0; r < 4; r++) out.push([ph, 'k_' + k.id, false]);
     for (const [t, i] of cfg.examples || []) for (let r = 0; r < 4; r++) out.push([t, i, false]);
+    for (const e of LEARN) for (let r = 0; r < Math.min(2 + e.n * 2, 10); r++) out.push([e.t, e.i, true]);
     for (const e of extra || []) for (let r = 0; r < 8; r++) out.push([e.text, e.intent, true]);
     // Gibberish and special-character noise teach the net to say "I don't know"
     const L = 'abcdefghijklmnopqrstuvwxyz', SP = '!?#@$%&*()-_=+[]{};:/<>~';
@@ -287,11 +368,11 @@ root.catReply = () => {
   }
 
   // ---- Saved-weights cache (localStorage) ----
-  // The dataset is static per deploy, so the trained net is saved and reused until TRAIN/KNOWLEDGE change.
-  const KEY = 'jc:nn', V = 1;
-  const store = typeof localStorage !== 'undefined' ? localStorage : null;
+  // The dataset is static per deploy, so the trained net is saved and reused until TRAIN/KNOWLEDGE
+  // or the learned-phrase list changes. V bumps force a clean retrain after feature changes.
+  const KEY = 'jc:nn', V = 2;
   const sig = (x) => { const s = JSON.stringify(x); let h = 5381; for (let i = 0; i < s.length; i++) h = (Math.imul(h, 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
-  const fp = (extra) => [V, DIM, HID, EPOCHS, sig(root.TRAIN || {}), sig(root.KNOWLEDGE || []), sig(extra || [])].join('.');
+  const fp = (extra) => [V, DIM, HID, EPOCHS, sig(root.TRAIN || {}), sig(root.KNOWLEDGE || []), sig(LEARN), sig(extra || [])].join('.');
   const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
   const ub64 = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
   const f32b = (f) => b64(new Uint8Array(f.buffer, f.byteOffset, f.byteLength));
@@ -319,9 +400,38 @@ root.catReply = () => {
       W1 = new Float32Array(DIM * HID);
       for (let i = 0; i < W1.length; i++) W1[i] = (q1[i] - 128) * (c.sc || 1);
       ready = true;
-      return { examples: c.ex || 0, acc: c.acc || 0 };
+      return { examples: c.ex || 0, acc: c.acc || 0, learned: LEARN.length };
     } catch { return null; }
   }
+
+  // Fold one labeled phrase into the model. The example is saved immediately (so it joins
+  // the next full training run) and the live weights get a few SGD steps right away.
+  function learn(text, intent, weight) {
+    const t = String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (t.length < 3 || t.length > 160 || !BASE.includes(intent)) return false;
+    let e = LEARN.find(x => x.t === t);
+    const isNew = !e;
+    if (e) {
+      // A new label wins, so corrections survive the next full training run.
+      if (e.i === intent) e.n = Math.min(5, e.n + 1);
+      else { e.i = intent; e.n = weight === 2 ? 2 : 1; }
+    } else {
+      if (LEARN.length >= 600) LEARN.shift();
+      e = { t, i: intent, n: weight === 2 ? 2 : 1 };
+      LEARN.push(e);
+    }
+    for (const w of tok(t)) if (!SLOT_WORDS.has(stem(w))) addCue(intent, [w]);
+    try { if (store) store.setItem(LEARN_KEY, JSON.stringify(LEARN)); } catch {}
+    if (ready) {
+      const ix = feats(t), y = INTENTS.indexOf(intent);
+      if (y >= 0) {
+        const passes = 4 + Math.min(e.n, 3);
+        for (let i = 0; i < passes; i++) step(ix, y, i < 3 ? 0.2 : 0.08);
+      }
+    }
+    return isNew;
+  }
+  const learned = () => LEARN.length;
 
   // Yield to the page between batches. MessageChannel is not throttled, so training keeps
   // running even in a hidden tab, where setTimeout would be slowed to about once a minute.
@@ -334,6 +444,7 @@ root.catReply = () => {
     const fpKey = fp(extra);
     seed = 7; ready = false;
     INTENTS = BASE.concat((root.KNOWLEDGE || []).map(k => 'k_' + k.id)); K = INTENTS.length;
+    buildCues(root.TRAIN || {}); // the gate needs the template command words on every visit
     const hit = load(fpKey); // previous visit: the saved weights load instantly
     if (hit) return hit;
     init();
@@ -354,7 +465,7 @@ root.catReply = () => {
       await tick();
     }
     ready = true;
-    const r = { examples: all.length, acc };
+    const r = { examples: all.length, acc, learned: LEARN.length };
     save(fpKey, r);
     return r;
   }
@@ -362,11 +473,13 @@ root.catReply = () => {
   function predict(text) {
     if (!ready) return null;
     const p = forward(feats(text), 2.5).p; // temperature keeps confidence honest
-    let b = 0; for (let k = 1; k < K; k++) if (p[k] > p[b]) b = k;
-    return { intent: INTENTS[b], conf: p[b] };
+    let b = 0, second = -1;
+    for (let k = 1; k < K; k++) if (p[k] > p[b]) b = k;
+    for (let k = 0; k < K; k++) if (k !== b && (second < 0 || p[k] > p[second])) second = k;
+    return { intent: INTENTS[b], conf: p[b], margin: p[b] - (second >= 0 ? p[second] : 0), support: support(text, INTENTS[b]) };
   }
 
-  const api = { get INTENTS() { return INTENTS; }, train, predict, get ready() { return ready; } };
+  const api = { get INTENTS() { return INTENTS; }, train, predict, learn, learned, support, get ready() { return ready; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.TinyBrain = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -582,6 +695,11 @@ function respond(msg, tasksIn, history) {
     if (!hs.length) return say('You have no repeating tasks yet. Try \"add gym daily\" or \"add read every weekday\".');
     return say('Your streaks:\n' + hs.slice(0, 6).map(x => `- ${x.t.title}: ${x.s} in a row (best ${Math.max(x.t.b, x.s)})`).join('\n'));
   }
+  // Focus must win over the greedy add pattern ("lets focus on math" is not a new task).
+  if ((r = m.match(/^(?:please\s+)?(?:(?:lets|let'?s)\s+|(?:i'?m|i\s+will|i'?ll)\s+(?:going\s+to\s+)?)?(?:start\s+(?:a\s+)?focus(?:\s+session)?(?:\s+(?:on|for|with))?|start\s+(?:working|focusing)\s+on|focus(?:\s+(?:on|for))?|work\s+on|begin\s+(?:working|focusing)\s+on)\s+(.+)$/i))) {
+    const t = find(open, r[1]);
+    return t ? say(`Focus mode: "${t.title}". The timer is ready on the Focus page.`, [{ type: 'focus', id: t.id }]) : say(`I could not find an open task matching "${r[1]}".`);
+  }
   if ((r = m.match(ADD_RE)) || pendingAdd) {
     const text = (r ? r[1] : m).replace(LIST_TAIL, '').trim();
     if (!text || /^(?:a\s+|new\s+)?tasks?$/i.test(text)) return say(ASK_TITLE);
@@ -630,10 +748,6 @@ function respond(msg, tasksIn, history) {
     const t = named || open[0];
     return t ? say(`To finish "${t.title}":\n` + (STEPS[t.tag] || STEPS.General).map((s, i) => `${i + 1}. ${s}`).join('\n')) : say('Add a task first and I will break it down.');
   }
-  if ((r = m.match(/^(?:please\s+)?(?:start\s+(?:a\s+)?focus(?:\s+session)?(?:\s+(?:on|for|with))?|focus(?:\s+(?:on|for))?|work\s+on|begin\s+(?:working|focusing)\s+on)\s+(.+)$/i))) {
-    const t = find(open, r[1]);
-    return t ? say(`Focus mode: "${t.title}". The timer is ready on the Focus page.`, [{ type: 'focus', id: t.id }]) : say(`I could not find an open task matching "${r[1]}".`);
-  }
   if (/^(?:start|begin)\s+(?:a\s+)?focus(?:\s+session)?$/.test(l)) {
     return open.length ? say(`Focus mode: "${open[0].title}". The timer is ready on the Focus page.`, [{ type: 'focus', id: open[0].id }]) : say('Add a task first and I will start a focus session on it.');
   }
@@ -670,42 +784,51 @@ function kAnswer(k, text, tasks) {
   return { reply: a, actions: [] };
 }
 function neuralRespond(text, tasks) {
-  const p = TinyBrain.predict(text) || { intent: 'unknown', conf: 0 };
+  const p = TinyBrain.predict(text) || { intent: 'unknown', conf: 0, support: 0 };
   const KB = root.KNOWLEDGE || [], q = new Set(kw(text));
   // Calculations are recognised directly
   if (/\d/.test(text) && /[+\-*/^%]|\b(?:times|plus|minus|divided|squared)\b/i.test(text)) { const m = KB.find(x => x.id === 'util_math'); if (m) return kAnswer(m, text, tasks); }
   // Keyword check backs up the network for knowledge questions
   let bk = null, bs = 0;
   for (const k of KB) { const s = kWeight(k, q); if (s > bs) { bs = s; bk = k; } }
-  if (p.intent === 'unknown' || p.conf < 0.5) return bk && kOverlap(bk, q) >= 2 ? kAnswer(bk, text, tasks) : null;
-  if (p.intent.startsWith('k_')) {
-    const nk = KB.find(x => 'k_' + x.id === p.intent);
-    if (!nk) return null;
-    return kAnswer(bk && bk !== nk && bs > kWeight(nk, q) ? bk : nk, text, tasks);
+  const kFallback = () => (bk && kOverlap(bk, q) >= 2 ? kAnswer(bk, text, tasks) : null);
+  if (p.intent === 'chat') { const kf = kFallback(); if (kf) return kf; } // a real question beats the canned "outside what I know"
+  const nk = p.intent.startsWith('k_') ? KB.find(x => 'k_' + x.id === p.intent) : null;
+  // The net always names some intent, so never act on a guess that has no command words
+  // behind it. Chat is safe (no action); everything else has to earn its support.
+  if (p.intent === 'unknown' || p.conf < 0.5 || (!nk && p.intent !== 'chat' && !p.support)) return kFallback();
+  if (nk) {
+    const own = kWeight(nk, q);
+    if (own <= 0) return kFallback();
+    return kAnswer(bk && bk !== nk && bs > own ? bk : nk, text, tasks);
   }
   let intent = p.intent;
   if (intent === 'reopen' && /\b(finished|finish|done|completed)\b/i.test(text) && !/\b(not|didnt|did not|never|still|yet)\b/i.test(text)) intent = 'complete';
   const canned = { plan: 'plan my day', first: 'what should i do first', summary: 'summary', overdue: "what's overdue", help: 'what can you do', greet: 'hi', thanks: 'thanks', optimize: 'optimize', clear_done: 'clear completed', complete_all: 'complete all', undo: 'undo', balance: 'balance' };
-  const strip = (s, extra) => s.replace(extra, ' ').replace(/\b(?:bro|pls|please|can you|could you|i|im|just|already|the|my|a|an|task|tasks|is|are|was|now|lol|from|list|on|it|me|to|of)\b/gi, ' ').replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+  const strip = (s, extra) => s.replace(extra, ' ').replace(/\b(?:bro|pls|please|can you|could you|i|im|ive|i've|just|already|the|my|a|an|task|tasks|is|are|was|now|lol|from|list|plan|schedule|todo|on|it|me|to|of)\b/gi, ' ').replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
   const known = (t) => t && Brain.find(tasks, t);
   let cmd = canned[intent] || null, res = null, t;
   switch (intent) {
     case 'motivate': res = { reply: MOTIVATE[Math.floor(Math.random() * MOTIVATE.length)] + '\n' + Brain.respond('what should i do first', tasks, []).reply, actions: [] }; break;
     case 'chat': res = { reply: 'That is outside what I know. I can help with your tasks, this site, planning, studying, debugging and quick things like dates, calculations and jokes. Say "what do you know" for the list.', actions: [] }; break;
-    case 'add': cmd = 'add ' + (text.replace(/^(?:bro\s+|hey\s+|please\s+|pls\s+|can you\s+|could you\s+)?(?:i\s+(?:need|have|want|gotta|must|should)\s+to\s+|remind me to\s+|(?:add|create|put|new task|make)\s+(?:a\s+)?(?:new\s+)?(?:task\s+)?(?:to\s+|for\s+)?)/i, '').trim() || text); break;
-    case 'complete': t = strip(text, /\b(?:finished|finish|done|completed|complete|check off|tick off|mark|with|did)\b/gi); if (!known(t)) return null; cmd = 'complete ' + t; break;
-    case 'delete': t = strip(text, /\b(?:delete|remove|cancel|drop|get rid|dont need|anymore|trash|erase)\b/gi); if (!known(t)) return null; cmd = 'delete ' + t; break;
-    case 'reopen': t = strip(text, /\b(?:reopen|undo|complete|not done|yet|did not|didnt|finish|finished|uncheck|bring back)\b/gi); if (!known(t)) return null; cmd = 'reopen ' + t; break;
-    case 'search': t = strip(text, /\b(?:find|search|where|show|look|for|do have)\b/gi); if (!t) return null; cmd = 'find ' + t; break;
+    case 'add': {
+      const tail = /\s+(?:to|on|in|into)\s+(?:my\s+)?(?:list|plan|schedule|todo|to-do)$/i;
+      const raw = text.replace(/^(?:bro\s+|hey\s+|please\s+|pls\s+|can you\s+|could you\s+)?(?:i\s+(?:need|have|want|gotta|must|should)\s+to\s+(?:get\s+)?|i\s+should\s+probably\s+|remind me (?:to|about)\s+|jot down\s+|note down\s+|remember (?:that\s+)?(?:i\s+need\s+to\s+)?|get\s+|(?:add|create|put|new task|make)\s+(?:a\s+)?(?:new\s+)?(?:task\s+)?(?:to\s+|for\s+)?)/i, '').replace(tail, ' ').replace(/\s+(?:needs? doing|done|finished|completed)$/i, ' ').trim();
+      cmd = 'add ' + (raw || text); break;
+    }
+    case 'complete': t = strip(text, /\b(?:finished|finish|done|completed|complete|check off|tick off|cross off|mark|with|did|have|has|had|been|got|through|wrapped up)\b/gi); if (!known(t)) return null; cmd = 'complete ' + t; break;
+    case 'delete': t = strip(text, /\b(?:delete|remove|cancel|drop|get rid|don'?t need|do not need|no longer|not doing|anymore|throw away|take .* out|trash|erase)\b/gi); if (!known(t)) return null; cmd = 'delete ' + t; break;
+    case 'reopen': t = strip(text, /\b(?:reopen|undo|complete|not done|yet|did not|didnt|isn'?t|never|still|needs doing|finish|finished|uncheck|bring back)\b/gi); if (!known(t)) return null; cmd = 'reopen ' + t; break;
+    case 'search': t = strip(text, /\b(?:find|search|where|did|does|go|show|look up|look|anything about|there a task for|for|do have|about)\b/gi); if (!t) return null; cmd = 'find ' + t; break;
     case 'prio': {
-      const level = /not important|\b(low|later|wait|unimportant|lower)\b/i.test(text) ? 'low' : /\b(urgent|important|asap|high|critical|raise)\b/i.test(text) ? 'high' : 'medium';
-      t = strip(text, /\b(?:make|set|priority|urgent|important|asap|high|critical|raise|low|later|wait|lower|unimportant|not|super|very|medium|can)\b/gi);
+      const level = /not (?:important|urgent)|less (?:urgent|important)|\b(?:low|later|wait|unimportant|lower|reduce)\b/i.test(text) ? 'low' : /\b(urgent|important|asap|high|critical|raise)\b/i.test(text) ? 'high' : 'medium';
+      t = strip(text, /\b(?:make|set|priority|urgent|important|asap|high|critical|raise|low|later|wait|lower|less|reduce|unimportant|not|super|very|medium|can)\b/gi);
       if (!known(t)) return null; cmd = `make ${t} ${level} priority`; break;
     }
     case 'due': {
       const d = Brain.parseTask(text).due;
       if (!d) return { reply: 'Which date? Try "tomorrow", "friday" or 2026-10-25.', actions: [] };
-      t = strip(text, /\b(?:move|postpone|push|delay|reschedule|change|deadline|due|until|tomorrow|tmrw|tmr|today|next week|in \d+ days?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{4}-\d{2}-\d{2})\b/gi);
+      t = strip(text, /\b(?:move|postpone|push|delay|reschedule|change|set|give|make|needs?|to be|be done|has to|done|finished|deadline|of|for|by|due|until|tomorrow|tmrw|tmr|today|next week|in \d+ days?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{4}-\d{2}-\d{2})\b/gi);
       if (!known(t)) return null; cmd = `move ${t} to ${d}`; break;
     }
     case 'tag': {
@@ -717,7 +840,7 @@ function neuralRespond(text, tasks) {
     }
     case 'breakdown': t = strip(text, /\b(?:break down|split|steps|how do finish|how should approach|help start|into|how)\b/gi); cmd = 'break down' + (t ? ' ' + t : ''); break;
     case 'focus': {
-      t = strip(text, /\b(?:start|begin|focusing|focus|session|timer|mode|on|for|with|work|working)\b/gi);
+      t = strip(text, /\b(?:lets|let'?s?|start|begin|focusing|focus|session|timer|mode|on|for|with|work|working)\b/gi);
       if (!t) cmd = 'start focus';
       else if (known(t)) cmd = 'focus on ' + t;
       else return null;
@@ -727,20 +850,82 @@ function neuralRespond(text, tasks) {
     case 'withdraw': { const n = (text.match(/\d[\d,]*/) || [])[0]; if (!n) return null; cmd = `withdraw ${n}`; break; }
   }
   if (!res) { if (!cmd) return null; res = Brain.respond(cmd, tasks, []); if (res.unknown) return null; }
-  return { ...res, reply: res.reply + `\n(AI read this as "${intent}", ${Math.round(p.conf * 100)}% sure)` };
+  return res;
 }
 
 
-  // Main entry: exact commands first, then the neural net, then keyword knowledge search
+  // Which intent a successful rule-layer reply demonstrates. Learned from the user's own words.
+  const ACTION_INTENT = { add: 'add', complete: 'complete', delete: 'delete', reopen: 'reopen', due: 'due', prio: 'prio', tag: 'tag', search: 'search', filter: 'search', optimize: 'optimize', clear_done: 'clear_done', focus: 'focus', undo: 'undo', deposit: 'deposit', withdraw: 'withdraw' };
+  const LEARNABLE = new Set(['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'focus', 'undo', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'motivate', 'deposit', 'withdraw', 'balance']);
+  const CONFIRM_RE = /^(?:yes|y|ok|okay|sure|do it|confirm|no|nope)$/i;
+  const WRONG_RE = /^(?:no|nope|wrong|not that|that'?s wrong|thats wrong|incorrect|you misunderstood|i did not mean that|i didn't mean that|not what i meant)$/i;
+  const SHARE_STOP = new Set('the a an i me my you your it this that these those to on in for of and or is are was were be been do does did have has had can could would should will just please pls bro hey yo ok okay so if then than there here what which who how why when where all any some no not add get make set move put remove delete complete finish done task tasks list plan schedule todo focus work start begin need want'.split(' '));
+  const sigWords = (s) => { const out = new Set(); for (const w of String(s).toLowerCase().split(/[^a-z0-9]+/)) if (w.length > 2 && !SHARE_STOP.has(w)) out.add(w.length > 4 ? w.replace(/(?:ing|ed|es|s)$/, '') : w); return out; };
+  const related = (a, b) => { const B = sigWords(b); for (const w of sigWords(a)) if (B.has(w)) return true; return false; };
+  let lastUnknown = '', lastNeural = null, lastStats = { examples: 0, acc: 0 };
+
+  function intentOf(res) {
+    const a = (res.actions || [])[0];
+    if (a && ACTION_INTENT[a.type]) return ACTION_INTENT[a.type];
+    const r = res.reply || '';
+    if (/^Suggested order/.test(r)) return 'plan';
+    if (/^Do this first/.test(r)) return 'first';
+    if (/^You have \d+ tasks/.test(r)) return 'summary';
+    if (/^Overdue|^Nothing is overdue/.test(r)) return 'overdue';
+    if (/^To finish/.test(r)) return 'breakdown';
+    if (/^I can:/.test(r)) return 'help';
+    if (/^Anytime\./.test(r)) return 'thanks';
+    if (/^(?:Doing great|Just keeping|I am here|Good night|Hey\b|Hello\b|Hi\b|Yo\b|Howdy)/.test(r)) return 'greet';
+    return '';
+  }
+  function learn(text, intent, weight) {
+    const t = String(text || '').trim();
+    if (!LEARNABLE.has(intent) || CONFIRM_RE.test(t) || t.length < 3) return;
+    try { root.TinyBrain.learn(t, intent, weight); } catch {}
+  }
+
+  // Main entry: exact commands first, then the neural net, then keyword knowledge search.
+  // Every understood sentence is a free training example; a rephrased sentence after a miss
+  // is a strong one. This is how the assistant trains itself from normal conversation.
   function reply(text, tasks, history) {
-    const res = root.Brain.respond(text, tasks, history);
-    if (!res.unknown) return res;
-    const n = neuralRespond(text, tasks);
-    if (n) return n;
+    const msg = String(text || '').trim();
+    const l = msg.toLowerCase();
+    if (lastNeural && WRONG_RE.test(l)) {
+      const was = lastNeural;
+      lastNeural = null; lastUnknown = '';
+      try { root.TinyBrain.learn(was.text, 'unknown', 2); } catch {}
+      return { reply: `Got it, I will not read that as "${was.intent}" again.${was.hadAction ? ' If it changed a task, say "undo" or "reopen ...".' : ''} Tell me what you meant another way, like "add ...", "complete ..." or "plan my day".`, actions: [] };
+    }
+    const exact = root.Brain.respond(msg, tasks, history);
+    if (!exact.unknown) {
+      const intent = intentOf(exact);
+      if (intent) {
+        if (lastUnknown && lastUnknown.toLowerCase() !== l && related(lastUnknown, msg)) learn(lastUnknown, intent, 2);
+        learn(msg, intent, 1);
+      }
+      lastUnknown = ''; lastNeural = null;
+      return intent ? { ...exact, intent } : exact;
+    }
+    const n = neuralRespond(msg, tasks);
+    if (n) {
+      const intent = intentOf(n);
+      if (intent && lastUnknown && lastUnknown.toLowerCase() !== l && related(lastUnknown, msg)) learn(lastUnknown, intent, 2);
+      if (intent) learn(msg, intent, 1);
+      lastUnknown = '';
+      lastNeural = intent ? { text: msg, intent, hadAction: !!(n.actions && n.actions.length) } : null;
+      return n;
+    }
+    lastNeural = null;
     // First visit, net still warming up: say so instead of a plain "did not get that"
     if (!root.TinyBrain.ready) return { reply: 'My neural side is still training in your browser (watch the badge at the top) — a few more seconds. Exact commands already work, for example "add fix login bug tomorrow high" or "plan my day".', actions: [] };
-    return res;
+    lastUnknown = msg;
+    return exact;
   }
-  async function init(onProgress) { return root.TinyBrain.train([], onProgress); }
-  root.JaltronAI = { reply, init, get ready() { return root.TinyBrain.ready; } };
+  async function init(onProgress) { const r = await root.TinyBrain.train([], onProgress); lastStats = r; return r; }
+  function status() {
+    if (!root.TinyBrain.ready) return 'Training neural AI...';
+    const n = root.TinyBrain.learned();
+    return `Neural AI ready: ${lastStats.examples || 0} examples, ${Math.round((lastStats.acc || 0) * 100)}% accuracy on unseen phrases${n ? ` · ${n} phrase${n === 1 ? '' : 's'} learned from your chats` : ''}`;
+  }
+  root.JaltronAI = { reply, init, status, learned: () => root.TinyBrain.learned(), get ready() { return root.TinyBrain.ready; } };
 })(typeof window !== 'undefined' ? window : globalThis);
