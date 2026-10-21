@@ -45,8 +45,8 @@
       try { cur = await DB.adminFind(q); } catch { return show('Lookup failed.'); }
       $('a-user').hidden = false; $('a-name').textContent = cur.name || '(no username)'; $('a-uid').textContent = cur.uid; $('a-plan').textContent = 'Plan: ' + plan(cur.plan);
     }
-    // People paste "Hi! I want to get JALTRON Lite. My payment reference: JLT-XXX-123 (account ID)": the ID in brackets is picked out for you
-    $('a-form').onsubmit = (e) => { e.preventDefault(); const q = $('a-q').value, m = q.match(/\(([A-Za-z0-9]{20,40})\)/); find(m ? m[1] : q.trim()); };
+    // People paste "Hi! I want to get JALTRON Lite. My account ID: <id>": the ID is picked out for you
+    $('a-form').onsubmit = (e) => { e.preventDefault(); const q = $('a-q').value, m = q.match(/account ID:\s*([A-Za-z0-9]{20,40})/i) || q.match(/\b([A-Za-z0-9]{20,40})\b/); find(m ? m[1] : q.trim()); };
     document.querySelectorAll('[data-days]').forEach(b => b.onclick = async () => {
       if (!cur) return;
       try { await DB.adminSet(cur.uid, Number(b.dataset.days)); show('Done.'); find(cur.uid); } catch { show('Could not save. Is this account in the admins collection?'); }

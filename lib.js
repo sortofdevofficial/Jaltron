@@ -849,6 +849,14 @@
     const nb = $('nav-focus-t'); nb.hidden = !act; nb.textContent = fmt(l);
     document.title = on ? `${fmt(l)} ${LABEL[st.mode]} | JALTRON` : base;
     if (fast === true) return;
+    // The focused task's first picture becomes the backdrop of the big card and the mini dock
+    const cover = t && t.i && t.i.length && root.Img ? root.Img.parts(t.i[0]).t : '';
+    $('fp-bg').hidden = !cover;
+    $('fd-bg').hidden = !cover;
+    if (cover) {
+      if ($('fp-bg-img').getAttribute('src') !== cover) $('fp-bg-img').src = cover;
+      if ($('fd-bg-img').getAttribute('src') !== cover) $('fd-bg-img').src = cover;
+    }
     $('fp-main-card').dataset.mode = st.mode;
     document.querySelectorAll('.fp-mode').forEach(b => { const o = b.dataset.mode === st.mode; b.classList.toggle('active', o); b.setAttribute('aria-selected', o); });
     $('fp-state').textContent = on ? (st.mode === 'focus' ? 'Stay with it' : 'Rest and breathe') : act ? 'Paused' : st.mode === 'focus' ? 'Ready to focus' : 'Ready for a break';

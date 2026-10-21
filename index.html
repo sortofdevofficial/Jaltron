@@ -144,6 +144,7 @@
   <div class="page" data-page="focus">
     <div class="fp-grid">
       <section class="hud fp-main" id="fp-main-card" data-mode="focus">
+        <span class="fp-bg" id="fp-bg" aria-hidden="true" hidden><img id="fp-bg-img" alt="" referrerpolicy="no-referrer"></span>
         <div class="fp-modes" role="tablist" aria-label="Timer mode">
           <button class="fp-mode active" role="tab" data-mode="focus"><i class="fa-solid fa-bullseye"></i> Focus</button>
           <button class="fp-mode" role="tab" data-mode="short"><i class="fa-solid fa-mug-hot"></i> Short break</button>
@@ -216,6 +217,7 @@
         <ul>
           <li><i class="fa-solid fa-check"></i> Up to 25 tasks</li>
           <li><i class="fa-solid fa-check"></i> 3 custom categories</li>
+          <li><i class="fa-solid fa-check"></i> Private saved links</li>
           <li><i class="fa-solid fa-check"></i> Focus timer and Ask AI</li>
           <li><i class="fa-solid fa-check"></i> Google sign-in and cloud sync</li>
         </ul>
@@ -229,6 +231,8 @@
           <li><i class="fa-solid fa-check"></i> 12 custom categories</li>
           <li><i class="fa-solid fa-check"></i> Repeating tasks, streaks and Insights</li>
           <li><i class="fa-solid fa-check"></i> Pictures: task images, avatar and cover</li>
+          <li><i class="fa-solid fa-check"></i> Link covers: a picture for every saved link</li>
+          <li><i class="fa-solid fa-check"></i> Crop before upload: zoom, aspect and exact pixel size</li>
           <li><i class="fa-solid fa-check"></i> A drawn pet that keeps growing with your streak, with its own name</li>
         </ul>
         <p class="plan-pay"><i class="fa-solid fa-tag"></i> Pay on Discord: talk to staff and they switch Lite on for you.</p>
@@ -239,7 +243,7 @@
     <div class="dc-pay" id="dc-pay">
       <div class="dc-pay-head"><span class="dc-logo dc-badge"></span><div><strong>Pay for Lite on Discord</strong><span class="sub">There is no checkout on this site. You pay staff directly and they switch Lite on for you.</span></div></div>
       <ol class="plan-steps">
-        <li>Press <b>Copy message for staff</b>. It holds your payment reference, so staff can find your account.</li>
+        <li>Press <b>Copy message for staff</b>. It includes your account ID, so staff can find your account.</li>
         <li>Press <b>Talk to staff on Discord</b>, join the server, and paste the message to a staff member or in a ticket.</li>
         <li>Pay the way staff tell you (Lite is $0.10 or ₹10 per month). Staff switch Lite on by hand. Then reload this page.</li>
       </ol>
@@ -247,12 +251,6 @@
         <a class="btn primary" data-dc-link href="https://discord.com/channels/1503297362246897694" target="_blank" rel="noopener noreferrer"><span class="dc-logo mini"></span> Talk to staff on Discord</a>
         <button class="btn" id="plan-copy-msg"><i class="fa-regular fa-copy"></i> Copy message for staff</button>
       </div>
-    </div>
-    <div class="plan-id" id="plan-id" hidden>
-      <span class="sub">Your payment reference</span>
-      <code id="plan-uid"></code>
-      <button class="btn" id="plan-copy"><i class="fa-regular fa-copy"></i> Copy</button>
-      <span class="sub plan-uid-note">Share this with staff when paying via Discord</span>
     </div>
   </section>
   </div>
@@ -628,6 +626,7 @@
   </dialog>
 
   <div class="focus-dock" id="focus-dock" hidden>
+    <span class="fd-bg" id="fd-bg" aria-hidden="true" hidden><img id="fd-bg-img" alt="" referrerpolicy="no-referrer"></span>
     <svg class="fd-ring" viewBox="0 0 64 64" aria-hidden="true"><circle class="t" cx="32" cy="32" r="27"/><circle class="f" id="fd-fill" cx="32" cy="32" r="27" stroke-dasharray="169.6" stroke-dashoffset="0"/></svg>
     <div class="fd-info"><div class="fd-time" id="fd-time">25:00</div><small id="fd-task">Focus</small></div>
     <div class="fd-btns">

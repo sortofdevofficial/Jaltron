@@ -44,14 +44,14 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.u == request.auth.uid;
     }
 
-    // Streak leaderboard: lb/<uid>. Anyone signed in can read; you write only your own entry, and its name must be your own username claim.
+    // Streak leaderboard: lb/<uid> = { t: streak days, b: best run, d: last active ms }. Anyone signed in can read; you write only your own entry.
+    // The display name is not stored: clients resolve it from the nm claims, so a rename follows automatically.
     match /lb/{id} {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null && request.auth.uid == id
-        && request.resource.data.keys().hasOnly(['n', 't', 'b', 'd'])
-        && request.resource.data.n is string && request.resource.data.t is int && request.resource.data.b is int && request.resource.data.d is int
-        && request.resource.data.t >= 0 && request.resource.data.t <= 20000 && request.resource.data.b >= 0 && request.resource.data.b <= 20000
-        && get(/databases/$(database)/documents/nm/$(request.resource.data.n)).data.u == request.auth.uid;
+        && request.resource.data.keys().hasOnly(['t', 'b', 'd'])
+        && request.resource.data.t is int && request.resource.data.b is int && request.resource.data.d is int
+        && request.resource.data.t >= 0 && request.resource.data.t <= 20000 && request.resource.data.b >= 0 && request.resource.data.b <= 20000;
       allow delete: if request.auth != null && request.auth.uid == id;
     }
 

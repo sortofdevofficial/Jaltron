@@ -129,8 +129,11 @@ function render() {
     const body = editingId === t.id
       ? `<input class="edit-input" data-edit="${t.id}" value="${escapeHtml(t.title)}" maxlength="140" aria-label="Edit task">`
       : `<div class="task-title">${escapeHtml(t.title)}</div>`;
+    // The first picture doubles as the card cover, so a task with images reads at a glance
+    const cover = t.i && t.i.length ? Img.parts(t.i[0]).t : '';
     return `
-    <div class="task-item p-${t.prio} ${t.done ? 'completed' : ''} ${window.Extras && Extras.focusId() === t.id ? 'focusing' : ''}" data-id="${t.id}" ${canDrag ? 'draggable="true"' : ''}>
+    <div class="task-item p-${t.prio} ${t.done ? 'completed' : ''} ${window.Extras && Extras.focusId() === t.id ? 'focusing' : ''} ${cover ? 'has-img' : ''}" data-id="${t.id}" ${canDrag ? 'draggable="true"' : ''}>
+      ${cover ? `<span class="task-bg" aria-hidden="true"><img src="${escapeHtml(cover)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>` : ''}
       <div class="task-left">
         <button class="check-btn" data-act="toggle" aria-label="Toggle complete"><i class="fa-solid fa-check"></i></button>
         <div class="task-main">
@@ -788,46 +791,16 @@ $('cmd-form').addEventListener('submit', (e) => {
 setStatus('demo', 'CONNECTING');
 setNn('The neural AI warms up when you open the chat. Exact commands work right away.');
 setTimeout(() => { if (!window.DB) setStatus('offline', 'OFFLINE'); }, 8000);
-// Plans page: current plan, expiry and a short random payment reference ID
-// The reference is a compact JLT-XXXXXX code (stored in localStorage per user)
-// so staff can look them up, but the raw UID is not on screen.
-function payRef(uid) {
-  if (!uid) return '';
-  const k = 'jc:ref:' + uid;
-  try {
-    const hit = localStorage.getItem(k);
-    if (hit) return hit;
-  } catch {}
-  // Generate once: 3 letters + 3 digits, e.g. JLT-X7K-291
-  const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = 'JLT-';
-  for (let i = 0; i < 3; i++) code += alpha[Math.floor(Math.random() * alpha.length)];
-  code += '-';
-  for (let i = 0; i < 3; i++) code += Math.floor(Math.random() * 10);
-  try { localStorage.setItem(k, code); } catch {}
-  return code;
-}
+// Plans page: current plan and expiry
 function renderPlan() {
   $('nav-plan').textContent = Plan.name;
   $('plan-state').textContent = Plan.id === 'lite' ? (Plan.until ? `Lite until ${new Date(Plan.until).toLocaleDateString()}` : 'Lite is active') : 'Free plan';
   ['task-rep', 'ed-rep'].forEach(id => { const el = $(id); el.disabled = !Plan.can('repeat'); el.title = Plan.can('repeat') ? '' : 'Repeating tasks need Lite'; if (el.disabled) el.value = ''; });
-  const uid = window.DB && DB.user ? DB.user.uid : '';
-  const ref = payRef(uid);
-  $('plan-id').hidden = !uid;
-  $('plan-uid').textContent = ref;
-  $('plan-uid').title = uid; // full UID on hover for power users / staff
 }
 $('plan-copy-msg').addEventListener('click', () => {
   const uid = window.DB && DB.user ? DB.user.uid : '';
-  if (!uid) return toast('Sign in first, so your payment reference is in the message.');
-  const msg = `Hi! I want to get JALTRON Lite. My payment reference: ${$('plan-uid').textContent} (${uid})`;
-  navigator.clipboard.writeText(msg).then(() => toast('Message copied. Paste it to staff on Discord.'), () => toast('Select and copy your payment reference below.'));
-});
-$('plan-copy').addEventListener('click', () => {
-  const uid = window.DB && DB.user ? DB.user.uid : '';
-  // Copy both reference and UID so staff can look up the account
-  const ref = $('plan-uid').textContent;
-  const text = uid ? `${ref} (${uid})` : ref;
-  navigator.clipboard.writeText(text).then(() => toast('Payment reference copied'), () => toast('Select and copy the reference'));
+  if (!uid) return toast('Sign in first, so your account ID is in the message.');
+  const msg = `Hi! I want to get JALTRON Lite. My account ID: ${uid}`;
+  navigator.clipboard.writeText(msg).then(() => toast('Message copied. Paste it to staff on Discord.'), () => toast('Could not copy. Try again.'));
 });
 renderPlan();

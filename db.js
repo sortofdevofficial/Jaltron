@@ -4,7 +4,7 @@
 //                 The whole account is one doc: one read loads it, one update saves only the tasks that changed ("q.<id>" field paths). Order comes from o, sorted in JS. Stored times are Unix ms; migrate() rewrites older docs in place.
 //   u/<uid>/t/<id>  legacy one-doc-per-task layout, replaced by q. Kept readable while old accounts self-migrate (migrate() below); the rules block can go once they are all on v: 3.
 //   s/<uid>      { p: 'lite', e: expiry ms }  the subscription, written only by staff (rules block clients)
-//   lb/<uid>     { n: username, t: streak days, b: best run, d: last active ms }  the public streak leaderboard (a projection of your own streak; rules tie n to your own username claim; o: true on u/<uid> hides you)
+//   lb/<uid>     { t: streak days, b: best run, d: last active ms }  the public streak leaderboard (a projection of your own streak; names are resolved from nm/<name>; o: true on u/<uid> hides you)
 //   w/<id>       { o: owner uid, nm: name, c: currency, m: [member uids, owner included], b: balance in minor units, l: log, v: 3 }  shared banks (any number per owner); members change only b and l; names are resolved from the claims below
 //   nm/<name>    { u: uid }   username claims in their own collection; the doc ID is the name, which keeps it unique — the only place a username is stored. Old claims in u/<name> are moved here by the owner's client on login (mine()).
 //   rv/<uid>     { s: 1-5 stars (number), tx: review text (string ≤280), t: timestamp ms (int), a: picture (optional, refreshed on login) }  one review per user; readable by all, writable only by owner. No username stored — cards resolve it from nm/<name>
@@ -97,8 +97,9 @@ async function mine() {
 // Leaderboard entry for this account (skipped when hidden or empty; the last sent copy is remembered so unchanged data costs no write)
 async function pushLb(profile) {
   const user = auth.currentUser, p = (profile && profile.p) || {};
+  // The username is not stored: the board resolves it from the nm claims, so a rename follows automatically
   if (!user || !profile || !profile.n || profile.o || !p.n) return;
-  const e = { n: profile.n, t: p.n, b: Math.max(p.b || 0, p.r || 0), d: p.d ? dayMs(p.d) : 0 }, j = JSON.stringify(e), k = 'jl:' + user.uid;
+  const e = { t: p.n, b: Math.max(p.b || 0, p.r || 0), d: p.d ? dayMs(p.d) : 0 }, j = JSON.stringify(e), k = 'jl:' + user.uid;
   try { if (localStorage.getItem(k) === j) return; } catch {}
   try { await setDoc(doc(db, 'lb', user.uid), e); try { localStorage.setItem(k, j); } catch {} } catch (err) { console.error(err); }
 }
