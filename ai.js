@@ -39,6 +39,7 @@ root.catReply = () => {
   const mine = c.slice(4);
   return 'Your categories: ' + c.join(', ') + '.' + (mine.length ? ' Your own: ' + mine.join(', ') + '.' : '') + ' Bugs get a small boost in Smart sort. Say "tag login as dev" to change one, or use the + New button next to Category to create more.';
 };
+root.calcReply = calc;
   const E = (id, phrases, answer) => ({ id, phrases, answer });
 
   root.KNOWLEDGE = [
@@ -56,13 +57,13 @@ root.catReply = () => {
     E('site_due', ['how do due dates work', 'how do i set a deadline', 'what do the due badges mean', 'can i add a deadline', 'overdue badge meaning'], 'Pick a date in Quick Add or say "add pay hosting friday". Badges show Due today, Due tomorrow, a date, or how many days overdue (red). Say "move login to monday" to change one.'),
     E('site_stats', ['what do the cards at the top mean', 'what is the high priority count', 'what does in progress mean', 'explain the stats', 'what is the progress bar'], 'The cards count all tasks, open tasks (In Progress), completed tasks, open High priority tasks and overdue tasks. The bar shows the percent of tasks completed.'),
     E('site_assistant', ['how do i use the ai chat', 'what commands can i say', 'how do i talk to you', 'how to use the assistant', 'examples of things to say'], 'Type naturally, for example: "add task for my study tomorrow", "complete login", "focus on login", "move login to friday", "plan my day", "what is due today", "summary", "undo". Say "what can you do" for the full list.'),
-    E('site_neural', ['how does your ai work', 'what model are you', 'are you chatgpt', 'how were you trained', 'are you a real ai'], 'I am a small neural network trained from scratch in your browser on characters and example phrases. It guesses what you mean, then my code finds the task and date in your sentence. I am far smaller than ChatGPT-style models, so I only know this site, planning, studying and coding habits.'),
+    E('site_neural', ['how does your ai work', 'what model are you', 'are you chatgpt', 'how were you trained', 'are you a real ai', 'what llm do you use'], 'I am a self-owned knowledge engine, not a language model. A tiny neural network in your browser guesses what you mean, my code runs task commands locally, and for facts I search public sources such as Wikipedia, Wikidata, dictionaries, weather and currency services. I answer with sources and keep common facts offline. I cannot write free-form essays or stories.'),
     E('site_about', ['who are you', 'what is jaltron', 'what is your name', 'who made you', 'what are you'], 'I am JALTRON, an AI task and context planner. I manage your plan, suggest what to do first and answer questions about planning, studying and this site.'),
-    E('site_privacy', ['is my data private', 'do you send my tasks anywhere', 'is this safe', 'who can see my tasks', 'privacy question'], 'Yes. The neural AI runs in your browser, so your messages are not sent to any AI service. Tasks are saved only if you sign in, and only your account can read them.'),
+    E('site_privacy', ['is my data private', 'do you send my tasks anywhere', 'is this safe', 'who can see my tasks', 'privacy question'], 'Your task list never leaves your browser. Task and site commands run locally. General questions are answered from a shipped offline pack, or sent without any task data to my own small server, which asks public sources such as Wikipedia and Open-Meteo. There is no AI API, no model download and no account linked to your questions.'),
     E('site_shortcuts', ['keyboard shortcuts', 'what shortcuts exist', 'hotkeys', 'how to use keyboard', 'shortcut list'], 'Press / to focus search. While editing a task, Enter saves and Esc cancels. In the chat, Enter sends.'),
-    E('site_mobile', ['does this work on phone', 'is it mobile friendly', 'can i use this on my phone', 'phone support'], 'Yes, the layout adapts to small screens. The optional bigger AI model is heavy for phones, but the built-in AI works fine.'),
-    E('site_bigger', ['what is the bigger ai', 'what does enable bigger ai do', 'what is qwen', 'why is there a download'], 'The optional bigger AI downloads a small language model (about 400 MB) that runs in your browser for free-form questions. It is slower and can make mistakes, so the built-in AI handles everyday commands.'),
-    E('kb_topics', ['what do you know', 'what can you answer', 'what topics do you know', 'what questions can i ask', 'what are you good at'], 'I know your tasks and this site, plus tips on focus, prioritizing, deadlines, studying, debugging and git, and quick things like dates, calculations, jokes and coin flips.'),
+    E('site_mobile', ['does this work on phone', 'is it mobile friendly', 'can i use this on my phone', 'phone support'], 'Yes, the layout adapts to small screens. The AI is light: a tiny browser network plus an offline fact pack, so it runs on phones and does not download a model.'),
+    E('site_bigger', ['what is the bigger ai', 'what does enable bigger ai do', 'what is qwen', 'why is there a download', 'is there a bigger model'], 'There is no bigger model and no download. The knowledge engine uses an offline fact pack plus live public sources, so it stays fast and small on phones and on a 512 MB server.'),
+    E('kb_topics', ['what do you know', 'what can you answer', 'what topics do you know', 'what questions can i ask', 'what are you good at'], 'I know your tasks and this site, and I can look up far more: definitions, comparisons, country and science facts, summaries, quizzes, weather, time zones, currency, books, papers and programming answers. Common facts work offline; the rest comes from public sources with a link. Try "what is photosynthesis", "compare France and Germany", "define serendipity", "weather in London" or "quiz me on the moon". I cannot write essays or stories.'),
 
     // ---- Productivity ----
     E('tip_focus', ['how do i focus', 'tips to stay focused', 'i keep getting distracted', 'how to concentrate', 'help me focus better'], 'Pick one task, silence notifications, and work in a timed block (for example 25 minutes) with your phone out of reach. Write distracting thoughts on a list and handle them later.'),
@@ -148,7 +149,7 @@ root.catReply = () => {
 // {slots} are filled with random words from "slots" so one template makes many examples.
 // Question/answer knowledge lives in knowledge.js. This file covers actions on your tasks.
 // Intents: add complete delete reopen prio due tag search breakdown focus plan first summary overdue
-//          undo optimize clear_done complete_all help greet thanks motivate chat unknown
+//          undo optimize clear_done complete_all help greet thanks motivate chat research unknown
 //          deposit withdraw balance (fake bank — the regex cascade answers exact phrasing, the net catches fuzzy ones)
 (function (root) {
   root.TRAIN = {
@@ -157,7 +158,8 @@ root.catReply = () => {
       when: ['tomorrow', 'today', 'friday', 'monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday', 'next week', 'in 3 days', 'in 2 days', 'in 5 days', 'tmrw', 'tmr', '2026-10-25', '2026-11-02'],
       cat: ['study', 'dev', 'bug', 'general'],
       money: ['5', '10', '20', '25', '50', '75', '100', '250', '500', '1000'],
-      subject: ['study', 'work', 'coding', 'homework', 'project', 'exam', 'server']
+      subject: ['study', 'work', 'coding', 'homework', 'project', 'exam', 'server'],
+      topic: ['france', 'the moon', 'photosynthesis', 'the telephone', 'mount everest', 'the eiffel tower', 'world war 2', 'black holes', 'jupiter', 'the amazon river']
     },
     templates: {
       add: ['add {task}', 'add {task} {when}', 'add {task} high priority', 'add task {task} low priority {when}', 'remind me to {task} {when}', 'i need to {task}', 'i gotta {task} {when}', 'i have to {task} before {when}', 'put {task} on my list', 'new task: {task}', 'create a task for {task}', 'add a task for my {subject}', 'make a task to {task}', 'dont let me forget to {task}', 'todo {task} {when}', 'i should {task}', 'i must {task} {when}', 'schedule {task} for {when}', 'note down {task}', 'add {task} to my plan', 'add a {subject} task', 'i want to {task} {when}', 'can you add {task}', 'please add {task} urgent', 'add {task} and {task}', 'create task {task} #{cat}'],
@@ -185,7 +187,8 @@ root.catReply = () => {
       greet: ['hi', 'hello', 'hey bro', 'yo', 'good morning', 'sup', 'hey there', 'hola', 'good evening', 'hey jaltron', 'hii', 'heyy', 'good afternoon', 'whats up', 'wsp', 'wassup', 'wazzup', 'whaddup', 'what is up', "what's up", 'whats good', 'howdy', 'howdy partner', 'hiya', 'heya', 'hey hey', 'yoo', 'yooo', 'yo yo', 'ello', 'hullo', 'greetings', 'salutations', 'g\'day', 'gm', 'good night', 'morning', 'evening', 'afternoon', 'how are you', 'how are you doing', 'how r u', 'hru', 'how is it going', 'hows it going', 'how you doing', 'whats going on', 'wyd', 'what are you up to', 'wsg', 'wsup', 'sup bro', 'sup dude', 'hey buddy', 'hey man', 'hello there', 'namaste', 'namaskar', 'salaam', 'bonjour', 'ciao', 'hey whats up', 'yo whats up', 'well hello', 'oi', 'ayo', 'ayyy', 'hi there', 'hello jaltron', 'long time no see', 'nice to meet you', 'anyone there', 'you there', 'are you there', 'ping'],
       thanks: ['thanks', 'thank you', 'thx', 'ty bro', 'cheers', 'appreciate it', 'nice one', 'great job', 'awesome thanks', 'perfect', 'you are the best', 'thanks a lot'],
       motivate: ['motivate me', 'i am tired', 'i cannot focus', 'i am stressed', 'i feel lazy', 'too many things to do', 'i am overwhelmed', 'i dont feel like working', 'i cant be bothered', 'no motivation today', 'i dont want to do anything', 'im burnt out', 'cant be bothered today', 'give me some motivation', 'i feel stuck', 'cheer me up'],
-      chat: ['whats the weather', 'i am bored', 'sing a song', 'do you like pizza', 'what is your favorite color', 'are you human', 'what is the meaning of life', 'who is the president', 'what is the capital of france', 'who won the world cup', 'translate hello to spanish', 'recipe for pasta', 'how tall is mount everest', 'what is the news today', 'play some music', 'what is bitcoin worth', 'how old are you', 'do you have feelings', 'write me a poem', 'tell me a story', 'capital of japan', 'what is the capital of germany', 'who is the prime minister', 'population of india', 'how far is the moon', 'who invented the telephone', 'what is the tallest building', 'who is the richest person', 'how many people live in china', 'best football team'],
+      chat: ['whats the weather', 'i am bored', 'sing a song', 'do you like pizza', 'what is your favorite color', 'are you human', 'what is the meaning of life', 'translate hello to spanish', 'recipe for pasta', 'what is the news today', 'play some music', 'what is bitcoin worth', 'how old are you', 'do you have feelings', 'write me a poem', 'tell me a story', 'best football team'],
+      research: ['what is {topic}', 'what is the capital of {topic}', 'who is {topic}', 'who invented {topic}', 'how tall is {topic}', 'how far is {topic}', 'what is the population of {topic}', 'tell me about {topic}', 'define {topic}', 'when did {topic} happen', 'where is {topic}', 'why is {topic} famous', 'what is {topic} known for', 'how big is {topic}', 'who won the world cup', 'who is the president', 'who is the prime minister', 'what is the tallest building', 'who is the richest person', 'how many people live in {topic}', 'how old is {topic}'],
       unknown: ['asdf', 'qwerty', 'blah blah', 'hmm', 'ok', 'lol', 'idk', '...', 'hmmmm', 'k', 'test', 'umm', 'what', 'huh', 'asdfgh', 'zzz', 'ok ok', 'hmm ok']
     },
     // Extra hand-written examples: ["phrase", "intent"]
@@ -193,7 +196,11 @@ root.catReply = () => {
       ["what's next?", 'first'], ["plan my day pls :)", 'plan'], ["hi!!!", 'greet'], ["thanks!!", 'thanks'],
       ["knock out the biology revision", 'add'], ["what's on my plate", 'plan'], ["i'm done with the login thing", 'complete'],
       ["nuke the old milk task", 'delete'], ["wat should i do", 'first'], ["tmrw i must study", 'add'],
-      ["yo whats good", 'greet'], ["got it, thx", 'thanks'], ["any tasks left?", 'summary'], ["what's late??", 'overdue']
+      ["yo whats good", 'greet'], ["got it, thx", 'thanks'], ["any tasks left?", 'summary'], ["what's late??", 'overdue'],
+      ["what is the capital of france", 'research'], ["who was alan turing", 'research'],
+      ["tell me about black holes", 'research'], ["define photosynthesis", 'research'],
+      ["how tall is mount everest", 'research'], ["what is the population of india", 'research'],
+      ["who invented the telephone", 'research'], ["where is the eiffel tower", 'research']
     ]
   };
 
@@ -219,6 +226,7 @@ root.catReply = () => {
     add('clear_done', ['delete everything i finished', 'clear the done list', 'remove completed items', 'clean out the completed tasks']);
     add('complete_all', ['check everything off', 'finish everything', 'mark the whole list done', 'complete the entire list']);
     add('motivate', ["i'm exhausted", 'i have no energy', "i can't get started", 'i need a push', 'i keep procrastinating', 'i am losing focus']);
+    add('research', ['what is {topic} famous for', 'give me info on {topic}', 'i want to learn about {topic}', 'what do you know about {topic}', 'can you explain {topic}', 'how big is {topic}', 'where is {topic} located', 'when was {topic} invented', 'why does {topic} happen', 'how does {topic} work']);
     add('unknown', ['i like pizza', 'what is love', 'the sky is blue', 'open the pod bay doors', 'i had a weird dream', 'my phone is broken', 'the quick brown fox', 'do a barrel roll']);
     T.examples.push(
       ["please get the report done by friday", 'due'], ["the essay needs to be finished by tomorrow", 'due'],
@@ -245,8 +253,8 @@ root.catReply = () => {
 // localStorage so every later visit loads instantly and never trains again.
 (function (root) {
   'use strict';
-  const DIM = 4096, HID = 128, EPOCHS = 16, CHUNK = 300;
-  const BASE = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'focus', 'undo', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'deposit', 'withdraw', 'balance', 'unknown'];
+  const DIM = 4096, HID = 128, EPOCHS = 12, CHUNK = 300;
+  const BASE = ['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'focus', 'undo', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'help', 'greet', 'thanks', 'motivate', 'chat', 'research', 'deposit', 'withdraw', 'balance', 'unknown'];
   let INTENTS = BASE.slice(), K = INTENTS.length;
   let W1, b1, W2, b2, ready = false, seed = 1;
   // Words that carry no intent signal. Used by the evidence gate, not by the network.
@@ -368,11 +376,12 @@ root.catReply = () => {
   }
 
   // ---- Saved-weights cache (localStorage) ----
-  // The dataset is static per deploy, so the trained net is saved and reused until TRAIN/KNOWLEDGE
-  // or the learned-phrase list changes. V bumps force a clean retrain after feature changes.
-  const KEY = 'jc:nn', V = 2;
+  // The base net is saved and reused until TRAIN/KNOWLEDGE or the feature setup changes. Learned
+  // phrases are NOT part of the key: they are replayed onto the cached weights instead, so a chat
+  // that teaches the assistant something never forces a slow retrain on the next visit.
+  const KEY = 'jc:nn', V = 3;
   const sig = (x) => { const s = JSON.stringify(x); let h = 5381; for (let i = 0; i < s.length; i++) h = (Math.imul(h, 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
-  const fp = (extra) => [V, DIM, HID, EPOCHS, sig(root.TRAIN || {}), sig(root.KNOWLEDGE || []), sig(LEARN), sig(extra || [])].join('.');
+  const fp = (extra) => [V, DIM, HID, EPOCHS, sig(root.TRAIN || {}), sig(root.KNOWLEDGE || []), sig(extra || [])].join('.');
   const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
   const ub64 = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
   const f32b = (f) => b64(new Uint8Array(f.buffer, f.byteOffset, f.byteLength));
@@ -400,6 +409,14 @@ root.catReply = () => {
       W1 = new Float32Array(DIM * HID);
       for (let i = 0; i < W1.length; i++) W1[i] = (q1[i] - 128) * (c.sc || 1);
       ready = true;
+      // Learned phrases stay out of the cache key, so apply them to the loaded weights here.
+      // A handful of SGD steps per phrase is milliseconds, versus a full retrain of the base set.
+      for (const e of LEARN) {
+        const y = INTENTS.indexOf(e.i);
+        if (y < 0) continue;
+        const ix = feats(e.t), passes = 2 + Math.min(e.n, 3);
+        for (let i = 0; i < passes; i++) step(ix, y, 0.12);
+      }
       return { examples: c.ex || 0, acc: c.acc || 0, learned: LEARN.length };
     } catch { return null; }
   }
@@ -485,7 +502,7 @@ root.catReply = () => {
 
 // ===== 4. BRAIN =====
 (function () {
-// JALTRON's built-in assistant: no API, no model. It knows the site and returns { reply, actions }
+// JALTRON's built-in assistant: no API, no LLM. Task commands run locally and return { reply, actions }
 // that the web UI executes (add, complete, delete, priority, clear, optimize, filter).
 
 const W = { high: 3, medium: 2, low: 1 };
@@ -731,7 +748,7 @@ function respond(msg, tasksIn, history) {
     return say('Done. Filter updated.', [a]);
   }
 
-  if (/\b(summary|status of my|progress|how many|stats|overview|how am i doing|how's my day)\b/.test(l)) {
+  if (/^(?:summary|stats|overview|status)\b/.test(l) || /\b(?:progress|status of my|my (?:progress|status|tasks|stats)|how am i doing|how'?s my day|how r we doing|where do i stand|how many (?:tasks?|are (?:left|done))|how much have i done|am i making progress)\b/.test(l)) {
     const done = tasks.filter(t => t.done).length, late = open.filter(t => t.due && days(t.due) < 0).length;
     return say(`You have ${tasks.length} tasks: ${open.length} open, ${done} done (${tasks.length ? Math.round(done / tasks.length * 100) : 0}%). ${open.filter(t => t.prio === 'high').length} high priority, ${late} overdue.` + (open[0] ? ` Next up: "${open[0].title}".` : ''));
   }
@@ -751,15 +768,26 @@ function respond(msg, tasksIn, history) {
   if (/^(?:start|begin)\s+(?:a\s+)?focus(?:\s+session)?$/.test(l)) {
     return open.length ? say(`Focus mode: "${open[0].title}". The timer is ready on the Focus page.`, [{ type: 'focus', id: open[0].id }]) : say('Add a task first and I will start a focus session on it.');
   }
-  if (/\b(plan|schedule|today|my day)\b/.test(l))
+  if (/^(?:what(?:'s| is)?(?: the| today'?s)? (?:date|day)(?: today)?|what day is (?:it|today)|whats todays date)$/.test(l))
+    return say('Today is ' + new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + '.');
+  if (/^(?:plan|schedule|organi[sz]e|todo|to-do)\b/.test(l)
+    || /\b(?:my (?:day|plan|agenda|tasks|schedule|list|plate)|the plan|game plan|best order)\b/.test(l)
+    || /^(?:what should i (?:do|get done) today|how should i spend (?:today|my day)|what do i have to do|help me get organised|make me a schedule|map out (?:my day|tomorrow))\b/.test(l))
     return open.length ? say('Suggested order:\n' + open.slice(0, 5).map((t, i) => `${i + 1}. ${t.title} (${why(t)})`).join('\n')) : say('Your plan is empty. Add a task and I will plan around it.');
-  if (/\b(first|next|start|focus|priorit)/.test(l))
+  if (/^(?:do|what should i do|what do i|what to do|what'?s next|what is next|what is most important|what is my next|which (?:task|one)|where (?:do|should) i|top priority|pick a task|tell me what to work on|what deserves my attention|what should i focus on)\b/.test(l)
+    || /\b(?:do first|first task|next task|highest priority|most urgent thing|attention first)\b/.test(l))
     return open.length ? say(`Do this first: "${open[0].title}" (${why(open[0])}).` + (open[1] ? `\nThen: "${open[1].title}".` : '')) : say('Your plan is empty. Add a task and I will tell you what to do first.');
   if (/\b(help|what can you|commands|features|how do you work)\b/.test(l))
-    return say('I can:\n- add tasks: "add task for my study", "add fix login bug tomorrow high", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "delete old task"\n- undo a delete: "undo"\n- edit: "rename login to fix auth", "move login to friday", "make login low priority", "tag docs as study"\n- focus: "focus on login" (opens the Focus page with that task ready)\n- find and filter: "find login", "show pending", "show bugs", "clear filters"\n- think: "plan my day", "what\'s due today", "summary", "overdue", "break down login"\n- repeat and streaks: \"add gym daily\", \"add read every weekday\", \"show my streaks\"\n- explain the site: drag, edit, themes, saving, status');
+    return say('I can:\n- add tasks: "add task for my study", "add fix login bug tomorrow high", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "delete old task"\n- undo a delete: "undo"\n- edit: "rename login to fix auth", "move login to friday", "make login low priority", "tag docs as study"\n- focus: "focus on login" (opens the Focus page with that task ready)\n- find and filter: "find login", "show pending", "show bugs", "clear filters"\n- think: "plan my day", "what\'s due today", "summary", "overdue", "break down login"\n- look things up: "who was alan turing", "define serendipity", "compare France and Germany", "weather in London", "100 usd to eur", "facts about the moon", "quiz me on photosynthesis" (cited public sources)\n- calculate offline: "15% of 200", "5 km to miles", "days until 2026-12-25", "tip on 42.50", "bmi 70 1.75"\n- repeat and streaks: \"add gym daily\", \"add read every weekday\", \"show my streaks\"\n- explain the site: drag, edit, themes, saving, status');
+  // A real world question should reach research, not a loose FAQ keyword ("dark matter" is not the theme setting)
+  const siteWord = /\b(?:jaltron|task|tasks|todo|to-do|list|plan|schedule|overdue|priority|balance|streak|habit|repeat|recurring|theme|dark mode|light mode|save|storage|sync|sign in|account|status|online|offline|drag|edit|rename|search|shortcut|keyboard|undo|delete|category|tags?|due date|deadline|timer|focus|summary)\b/;
+  const worldQ = (/^(?:who|what|where|when|why|which)\b/.test(l) || /^how (?:tall|far|old|big|long|heavy|deep|high|many|much|does|did|was|were|is)\b/.test(l))
+    && !siteWord.test(l)
+    && !/^(?:what (?:can|do) you|who are you|how are you|what is your|whats your|what'?s your|who is your|who'?s your|what is my|what is jaltron|what are you|how do you work|how old are you)\b/.test(l);
+  if (worldQ) return Object.assign(say('I did not get that. Try "add physics exam tomorrow urgent", "complete login", "plan my day", or ask a knowledge question like "why is the sky blue".'), { unknown: true });
   for (const [re, ans] of FAQ) if (re.test(l)) return say(typeof ans === 'function' ? ans() : ans);
 
-  return Object.assign(say('I did not get that. Try "add physics exam tomorrow urgent", "complete login", "plan my day" or ask "what do you know".'), { unknown: true });
+  return Object.assign(say('I did not get that. Try "add physics exam tomorrow urgent", "complete login", "plan my day", or ask a knowledge question like "why is the sky blue".'), { unknown: true });
 }
 
 const api = { respond, clean, parseTask, find };
@@ -792,11 +820,20 @@ function neuralRespond(text, tasks) {
   let bk = null, bs = 0;
   for (const k of KB) { const s = kWeight(k, q); if (s > bs) { bs = s; bk = k; } }
   const kFallback = () => (bk && kOverlap(bk, q) >= 2 ? kAnswer(bk, text, tasks) : null);
-  if (p.intent === 'chat') { const kf = kFallback(); if (kf) return kf; } // a real question beats the canned "outside what I know"
+  const research = () => (looksFactual(text) ? { research: true, query: cleanQuery(text) } : null);
+  if (p.intent === 'chat') { // a real question beats the canned "outside what I know"
+    const kf = kFallback();
+    if (kf) return kf;
+    const r = research();
+    if (r) return r;
+  }
+  // "how many people live in india" must not borrow the summary answer just because it says "how many"
+  const rq = SOFT_INTENT.has(p.intent) ? research() : null;
+  if (rq) return rq;
   const nk = p.intent.startsWith('k_') ? KB.find(x => 'k_' + x.id === p.intent) : null;
   // The net always names some intent, so never act on a guess that has no command words
   // behind it. Chat is safe (no action); everything else has to earn its support.
-  if (p.intent === 'unknown' || p.conf < 0.5 || (!nk && p.intent !== 'chat' && !p.support)) return kFallback();
+  if (p.intent === 'unknown' || p.conf < 0.5 || (!nk && p.intent !== 'chat' && !p.support)) return kFallback() || research();
   if (nk) {
     const own = kWeight(nk, q);
     if (own <= 0) return kFallback();
@@ -810,7 +847,8 @@ function neuralRespond(text, tasks) {
   let cmd = canned[intent] || null, res = null, t;
   switch (intent) {
     case 'motivate': res = { reply: MOTIVATE[Math.floor(Math.random() * MOTIVATE.length)] + '\n' + Brain.respond('what should i do first', tasks, []).reply, actions: [] }; break;
-    case 'chat': res = { reply: 'That is outside what I know. I can help with your tasks, this site, planning, studying, debugging and quick things like dates, calculations and jokes. Say "what do you know" for the list.', actions: [] }; break;
+    case 'chat': res = { chat: true }; break;
+    case 'research': res = research(); if (!res) return null; break;
     case 'add': {
       const tail = /\s+(?:to|on|in|into)\s+(?:my\s+)?(?:list|plan|schedule|todo|to-do)$/i;
       const raw = text.replace(/^(?:bro\s+|hey\s+|please\s+|pls\s+|can you\s+|could you\s+)?(?:i\s+(?:need|have|want|gotta|must|should)\s+to\s+(?:get\s+)?|i\s+should\s+probably\s+|remind me (?:to|about)\s+|jot down\s+|note down\s+|remember (?:that\s+)?(?:i\s+need\s+to\s+)?|get\s+|(?:add|create|put|new task|make)\s+(?:a\s+)?(?:new\s+)?(?:task\s+)?(?:to\s+|for\s+)?)/i, '').replace(tail, ' ').replace(/\s+(?:needs? doing|done|finished|completed)$/i, ' ').trim();
@@ -856,7 +894,8 @@ function neuralRespond(text, tasks) {
 
   // Which intent a successful rule-layer reply demonstrates. Learned from the user's own words.
   const ACTION_INTENT = { add: 'add', complete: 'complete', delete: 'delete', reopen: 'reopen', due: 'due', prio: 'prio', tag: 'tag', search: 'search', filter: 'search', optimize: 'optimize', clear_done: 'clear_done', focus: 'focus', undo: 'undo', deposit: 'deposit', withdraw: 'withdraw' };
-  const LEARNABLE = new Set(['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'focus', 'undo', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'motivate', 'deposit', 'withdraw', 'balance']);
+  const SOFT_INTENT = new Set(['unknown', 'chat', 'plan', 'first', 'summary', 'overdue', 'help', 'greet', 'thanks', 'motivate']);
+  const LEARNABLE = new Set(['add', 'complete', 'delete', 'reopen', 'prio', 'due', 'tag', 'search', 'breakdown', 'focus', 'undo', 'plan', 'first', 'summary', 'overdue', 'optimize', 'clear_done', 'complete_all', 'motivate', 'research', 'deposit', 'withdraw', 'balance']);
   const CONFIRM_RE = /^(?:yes|y|ok|okay|sure|do it|confirm|no|nope)$/i;
   const WRONG_RE = /^(?:no|nope|wrong|not that|that'?s wrong|thats wrong|incorrect|you misunderstood|i did not mean that|i didn't mean that|not what i meant)$/i;
   const SHARE_STOP = new Set('the a an i me my you your it this that these those to on in for of and or is are was were be been do does did have has had can could would should will just please pls bro hey yo ok okay so if then than there here what which who how why when where all any some no not add get make set move put remove delete complete finish done task tasks list plan schedule todo focus work start begin need want'.split(' '));
@@ -884,11 +923,373 @@ function neuralRespond(text, tasks) {
     try { root.TinyBrain.learn(t, intent, weight); } catch {}
   }
 
+  // ---- Research: look facts up on Wikipedia, then remember them ----
+  // The net routes questions; it does not store the world. Unknown factual questions are looked
+  // up once, answered with a source, and kept in localStorage so the next ask is instant.
+  const FACT_KEY = 'jc:facts', FACT_CAP = 300;
+  const FACT_STOP = new Set([...KSTOP, 'was', 'were', 'who', 'whom', 'whose', 'why', 'where', 'when', 'which', 'about', 'tell', 'explain', 'define', 'describe', 'know', 'please', 'mean', 'means', 'much', 'many', 'give', 'information', 'info', 'look', 'up', 'search', 'whats', 'did', 'has', 'have', 'had', 'would', 'should', 'will', 'could', 'hey', 'hi', 'hello', 'bro', 'pls', 'want', 'learn', 'located', 'exactly', 'actually', 'invented', 'invent', 'discovered', 'discover', 'wrote', 'written', 'created', 'built', 'founded', 'painted', 'composed', 'won', 'win', 'tall', 'far', 'old', 'big', 'long', 'heavy', 'fast', 'deep', 'high', 'people', 'live', 'living', 'happen', 'happened', 'city']);
+  const factStem = (w) => {
+    if (w.length > 6 && /ing$/.test(w)) return w.slice(0, -3);
+    if (w.length > 5 && /ed$/.test(w)) return w.slice(0, -2);
+    if (w.length > 4 && /(?:es|s)$/.test(w) && !/(?:ss|sis|us|is)$/.test(w)) return w.slice(0, -1);
+    return w;
+  };
+  const factWords = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1 && !FACT_STOP.has(w)).map(factStem);
+  const normKey = (q) => [...new Set(factWords(q))].sort().join(' ');
+  let FACTS = [];
+  try {
+    const saved = JSON.parse((typeof localStorage !== 'undefined' && localStorage.getItem(FACT_KEY)) || '[]');
+    if (Array.isArray(saved)) FACTS = saved.filter(e => e && e.k && e.t && e.u).slice(-FACT_CAP).map(e => ({ k: String(e.k), q: String(e.q || ''), t: String(e.t), u: String(e.u), n: Math.max(1, Number(e.n) || 1), ms: Number(e.ms) || 0 }));
+  } catch {}
+  const saveFacts = () => { try { if (typeof localStorage !== 'undefined') localStorage.setItem(FACT_KEY, JSON.stringify(FACTS)); } catch {} };
+  function remember(item) {
+    const i = FACTS.findIndex(x => x.k === item.k);
+    if (i >= 0) FACTS[i] = item; else {
+      if (FACTS.length >= FACT_CAP) {
+        let low = 0;
+        for (let j = 1; j < FACTS.length; j++) if (FACTS[j].n < FACTS[low].n) low = j;
+        FACTS.splice(low, 1);
+      }
+      FACTS.push(item);
+    }
+    saveFacts();
+  }
+  function cacheFind(text) {
+    const q = new Set(factWords(text));
+    if (!q.size) return null;
+    let best = null, bestScore = 0;
+    for (const e of FACTS) {
+      const k = new Set(String(e.k).split(' '));
+      let hit = 0;
+      for (const w of q) if (k.has(w)) hit++;
+      const ratio = hit / q.size;
+      // A single broad word ("moon") must not match a long stored question about Armstrong
+      if (!hit || (q.size > 1 ? (hit < 2 || ratio < 0.6) : !(hit === 1 && k.size <= 2))) continue;
+      const score = hit + ratio;
+      if (score > bestScore) { bestScore = score; best = e; }
+    }
+    if (!best) return null;
+    best.n++; best.ms = Date.now(); saveFacts();
+    return { reply: `From memory: ${best.t}`, actions: [], sources: [best.u], cached: true };
+  }
+  function looksFactual(text) {
+    const t = String(text || '').trim().toLowerCase();
+    if (t.length < 8) return false;
+    if (/\b(?:task|tasks|list|plan|todo|overdue|priority|balance|done|progress|streak|bank|deposit|withdraw)\b/.test(t)) return false;
+    if (/^(?:how (?:do|can|should|would|to) (?:i|we)\b|what (?:should|do) i\b|who are you\b|how are you\b|what is your\b|what'?s your\b|who is your\b|who'?s your\b|what can you do\b|what do you (?:do|know)\b|how do you work\b|how old are you\b|what is my\b)/.test(t)) return false;
+    const ask = /^(?:who|what|where|when|why|how|which|whose)\b|^(?:tell me|explain|describe|define|look up|search for|give me|facts about|quiz me|compare|weather|time in|currency|exchange rate|convert|book |paper |research |country )/.test(t);
+    if (!ask) return false;
+    return factWords(t).length > 0;
+  }
+  function cleanQuery(text) {
+    let q = String(text || '').toLowerCase().replace(/[?!.]+$/g, '').trim();
+    q = q.replace(/\bwhat'?s\b/gi, 'what is').replace(/\bwho'?s\b/gi, 'who is').replace(/\bwhere'?s\b/gi, 'where is');
+    q = q.replace(/^(?:hey|hi|bro|please|can you|could you|do you know|i want to know)\s+/i, '');
+    // Specific question shapes first: the generic strip below would otherwise eat "how" / "who" and leave "tall is ..."
+    q = q.replace(/^how (?:tall|high) (?:is|are|was|were)\s+/i, 'height of ');
+    q = q.replace(/^how old (?:is|are|was|were)\s+/i, 'age of ');
+    q = q.replace(/^how far (?:is|are|was|were)\s+/i, 'distance to ');
+    q = q.replace(/^how (?:big|long|heavy|fast|deep) (?:is|are|was|were)\s+/i, '');
+    q = q.replace(/^how many people (?:live|are there) in\s+/i, 'population of ');
+    q = q.replace(/^who invented\s+/i, 'invention of ');
+    q = q.replace(/^who discovered\s+/i, 'discovery of ');
+    q = q.replace(/^who founded\s+/i, 'founding of ');
+    q = q.replace(/^who (?:wrote|painted|composed|created|built|directed|designed|won)\s+/i, '');
+    q = q.replace(/^(?:tell me (?:about|the)|explain|define|describe|give me info on|i want to learn about|what do you know about|give me information about)\s+/i, '');
+    q = q.replace(/^(?:what|who|where|when|why|how|which)\s+(?:is|are|was|were|do|does|did|can|could|would|should|has|have|had)?\s*/i, '');
+    q = q.replace(/^(?:the|a|an)\s+/, '');
+    q = q.replace(/\s+(?:happen|happened|located)$/i, '');
+    return q.replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim().split(/\s+/).slice(0, 8).join(' ');
+  }
+  async function fetchJson(url) {
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => ctl.abort(), 6000) : null;
+    try {
+      const r = await fetch(url, ctl ? { signal: ctl.signal } : undefined);
+      if (!r.ok) throw new Error('http ' + r.status);
+      return await r.json();
+    } finally { if (timer) clearTimeout(timer); }
+  }
+  const WIKI = 'https://en.wikipedia.org/w/api.php?format=json&origin=*';
+  const VOLATILE = /\b(?:president|prime minister|news|price|worth|stock|today|current|latest|weather|temperature|forecast|population|exchange|bitcoin|ethereum|crypto|time in)\b/i;
+  // Pack is safe to use for "what is bitcoin", not for "bitcoin price"
+  const NEEDS_LIVE = /\b(?:president|prime minister|news|price|worth|stock|today|current|latest|weather|temperature|forecast|population|exchange|time in)\b|\b(?:bitcoin|ethereum|btc|eth)\b.*\b(?:price|worth|value|usd|eur)\b/i;
+
+  // ---- Offline pack: common facts shipped with the site ----
+  let PACK = null, PACK_AT = 0, PACK_BUILD = null, lastEntity = '', lastIntent = '';
+  const PACK_KEY = 'jc:kb:v2', PACK_TTL = 6048e5;
+  const packNorm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+  function packUse(p) {
+    if (!p || p.v !== 1 || !Array.isArray(p.e)) return null;
+    const m = new Map();
+    for (const e of p.e) {
+      if (!Array.isArray(e) || e.length < 2 || !Array.isArray(e[0])) continue;
+      for (const q of e[0]) { const k = packNorm(q); if (k && !m.has(k)) m.set(k, e); }
+    }
+    return { p, m };
+  }
+  function packLoad() {
+    if (PACK) return PACK;
+    if (!PACK_AT) {
+      PACK_AT = Date.now();
+      try {
+        const o = JSON.parse(localStorage.getItem(PACK_KEY) || 'null');
+        if (o && o.t && Date.now() - o.t < PACK_TTL) PACK = packUse(o.p);
+        else if (o) localStorage.removeItem(PACK_KEY);
+        localStorage.removeItem('jc:kb:v1');
+      } catch {}
+    }
+    if (PACK || PACK_BUILD || typeof fetch === 'undefined') return PACK;
+    PACK_BUILD = fetch('data/kb.json', { cache: 'force-cache' })
+      .then(r => r.ok ? r.json() : null)
+      .then(p => { PACK = packUse(p); if (PACK) { try { localStorage.setItem(PACK_KEY, JSON.stringify({ t: Date.now(), p })); } catch {} } return PACK; })
+      .catch(() => null)
+      .finally(() => { PACK_BUILD = null; });
+    return null;
+  }
+  function packAnswer(e) {
+    const a = String(e[1] || ''), s = String(e[2] || '');
+    if (!a) return null;
+    lastEntity = String((e[0] && e[0][0]) || '');
+    lastIntent = 'wiki';
+    return { reply: a, actions: [], sources: s ? [s] : [], fromPack: true };
+  }
+  function packFind(text) {
+    const q = String(text || '').trim();
+    if (!q || NEEDS_LIVE.test(q) || /^(?:add|complete|delete|reopen|move|rename|make|tag|find|show|plan|summary|undo|focus|clear|deposit|withdraw)\b/i.test(q)) return null;
+    const idx = packLoad();
+    if (!idx) return null;
+    const s = packNorm(q);
+    if (!s) return null;
+    const tries = [s];
+    let x = q.toLowerCase().replace(/[?!.]+$/g, '');
+    tries.push(packNorm(x));
+    for (let i = 0; i < 3; i++) x = x.replace(/^(?:hey|hi|please|can you|could you|do you know|tell me|explain|describe|define|what is|what are|what was|whats|who is|who was|whos|where is|where was|when was|when did|why is|why are|why do|how is|how does|how do|how did|which is|the)\s+/i, '');
+    tries.push(packNorm(x));
+    for (const t of tries) { const e = idx.m.get(t); if (e) return packAnswer(e); }
+    let best = null, bl = 0;
+    const skip = new Set('the a an of in on at to for and or is are was were be been do does did what who where when why how which tell me about give facts information'.split(' '));
+    const qw = s.split(' ').filter(w => w.length > 2 && !skip.has(w));
+    for (const [k, e] of idx.m) {
+      if (k.length <= bl) continue;
+      const kw = k.split(' ');
+      if (qw.length && qw.every(w => kw.includes(w))) { best = e; bl = k.length; }
+    }
+    if (best) return packAnswer(best);
+    // Question phrasing ("why is the sky blue") rarely matches an alias exactly; accept an entry whose answer covers every query word.
+    if (qw.length < 2) return null;
+    for (const [k, e] of idx.m) {
+      const kw = k.split(' ');
+      if (!qw.some(w => kw.includes(w)) || k.length <= bl) continue;
+      const aw = new Set((k + ' ' + packNorm(String(e[1] || ''))).split(' '));
+      if (qw.every(w => aw.has(w))) { best = e; bl = k.length; }
+    }
+    return best ? packAnswer(best) : null;
+  }
+
+  // ---- Own knowledge server: only the cleaned question leaves the browser ----
+  let serverOn = null, serverAt = 0, serverJob = null, CID = '';
+  function clientId() {
+    if (CID) return CID;
+    try { CID = localStorage.getItem('jc:cid') || ''; } catch {}
+    if (!CID) { CID = 'c' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); try { localStorage.setItem('jc:cid', CID); } catch {} }
+    return CID;
+  }
+  function abort(ms) { const c = typeof AbortController !== 'undefined' ? new AbortController() : null; return { c, t: c ? setTimeout(() => c.abort(), ms) : null }; }
+  function checkHealth() {
+    if (serverOn === true && Date.now() - serverAt < 60000) return Promise.resolve(true);
+    if (serverJob) return serverJob;
+    if (typeof fetch === 'undefined' || (typeof navigator !== 'undefined' && navigator.onLine === false)) return Promise.resolve(false);
+    const { c, t } = abort(3500);
+    serverJob = fetch('/api/ai/health', { cache: 'no-store', signal: c ? c.signal : undefined })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { serverOn = !!(j && j.ok); serverAt = Date.now(); return serverOn; })
+      .catch(() => { serverOn = false; serverAt = Date.now(); return false; })
+      .finally(() => { if (t) clearTimeout(t); serverJob = null; });
+    return serverJob;
+  }
+  function serverAsk(text, ctx) {
+    if (typeof fetch === 'undefined' || (typeof navigator !== 'undefined' && navigator.onLine === false)) return Promise.resolve(null);
+    if (serverOn !== true && Date.now() - serverAt < 60000) return Promise.resolve(null);
+    const { c, t } = abort(9000);
+    const context = ctx || (lastEntity ? { entity: lastEntity, intent: lastIntent } : {});
+    return fetch('/api/ai/ask', {
+      method: 'POST', signal: c ? c.signal : undefined,
+      headers: { 'content-type': 'application/json', 'x-client-id': clientId() },
+      body: JSON.stringify({ message: String(text).slice(0, 500), context })
+    }).then(r => r.ok ? r.json() : null).then(j => {
+      if (!j || j.ok !== true || typeof j.reply !== 'string') return null;
+      const reply = j.reply.trim().slice(0, 4000);
+      if (!reply) return null;
+      serverOn = true; serverAt = Date.now();
+      if (j.entity) lastEntity = String(j.entity).slice(0, 120);
+      if (j.intent) lastIntent = String(j.intent).slice(0, 30);
+      return { reply, sources: (Array.isArray(j.sources) ? j.sources : []).filter(u => /^https?:\/\//i.test(u)).slice(0, 3), actions: [], fromServer: true };
+    }).catch(() => { serverOn = false; serverAt = Date.now(); return null; }).finally(() => { if (t) clearTimeout(t); });
+  }
+
+  // ---- Local skills: units, dates, money and health, all offline ----
+  const U = {
+    mm: ['length', 0.001], cm: ['length', 0.01], m: ['length', 1], km: ['length', 1000], in: ['length', 0.0254], ft: ['length', 0.3048], yd: ['length', 0.9144], mi: ['length', 1609.344],
+    mg: ['mass', 1e-6], g: ['mass', 0.001], kg: ['mass', 1], lb: ['mass', 0.45359237], oz: ['mass', 0.028349523125], t: ['mass', 1000],
+    ml: ['volume', 0.001], l: ['volume', 1], cup: ['volume', 0.2365882365], pt: ['volume', 0.473176473], qt: ['volume', 0.946352946], gal: ['volume', 3.785411784],
+    kb: ['data', 1024], mb: ['data', 1048576], gb: ['data', 1073741824], tb: ['data', 1099511627776],
+    m2: ['area', 1], km2: ['area', 1e6], ft2: ['area', 0.09290304], acre: ['area', 4046.8564224], ha: ['area', 10000],
+    mph: ['speed', 0.44704], kmh: ['speed', 1 / 3.6], 'm/s': ['speed', 1],
+    s: ['time', 1], min: ['time', 60], h: ['time', 3600], day: ['time', 86400], week: ['time', 604800]
+  };
+  const UALIAS = { kilometer: 'km', kilometre: 'km', kilometers: 'km', kilometres: 'km', meter: 'm', metre: 'm', meters: 'm', metres: 'm', centimeter: 'cm', centimetre: 'cm', centimeters: 'cm', centimetres: 'cm', millimeter: 'mm', millimetre: 'mm', millimeters: 'mm', millimetres: 'mm', mile: 'mi', miles: 'mi', foot: 'ft', feet: 'ft', inch: 'in', inches: 'in', yard: 'yd', yards: 'yd', pound: 'lb', pounds: 'lb', ounce: 'oz', ounces: 'oz', gram: 'g', grams: 'g', kilogram: 'kg', kilograms: 'kg', tonne: 't', tonnes: 't', liter: 'l', litre: 'l', liters: 'l', litres: 'l', milliliter: 'ml', millilitre: 'ml', milliliters: 'ml', millilitres: 'ml', gallon: 'gal', gallons: 'gal', quart: 'qt', quarts: 'qt', pint: 'pt', pints: 'pt', cup: 'cup', cups: 'cup', kilobyte: 'kb', kilobytes: 'kb', megabyte: 'mb', megabytes: 'mb', gigabyte: 'gb', gigabytes: 'gb', terabyte: 'tb', terabytes: 'tb', acre: 'acre', acres: 'acre', hectare: 'ha', hectares: 'ha', kph: 'kmh' };
+  const unit = (x) => { x = String(x || '').toLowerCase().replace(/\s+/g, '').replace('²', '2'); return UALIAS[x] || x; };
+  const rnd = (x) => { const a = Math.abs(x); return a >= 1e6 || (a > 0 && a < 0.001) ? +x.toExponential(3) : Math.round(x * 1e4) / 1e4; };
+  const money = (n) => (Math.round(n * 100) / 100).toFixed(2);
+  const DAY = 864e5;
+  const isoDate = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); if (!m) return null; const d = new Date(+m[1], +m[2] - 1, +m[3]); return isNaN(d) ? null : d; };
+  const dayDiff = (a, b) => Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / DAY);
+  const fmtDate = (d) => d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+  function localSkill(text) {
+    const t = String(text || '').trim(), l = t.toLowerCase();
+    let m;
+    if ((m = l.match(/^(?:what(?:'s| is) )?(?:a )?(\d+(?:\.\d+)?)\s*%?\s*tip(?: on)?\s*\$?(\d+(?:\.\d+)?)$/))) {
+      const p = +m[1], a = +m[2], tip = a * p / 100;
+      return { reply: `A ${p}% tip on ${money(a)} is ${money(tip)}, total ${money(a + tip)}.`, actions: [] };
+    }
+    if ((m = l.match(/^tip\s*(\d+(?:\.\d+)?)\s*%\s*on\s*\$?(\d+(?:\.\d+)?)$/))) {
+      const p = +m[1], a = +m[2], tip = a * p / 100;
+      return { reply: `A ${p}% tip on ${money(a)} is ${money(tip)}, total ${money(a + tip)}.`, actions: [] };
+    }
+    if ((m = l.match(/^tip(?: on)?\s*\$?(\d+(?:\.\d+)?)(?:\s+at\s+(\d+(?:\.\d+)?)%)?$/))) {
+      const a = +m[1], p = m[2] ? +m[2] : 15, tip = a * p / 100;
+      return { reply: `A ${p}% tip on ${money(a)} is ${money(tip)}, total ${money(a + tip)}.`, actions: [] };
+    }
+    if ((m = l.match(/^(?:what(?:'s| is) )?(\d+(?:\.\d+)?)\s*%?\s*off\s*\$?(\d+(?:\.\d+)?)$/))) {
+      const p = +m[1], a = +m[2], d = a * p / 100;
+      return { reply: `${p}% off ${money(a)} is ${money(d)} off, so ${money(a - d)}.`, actions: [] };
+    }
+    if ((m = l.match(/^(?:loan|mortgage)\s*\$?(\d+(?:\.\d+)?)\s*(?:at\s*)?(\d+(?:\.\d+)?)\s*%\s*(?:for\s*)?(\d+)\s*(?:years?|yrs?)$/))) {
+      const P = +m[1], r = +m[2] / 1200, n = +m[3] * 12;
+      const pay = r ? P * r / (1 - Math.pow(1 + r, -n)) : P / n;
+      return { reply: `Loan ${money(P)} at ${m[2]}% for ${m[3]} years: ${money(pay)}/month, total ${money(pay * n)} (${money(pay * n - P)} interest).`, actions: [] };
+    }
+    if ((m = l.match(/^compound\s*\$?(\d+(?:\.\d+)?)\s*(?:at\s*)?(\d+(?:\.\d+)?)\s*%\s*(?:for\s*)?(\d+)\s*(?:years?|yrs?)$/))) {
+      const P = +m[1], A = P * Math.pow(1 + +m[2] / 100, +m[3]);
+      return { reply: `${money(P)} at ${m[2]}% compounded yearly is ${money(A)} after ${m[3]} years (${money(A - P)} interest).`, actions: [] };
+    }
+    if ((m = l.match(/^bmi\s*(\d+(?:\.\d+)?)\s*(?:kg)?\s+(\d+(?:\.\d+)?)\s*(cm|m)?$/))) {
+      const kg = +m[1], h = m[3] === 'cm' ? +m[2] / 100 : +m[2];
+      if (kg && h) {
+        const b = kg / (h * h), c = b < 18.5 ? 'underweight' : b < 25 ? 'normal' : b < 30 ? 'overweight' : 'obese';
+        return { reply: `BMI: ${b.toFixed(1)} (${c}).`, actions: [] };
+      }
+    }
+    if ((m = l.match(/^(?:how many )?days (?:until|till|to) (\d{4}-\d{2}-\d{2})$/))) {
+      const d = isoDate(m[1]);
+      if (d) return { reply: `${dayDiff(new Date(), d)} days until ${fmtDate(d)}.`, actions: [] };
+    }
+    if ((m = l.match(/^(?:how many )?days (?:since|between) (\d{4}-\d{2}-\d{2})(?: and (\d{4}-\d{2}-\d{2}))?$/))) {
+      const a = isoDate(m[1]), b = m[2] ? isoDate(m[2]) : new Date();
+      if (a && b) return { reply: `${Math.abs(dayDiff(a, b))} days ${m[2] ? 'between those dates' : 'since ' + fmtDate(a)}.`, actions: [] };
+    }
+    if ((m = l.match(/^(?:what(?:'s| is) )?(?:the )?date (?:in|after) (\d+) (day|week|month)s?$/)) || (m = l.match(/^(?:what(?:'s| is) )?(?:the )?date (\d+) (day|week|month)s? (?:from now|from today)$/)) || (m = l.match(/^(\d+) (day|week|month)s? from now$/))) {
+      const d = new Date(), n = +m[1], u = m[2];
+      if (u === 'day') d.setDate(d.getDate() + n); else if (u === 'week') d.setDate(d.getDate() + n * 7); else d.setMonth(d.getMonth() + n);
+      return { reply: `${n} ${u}${n === 1 ? '' : 's'} from now is ${fmtDate(d)}.`, actions: [] };
+    }
+    if ((m = l.match(/^(\d+) (day|week|month)s? ago$/))) {
+      const d = new Date(), n = +m[1], u = m[2];
+      if (u === 'day') d.setDate(d.getDate() - n); else if (u === 'week') d.setDate(d.getDate() - n * 7); else d.setMonth(d.getMonth() - n);
+      return { reply: `${n} ${u}${n === 1 ? '' : 's'} ago was ${fmtDate(d)}.`, actions: [] };
+    }
+    if ((m = l.match(/^(?:convert\s+)?(-?\d+(?:\.\d+)?)\s*(?:degrees?\s*)?(c|°c|celsius|f|°f|fahrenheit|k|kelvin)\s*(?:to|in|into)\s*(?:degrees?\s*)?(c|°c|celsius|f|°f|fahrenheit|k|kelvin)$/))) {
+      const v = +m[1], f = m[2].replace('°', '')[0], to = m[3].replace('°', '')[0];
+      const C = f === 'c' ? v : f === 'f' ? (v - 32) * 5 / 9 : v - 273.15;
+      const out = to === 'c' ? C : to === 'f' ? C * 9 / 5 + 32 : C + 273.15;
+      return { reply: `${v}°${f.toUpperCase()} = ${rnd(out)}°${to.toUpperCase()}.`, actions: [] };
+    }
+    if ((m = l.match(/^(?:convert\s+)?(-?\d+(?:\.\d+)?)\s*([a-z°/]+)\s*(?:to|in|into)\s*([a-z°/]+)$/))) {
+      const u1 = unit(m[2]), u2 = unit(m[3]), a = U[u1], b = U[u2];
+      if (a && b && a[0] === b[0]) return { reply: `${+m[1]} ${u1} = ${rnd(+m[1] * a[1] / b[1])} ${u2}.`, actions: [] };
+    }
+    if (/\d/.test(l) && /[+\-*/^%]|\b(?:times|plus|minus|divided|squared|percent)\b/.test(l) && root.calcReply) {
+      const r = root.calcReply(t);
+      if (/^Answer: /.test(r)) return { reply: r, actions: [] };
+    }
+    return null;
+  }
+  // Follow-ups reuse the last subject when the server is not around
+  function resolveFollow(text) {
+    const t = String(text || '').trim();
+    if (!lastEntity) return t;
+    const m = t.match(/^(?:and )?what about (.+)$/i);
+    if (m) {
+      const e = m[1].replace(/[?.!]+$/, '').trim();
+      const map = { capital: `capital of ${e}`, population: `population of ${e}`, currency: `currency of ${e}`, area: `area of ${e}`, height: `how tall is ${e}`, birth: `when was ${e} born`, birthplace: `where was ${e} born`, death: `when did ${e} die`, weather: `weather in ${e}`, time: `time in ${e}`, country: `country ${e}`, book: `book ${e}`, author: `who wrote ${e}`, define: `define ${e}` };
+      return map[lastIntent] || `tell me about ${e}`;
+    }
+    if (/\b(?:he|she|it|they|him|her|them|his|hers|its|their)\b/i.test(t))
+      return t.replace(/\b(his|hers|its|their)\b/gi, lastEntity + "'s").replace(/\bit\b(?!\s+(?:true|possible|likely|fair|good|bad|seem|rain|snow|cold|hot|worth|safe|legal)\b)/gi, lastEntity).replace(/\b(he|she|they|him|her|them)\b/gi, lastEntity);
+    return t;
+  }
+  function rememberFact(original, res) {
+    const src = (res.sources && res.sources[0]) || res.source || '';
+    if (!src || VOLATILE.test(original)) return;
+    const text = String(res.reply || '').replace(/\n\nSources?:[\s\S]*$/i, '').trim().slice(0, 900);
+    if (text) remember({ k: normKey(original), q: String(original).slice(0, 160), t: text, u: src, n: 1, ms: Date.now() });
+  }
+  const pendingResearch = new Map();
+  let lastResearch = 0;
+  function trimExtract(s) {
+    s = String(s || '').replace(/\([;\s]*\)/g, '').replace(/\s+/g, ' ').trim();
+    if (s.length <= 600) return s;
+    const cut = s.slice(0, 600), end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+    return (end > 160 ? cut.slice(0, end + 1) : cut.replace(/\s+\S*$/, '') + '…').trim();
+  }
+  async function researchAnswer(query, original) {
+    const followed = resolveFollow(original), q = followed !== original ? cleanQuery(followed) : query;
+    const key = normKey(q) || normKey(followed);
+    if (!key) return { reply: 'I need a topic to look up, for example "what is photosynthesis".', actions: [], sources: [] };
+    if (pendingResearch.has(key)) return pendingResearch.get(key);
+    const job = (async () => {
+      const pk = packFind(followed);
+      if (pk) { learn(original, 'research', 1); return pk; }
+      const hit = cacheFind(followed);
+      if (hit) return hit;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return { reply: 'You are offline. I can still use the facts packed with the site and your task list, but this one needs a connection.', actions: [], sources: [], noMatch: true };
+      const sv = await serverAsk(followed);
+      if (sv) { rememberFact(followed, sv); learn(original, 'research', 1); return sv; }
+      if (!q) return { reply: 'I need a topic to look up, for example "what is photosynthesis".', actions: [], sources: [] };
+      const wait = 1200 - (Date.now() - lastResearch);
+      if (wait > 0) await new Promise(r => setTimeout(r, wait));
+      lastResearch = Date.now();
+      try {
+        const s = await fetchJson(`${WIKI}&action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=3`);
+        const results = ((s.query || {}).search) || [];
+        for (const r of results) {
+          const title = r.title || '';
+          if (!title || /disambiguation/i.test(title)) continue;
+          const e = await fetchJson(`${WIKI}&action=query&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(title)}`);
+          const pages = (e.query || {}).pages || {};
+          const page = Object.values(pages)[0] || {};
+          const text = trimExtract(page.extract);
+          if (!text || text.length < 40 || /may refer to/i.test(text)) continue;
+          const url = 'https://en.wikipedia.org/wiki/' + encodeURIComponent(title.replace(/ /g, '_'));
+          const res = { reply: text, actions: [], sources: [url], source: url };
+          lastEntity = title; lastIntent = 'wiki';
+          rememberFact(followed, res);
+          learn(original, 'research', 1);
+          return res;
+        }
+      } catch (err) { console.warn('Research failed:', err && err.message); }
+      return { reply: 'I could not look that up right now (no connection or no match). I can still help with your tasks — try "plan my day".', actions: [], sources: [], noMatch: true };
+    })();
+    pendingResearch.set(key, job);
+    try { return await job; } finally { pendingResearch.delete(key); }
+  }
+
   // Main entry: exact commands first, then the neural net, then keyword knowledge search.
   // Every understood sentence is a free training example; a rephrased sentence after a miss
   // is a strong one. This is how the assistant trains itself from normal conversation.
-  function reply(text, tasks, history) {
-    const msg = String(text || '').trim();
+  async function reply(text, tasks, history) {
+    const msg = String(text || '').trim(), followed = resolveFollow(msg);
     const l = msg.toLowerCase();
     if (lastNeural && WRONG_RE.test(l)) {
       const was = lastNeural;
@@ -903,29 +1304,58 @@ function neuralRespond(text, tasks) {
         if (lastUnknown && lastUnknown.toLowerCase() !== l && related(lastUnknown, msg)) learn(lastUnknown, intent, 2);
         learn(msg, intent, 1);
       }
-      lastUnknown = ''; lastNeural = null;
+      lastUnknown = ''; lastNeural = null; lastEntity = ''; lastIntent = '';
       return intent ? { ...exact, intent } : exact;
     }
+    const skill = localSkill(msg);
+    if (skill) return skill;
     const n = neuralRespond(msg, tasks);
+    if (n && n.research) {
+      const r = await researchAnswer(n.query, msg);
+      lastNeural = null;
+      lastUnknown = r.noMatch ? msg : '';
+      return r;
+    }
+    if (n && n.chat) {
+      const pk = packFind(followed);
+      if (pk) { lastNeural = null; lastUnknown = ''; return pk; }
+      if (looksFactual(followed)) {
+        const r = await researchAnswer(cleanQuery(msg), msg);
+        lastNeural = null;
+        lastUnknown = r.noMatch ? msg : '';
+        return r;
+      }
+      lastNeural = null; lastUnknown = msg;
+      return { reply: 'I am a knowledge engine, not a writer: I can look up facts, definitions, comparisons, weather and currency, and I can run your task commands. Try "why is the sky blue", "compare France and Germany" or "add fix login tomorrow high".', actions: [] };
+    }
     if (n) {
       const intent = intentOf(n);
       if (intent && lastUnknown && lastUnknown.toLowerCase() !== l && related(lastUnknown, msg)) learn(lastUnknown, intent, 2);
       if (intent) learn(msg, intent, 1);
       lastUnknown = '';
+      if (n.actions && n.actions.length) { lastEntity = ''; lastIntent = ''; }
       lastNeural = intent ? { text: msg, intent, hadAction: !!(n.actions && n.actions.length) } : null;
       return n;
     }
     lastNeural = null;
+    if (looksFactual(followed)) {
+      const r = await researchAnswer(cleanQuery(msg), msg);
+      lastUnknown = r.noMatch ? msg : '';
+      return r;
+    }
+    const lastPack = packFind(followed);
+    if (lastPack) { lastUnknown = ''; return lastPack; }
     // First visit, net still warming up: say so instead of a plain "did not get that"
     if (!root.TinyBrain.ready) return { reply: 'My neural side is still training in your browser (watch the badge at the top) — a few more seconds. Exact commands already work, for example "add fix login bug tomorrow high" or "plan my day".', actions: [] };
     lastUnknown = msg;
     return exact;
   }
-  async function init(onProgress) { const r = await root.TinyBrain.train([], onProgress); lastStats = r; return r; }
+  async function init(onProgress) { const r = await root.TinyBrain.train([], onProgress); lastStats = r; packLoad(); return r; }
+  function resetContext() { lastEntity = ''; lastIntent = ''; }
   function status() {
     if (!root.TinyBrain.ready) return 'Training neural AI...';
-    const n = root.TinyBrain.learned();
-    return `Neural AI ready: ${lastStats.examples || 0} examples, ${Math.round((lastStats.acc || 0) * 100)}% accuracy on unseen phrases${n ? ` · ${n} phrase${n === 1 ? '' : 's'} learned from your chats` : ''}`;
+    const n = root.TinyBrain.learned(), f = FACTS.length, p = PACK ? PACK.p.e.length : 0;
+    return `Neural AI ready: ${lastStats.examples || 0} examples, ${Math.round((lastStats.acc || 0) * 100)}% accuracy on unseen phrases${n ? ` · ${n} phrase${n === 1 ? '' : 's'} learned from your chats` : ''}${f ? ` · ${f} fact${f === 1 ? '' : 's'} remembered` : ''}${p ? ` · ${p} offline facts` : ''}${serverOn ? ' · knowledge engine online' : ''}`;
   }
-  root.JaltronAI = { reply, init, status, learned: () => root.TinyBrain.learned(), get ready() { return root.TinyBrain.ready; } };
+  root.JaltronAI = { reply, init, status, checkHealth, packFind, reset: resetContext, learned: () => root.TinyBrain.learned(), facts: () => FACTS.length, get ready() { return root.TinyBrain.ready; }, get serverOnline() { return serverOn === true; } };
 })(typeof window !== 'undefined' ? window : globalThis);
