@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>JALTRON - AI Plan Manager</title>
-  <script src="guard.js"></script>
   <meta name="theme-color" id="theme-color" content="#eef6fb">
   <script>try{var t=localStorage.getItem("jt:theme");document.documentElement.dataset.theme=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"}catch(e){}</script>
   <link id="favicon" rel="icon" type="image/png" href="favicon.png">
@@ -564,7 +563,6 @@
           <span><i class="fa-solid fa-wand-magic-sparkles"></i> Ask JALTRON</span>
           <button type="button" class="icon-btn sm" id="chat-clear" title="Start a new conversation" aria-label="Start a new conversation"><i class="fa-solid fa-rotate-left"></i></button>
         </div>
-        <div class="ai-bar"><span class="sub" id="nn-state">Starting neural AI...</span></div>
         <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
         <div class="chips" id="chips">
           <button data-ask="Plan my day">🗓️ Plan my day</button>
@@ -572,14 +570,11 @@
           <button data-ask="What's due today?">⏰ Due today</button>
           <button data-ask="Summary">📊 Summary</button>
           <button data-ask="Show my streaks">🔥 Streaks</button>
-          <button data-ask="Tell me a joke">😄 Joke</button>
-          <button data-ask="Who invented the telephone?">🔎 Who invented the telephone?</button>
-          <button data-ask="Why is the sky blue?">Why is the sky blue?</button>
-          <button data-ask="Compare France and Germany">Compare France and Germany</button>
-          <button data-ask="Define serendipity">Define serendipity</button>
+          <button data-ask="What is overdue?">⚠️ Overdue</button>
+          <button data-ask="15% of 200">🧮 15% of 200</button>
         </div>
         <form class="chat-form" id="chat-form">
-          <input id="chat-input" placeholder="Ask about tasks, or anything — I'll find the answer" autocomplete="off" aria-label="Message JALTRON">
+          <input id="chat-input" placeholder="Add, complete, plan, search, or do math" autocomplete="off" aria-label="Message JALTRON">
           <button class="btn primary" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
         </form>
       </section>

@@ -1,11 +1,5 @@
 {
   "cleanUrls": true,
-  "rewrites": [
-    {
-      "source": "/api/ai/:rest*",
-      "destination": "https://jaltron.wisp.uno/api/:rest*"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)\\.(js|css|html)",
@@ -22,15 +16,6 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=86400, stale-while-revalidate=604800"
-        }
-      ]
-    },
-    {
-      "source": "/data/(.*)\\.json",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=604800"
         }
       ]
     }

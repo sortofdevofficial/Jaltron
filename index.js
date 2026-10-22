@@ -597,47 +597,15 @@ function applyActions(actions) {
 
 const chatMsgs = [];
 const log = $('chat-log');
-function addMsg(cls, text, sources) {
+function addMsg(cls, text) {
   const d = document.createElement('div');
   d.className = 'msg ' + cls;
   d.textContent = text;
-  if (Array.isArray(sources) && sources.length) {
-    const row = document.createElement('div');
-    row.className = 'msg-sources';
-    row.append('Sources: ');
-    let n = 0;
-    for (const u of sources.slice(0, 3)) {
-      let url;
-      try { url = new URL(u); } catch { continue; }
-      if (!/^https?:$/.test(url.protocol)) continue;
-      if (n++) row.append(' · ');
-      const a = document.createElement('a');
-      a.href = url.href;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.textContent = url.hostname.replace(/^www\./, '');
-      row.appendChild(a);
-    }
-    if (n) d.appendChild(row);
-  }
   log.appendChild(d);
   log.scrollTop = log.scrollHeight;
   return d;
 }
 // ---- AI page (everything lives in ai.js) ----
-function setNn(text) { const el = $('nn-state'); if (el) el.textContent = text; }
-let aiTraining = null;
-// The net warms up on its own after the page loads (saved weights load instantly), so the chat is ready before you open it
-const ensureAI = () => aiTraining || (aiTraining = trainAI());
-async function trainAI() {
-  if (typeof JaltronAI === 'undefined') return setNn('ai.js did not load. Upload ai.js next to index.html.');
-  setNn('Preparing neural AI...');
-  try {
-    await JaltronAI.init((ep, total) => setNn(`Training neural AI (first run only)... ${Math.round(ep / total * 100)}%`));
-    setNn(JaltronAI.status());
-    if (JaltronAI.checkHealth) JaltronAI.checkHealth().then(() => setNn(JaltronAI.status()));
-  } catch (err) { console.error(err); setNn('Neural AI failed to train. Built-in commands still work.'); }
-}
 let aiBusy = false, aiSeq = 0;
 async function ask(text) {
   if (aiBusy) return;
@@ -653,10 +621,9 @@ async function ask(text) {
     if (seq !== aiSeq) return; // a new chat started while this answer was on its way
     clearTimeout(timer);
     if (typing) typing.remove();
-    addMsg('ai', res.reply, res.sources);
+    addMsg('ai', res.reply);
     chatMsgs.push({ role: 'assistant', content: res.reply });
     if (res.actions && res.actions.length) applyActions(res.actions);
-    setNn(JaltronAI.status());
   } catch (err) {
     console.error(err);
     clearTimeout(timer);
@@ -670,9 +637,9 @@ async function ask(text) {
 function openAI() {
   const leaving = document.querySelector('.page.active')?.dataset.page !== 'ai';
   if (leaving) location.hash = '#ai';
-  setTimeout(() => { $('chat-input').focus(); ensureAI(); }, leaving ? 80 : 0);
+  setTimeout(() => $('chat-input').focus(), leaving ? 80 : 0);
 }
-const AI_HELLO = 'Hi, I am JALTRON 👋. Task commands run on this device. My knowledge engine can also answer facts, definitions, comparisons, weather, currency, time and quizzes with sources. Try: add fix login bug tomorrow high · why is the sky blue?';
+const AI_HELLO = 'Hi, I am JALTRON 👋. I run on this device and handle your tasks: add, complete, plan, focus, snooze, streaks, math and dates. Try: add fix login bug tomorrow high · plan my day · rescue my week · what am I forgetting?';
 function newChat() {
   aiSeq++; aiBusy = false; // drop any answer still on its way from the old chat
   if (window.JaltronAI && JaltronAI.reset) JaltronAI.reset();
@@ -701,8 +668,6 @@ $('chat-form').addEventListener('submit', (e) => {
   if (v && !aiBusy) { $('chat-input').value = ''; ask(v); }
 });
 addMsg('ai', AI_HELLO);
-// Warm the neural AI in the background: cached weights load at once, a first visit trains in short pauses
-window.requestIdleCallback ? requestIdleCallback(() => ensureAI(), { timeout: 4000 }) : setTimeout(ensureAI, 1500);
 
 // New day: reopen finished repeating tasks, refresh due labels and streaks
 let lastDay = Habit.today();
@@ -881,7 +846,6 @@ $('cmd-form').addEventListener('submit', (e) => {
   ask(v);
 });
 setStatus('demo', 'CONNECTING');
-setNn('The neural AI warms up in the background. Exact commands work right away.');
 setTimeout(() => { if (!window.DB) setStatus('offline', 'OFFLINE'); }, 8000);
 // Plans page: current plan and expiry
 function renderPlan() {

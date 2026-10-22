@@ -1,1 +1,0 @@
-require('./kb-server').start();
