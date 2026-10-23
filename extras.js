@@ -1171,13 +1171,10 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
 // ================= live clock (header) =================
 (function () {
   'use strict';
-  const t = document.getElementById('clock-time'), z = document.getElementById('clock-zone'), box = document.getElementById('clock');
+  const t = document.getElementById('clock-time'), box = document.getElementById('clock');
   if (!t) return;
-  let zone = '';
-  try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
-  if (z) z.textContent = zone ? zone.split('/').pop().replace(/_/g, ' ') : '';
-  if (box && zone) {
-    const setTip = () => { box.title = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) + ' · ' + zone; };
+  if (box) {
+    const setTip = () => { box.title = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }); };
     setTip();
     setInterval(setTip, 60000);
   }
