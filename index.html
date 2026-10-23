@@ -106,7 +106,7 @@
       <button class="btn primary" id="top-add"><i class="fa-solid fa-plus"></i> <span>New task</span></button>
       <button class="btn" id="auth-btn"><i class="fa-brands fa-google"></i> <span>Sign in</span></button>
       <button class="icon-btn has-lbl" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i><span class="lbl">Dark</span></button>
-      <div class="clock" id="clock" title="Your local time"><i class="fa-regular fa-clock"></i><b id="clock-time">--:--:--</b></div>
+      <div class="clock" id="clock" title="Your local time"><i class="fa-regular fa-clock"></i><span id="clock-date"></span><b id="clock-time">--:--:--</b></div>
       <div class="status" id="status" data-state="demo"><span class="dot"></span><span id="status-text">STARTING</span></div>
     </div>
   </header>
@@ -146,18 +146,6 @@
         <button class="btn pet-draw" id="pet-draw"><i class="fa-solid fa-pencil"></i> Draw your pet</button>
       </div>
     </div>
-  </section>
-
-  <section class="hud dc-wrap" id="dc-section">
-    <div class="dc-msg">
-      <span class="dc-badge dc-logo big"></span>
-      <div>
-        <h2 class="dc-title">Want a subscription?</h2>
-        <p>Talk to our staff on Discord. Join the server, open a ticket or message a staff member and we will set you up.</p>
-        <a class="btn primary" data-dc-link href="https://discord.com/channels/1503297362246897694" target="_blank" rel="noopener noreferrer"><span class="dc-logo mini"></span> Talk to staff on Discord</a>
-      </div>
-    </div>
-    <div class="dc-embed" id="dc-embed" aria-live="polite"></div>
   </section>
 
   <section class="stats-grid">
@@ -272,6 +260,10 @@
       <div id="cal-day-list"></div>
       <p class="sub cal-tk-head" id="cal-tk-head" hidden>Tasks due this day</p>
       <div id="cal-day-tasks"></div>
+      <div id="cal-up" hidden>
+        <p class="sub cal-tk-head">Coming up</p>
+        <div id="cal-up-list"></div>
+      </div>
     </section>
   </div>
   </div>
@@ -708,7 +700,6 @@
       <form class="cmd-form" id="cat-form"><input id="cat-input" maxlength="20" placeholder="New category, e.g. Gym" autocomplete="off"><button class="btn primary">Add</button></form>
     </div>
     <label class="fp-toggle"><input type="checkbox" id="acct-lb"><span>Show me on the streak leaderboard</span></label>
-    <p class="sub dc-note"><span class="dc-logo mini"></span> Subscription? <a data-dc-link href="https://discord.com/channels/1503297362246897694" target="_blank" rel="noopener noreferrer">Talk to staff on Discord</a></p>
     <p class="sub" id="acct-msg" aria-live="polite"></p>
     <button class="btn full" id="acct-signout"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
   </dialog>
@@ -884,6 +875,10 @@
   <script src="lib.js"></script>
   <script src="ai.js"></script>
   <script src="extras.js"></script>
+  <script src="bank.js"></script>
+  <script src="links.js"></script>
+  <script src="leaderboard.js"></script>
+  <script src="calendar.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

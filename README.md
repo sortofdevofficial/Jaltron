@@ -5,7 +5,7 @@ A free, installable web app that plans your day: smart tasks, a Pomodoro focus t
 ## Features
 
 - **Tasks** — quick add, due dates, repeating tasks with per-task streaks, images, search, filters, smart ordering
-- **Calendar** — month grid with private, color-coded events; repeat daily, weekly or yearly; drag events between days, arrow-key navigation; system-notification reminders 10 minutes before timed events; public holidays for your country (free Nager.Date API, no key); tasks with a due date show on their day (Free: 20 events, Lite: unlimited)
+- **Calendar** — month grid with private, color-coded events; repeat daily, weekly or yearly; drag events between days, arrow-key navigation; system-notification reminders 10 minutes before timed events; public holidays for your country (free Nager.Date API, no key) with Wikipedia photos and emoji fallbacks; a "Coming up" list that jumps to the next occurrence; tasks with a due date show on their day (Free: 20 events, Lite: unlimited)
 - **AI assistant** — plain-language commands, planning, math, units, dates, world clocks, randomness and fun skills; runs 100% offline by default, and an optional **Universal mode** lets you paste your own OpenAI-compatible API key (stored only in your browser) so any question the offline skills can't answer goes to that model
 - **Focus** — Pomodoro timer with presets, zen mode, mini dock and session stats
 - **Insights** — category/priority charts, 7-day and 12-week heatmap, habit streaks (Lite)
@@ -22,7 +22,11 @@ Everything lives at the root on purpose — one file per job, no build step:
 | `admin.html` | Staff-only panel to grant Lite (`noindex`) |
 | `index.js` | Task logic: add, edit, complete, filter, sort, render |
 | `ai.js` | The offline AI brain (parser, skills, chat) plus the optional bring-your-own-key Universal mode |
-| `extras.js` | Page modules: hero, focus UX, palette, shortcuts, confetti, bank, links, calendar |
+| `extras.js` | Shared UI: hero, focus UX, palette, shortcuts, confetti, toast, sidebar, header clock |
+| `bank.js` | Fake bank page module (`window.Bank`) |
+| `links.js` | Saved links page module (`window.Links`) |
+| `leaderboard.js` | Streak leaderboard page module |
+| `calendar.js` | Calendar page module (`window.Calendar`): events, repeats, holidays, reminders |
 | `lib.js` | Shared library: habits, reviews, focus engine, misc UX |
 | `db.js` | Firebase: Google auth + Firestore sync (ES module) |
 | `style.css` | All styling, light/dark themes |
@@ -35,7 +39,7 @@ Everything lives at the root on purpose — one file per job, no build step:
 
 ## How the pieces talk
 
-Classic scripts load in order `lib.js → ai.js → extras.js → index.js` and share globals; `db.js` is an ES module that loads in parallel and reports sign-in state via events. The cloud layout is documented at the top of `db.js`.
+Classic scripts load in order `lib.js → ai.js → extras.js → bank.js → links.js → leaderboard.js → calendar.js → index.js` and share globals; `db.js` is an ES module that loads in parallel and reports sign-in state via events. Each page area lives in its own file with a small `window.X` API, so you can change one area without touching the others. The cloud layout is documented at the top of `db.js`.
 
 ## SEO & PWA
 
