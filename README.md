@@ -5,7 +5,7 @@ A free, installable web app that plans your day: smart tasks, a Pomodoro focus t
 ## Features
 
 - **Tasks** — quick add, due dates, repeating tasks with per-task streaks, images, search, filters, smart ordering
-- **Calendar** — month grid with private, color-coded events; drag events between days, arrow-key navigation; tasks with a due date show on their day (Free: 20 events, Lite: unlimited)
+- **Calendar** — month grid with private, color-coded events; repeat daily, weekly or yearly; drag events between days, arrow-key navigation; system-notification reminders 10 minutes before timed events; public holidays for your country (free Nager.Date API, no key); tasks with a due date show on their day (Free: 20 events, Lite: unlimited)
 - **AI assistant** — plain-language commands, planning, math, units, dates, world clocks, randomness and fun skills; runs 100% offline by default, and an optional **Universal mode** lets you paste your own OpenAI-compatible API key (stored only in your browser) so any question the offline skills can't answer goes to that model
 - **Focus** — Pomodoro timer with presets, zen mode, mini dock and session stats
 - **Insights** — category/priority charts, 7-day and 12-week heatmap, habit streaks (Lite)

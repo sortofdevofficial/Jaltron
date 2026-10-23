@@ -813,35 +813,45 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
   const key = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
   const dayOf = (k) => { const d = new Date(k + 'T00:00'); return d; };
   const keyOf = (d) => key(d.getFullYear(), d.getMonth(), d.getDate());
-  const pack = (v) => ({ t: v.t, d: Habit.dayMs(v.day), m: v.tm, c: v.c, n: v.n });
+  const pack = (v) => ({ t: v.t, d: Habit.dayMs(v.day), m: v.tm, c: v.c, n: v.n, r: v.r || '' });
 
-  let signedIn = false, ev = {};                 // ev: id -> { t, day, tm, c, n }
+  let signedIn = false, ev = {};                 // ev: id -> { t, day, tm, c, n, r }
   let vy, vm, sel = '', editing = null, delTimer = 0;
   sel = Habit.today();
   const viewOf = (k) => { const d = dayOf(k); vy = d.getFullYear(); vm = d.getMonth(); };
   viewOf(sel);
 
   const active = () => document.querySelector('.page.active')?.dataset.page === 'calendar';
-  const evsOn = (k) => Object.entries(ev).filter(([, v]) => v.day === k)
+  const REPS = { d: 'every day', w: 'every week', y: 'every year' };
+  // Does event v (starting on v.day) appear on day key k? Recurring series expand forward forever.
+  const occurs = (v, k) => v.r === 'd' ? v.day <= k
+    : v.r === 'w' ? v.day <= k && dayOf(v.day).getDay() === dayOf(k).getDay()
+    : v.r === 'y' ? v.day <= k && v.day.slice(5) === k.slice(5)
+    : v.day === k;
+  const evsOn = (k) => Object.entries(ev).filter(([, v]) => occurs(v, k))
     .map(([id, v]) => ({ id, ...v }))
     .sort((a, b) => (!a.tm) - (!b.tm) || (a.tm || '').localeCompare(b.tm || '') || a.t.localeCompare(b.t));
   const tksOn = (k) => (window.Extras ? Extras.tasks() : []).filter(t => !t.done && t.due === k);
 
   // ---------- Month grid ----------
+  const repBadge = (e) => e.r ? `<span class="cal-rep" title="Repeats ${REPS[e.r]}">↻</span>` : '';
   function chipHtml(e) {
-    return `<button type="button" class="cal-ev" draggable="true" data-ev="${esc(e.id)}" style="--c:${COLORS[e.c]}" title="${esc(e.t)}">${e.tm ? `<b>${esc(e.tm)}</b>` : ''}<span>${esc(e.t)}</span></button>`;
+    return `<button type="button" class="cal-ev" draggable="true" data-ev="${esc(e.id)}" style="--c:${COLORS[e.c]}" title="${esc(e.t)}${e.r ? ` (repeats ${REPS[e.r]})` : ''}">${e.tm ? `<b>${esc(e.tm)}</b>` : ''}<span>${esc(e.t)}</span>${repBadge(e)}</button>`;
   }
   function renderMonth() {
     $('cal-month').textContent = dayOf(`${vy}-${pad(vm + 1)}-01`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
     const start = new Date(vy, vm, 1 - new Date(vy, vm, 1).getDay());
     const today = Habit.today();
-    let nEv = 0, html = '';
+    ensureHols(vy);
+    ensureHols(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 41).getFullYear());
+    let nEv = 0, nHol = 0, html = '';
     for (let i = 0; i < 42; i++) {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-      const k = keyOf(d), evs = evsOn(k), tks = tksOn(k);
-      if (d.getMonth() === vm) nEv += evs.length;
+      const k = keyOf(d), evs = evsOn(k), tks = tksOn(k), hs = hol[k] || [];
+      if (d.getMonth() === vm) { nEv += evs.length; nHol += hs.length; }
       html += `<div class="cal-cell${d.getMonth() !== vm ? ' out' : ''}${k === today ? ' today' : ''}${k === sel ? ' sel' : ''}" data-day="${k}">
         <span class="cal-dn">${d.getDate()}</span>
+        ${hs.length ? `<span class="cal-hol" title="${esc(hs.join(' · '))}">🎉 ${esc(hs[0])}</span>` : ''}
         ${evs.slice(0, 3).map(chipHtml).join('')}
         ${evs.length > 3 ? `<span class="cal-more">+${evs.length - 3} more</span>` : ''}
         ${tks.length ? `<span class="cal-td" title="${tks.length} task${tks.length > 1 ? 's' : ''} due">${tks.slice(0, 4).map(t => `<i style="--p:${PRIO_C[t.prio]}"></i>`).join('')}${tks.length > 4 ? `<em>+${tks.length - 4}</em>` : ''}</span>` : ''}
@@ -849,14 +859,15 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     }
     $('cal-cells').innerHTML = html;
     const due = (window.Extras ? Extras.tasks() : []).filter(t => !t.done && t.due).length;
-    $('cal-foot').textContent = `${nEv} event${nEv === 1 ? '' : 's'} this month · ${due} open task${due === 1 ? '' : 's'} with due dates · Tip: drag an event onto another day to move it.`;
+    const holTxt = nHol ? ` · ${nHol} public hol${nHol === 1 ? 'iday' : 'idays'}` : '';
+    $('cal-foot').textContent = `${nEv} event${nEv === 1 ? '' : 's'} this month${holTxt} · ${due} open task${due === 1 ? '' : 's'} with due dates · Tip: drag an event onto another day to move it.`;
   }
 
   // ---------- Day panel ----------
   function rowHtml(e) {
     return `<div class="cal-row" data-ev="${esc(e.id)}" style="--c:${COLORS[e.c]}">
-      <span class="cal-rt">${e.tm ? esc(e.tm) : 'All-day'}</span>
-      <span class="cal-rn"><b>${esc(e.t)}</b>${e.n ? `<small>${esc(e.n)}</small>` : ''}</span>
+      <span class="cal-rt">${e.tm ? esc(e.tm) : 'All-day'}${e.r ? ` <span class="cal-rep" title="Repeats ${REPS[e.r]}">↻</span>` : ''}</span>
+      <span class="cal-rn"><b>${esc(e.t)}</b>${e.n ? `<small>${esc(e.n)}</small>` : ''}${e.r ? `<small>Repeats ${REPS[e.r]}</small>` : ''}</span>
       <button type="button" class="cal-rm" data-rm="${esc(e.id)}" aria-label="Delete ${esc(e.t)}" title="Delete"><i class="fa-solid fa-xmark"></i></button>
     </div>`;
   }
@@ -866,9 +877,10 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
   function renderDay() {
     const d = dayOf(sel);
     $('cal-day-title').textContent = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) + (sel === Habit.today() ? ' · Today' : '');
-    const evs = evsOn(sel);
-    $('cal-day-list').innerHTML = evs.length ? evs.map(rowHtml).join('')
-      : '<div class="empty"><i class="fa-solid fa-calendar-day"></i><p>Nothing planned. Add an event, or give a task this due date.</p></div>';
+    const evs = evsOn(sel), hs = hol[sel] || [];
+    $('cal-day-list').innerHTML = (hs.length ? hs.map(n => `<div class="cal-holrow">🎉 <span>${esc(n)}</span><small>Public holiday</small></div>`).join('') : '')
+      + (evs.length ? evs.map(rowHtml).join('')
+        : hs.length ? '' : '<div class="empty"><i class="fa-solid fa-calendar-day"></i><p>Nothing planned. Add an event, or give a task this due date.</p></div>');
     const tks = tksOn(sel);
     $('cal-tk-head').hidden = !tks.length;
     $('cal-day-tasks').innerHTML = tks.map(tkRow).join('');
@@ -878,7 +890,9 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     $('cal-off').hidden = signedIn;
     $('cal-main').hidden = !signedIn;
     if (!signedIn || !active()) return;
+    if (!ccInit) { ccInit = true; initCC(); }
     renderMonth(); renderDay();
+    checkReminders();
   }
 
   // ---------- Event editor ----------
@@ -890,10 +904,11 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
   function openEditor(id, day) {
     const v = id ? ev[id] : null;
     editing = id || null;
-    $('cal-f-head').textContent = v ? 'Edit event' : 'New event';
+    $('cal-f-head').textContent = v ? (v.r ? `Edit event (repeats ${REPS[v.r]})` : 'Edit event') : 'New event';
     $('cal-f-title').value = v ? v.t : '';
     $('cal-f-date').value = v ? v.day : (day || sel);
     $('cal-f-time').value = v ? v.tm : '';
+    $('cal-f-rep').value = v ? (v.r || '') : '';
     $('cal-f-note').value = v ? v.n : '';
     $('cal-f-msg').textContent = '';
     $('cal-f-del').hidden = !v;
@@ -909,13 +924,14 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
     if (!t || !day) return;
     if (!editing && Object.keys(ev).length >= Plan.limit('events')) { $('cal-f-msg').textContent = Plan.msg('events'); return; }
     const id = editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
-    ev[id] = { t: t.slice(0, 120), day, tm: $('cal-f-time').value || '', c: pickedColor(), n: $('cal-f-note').value.trim().slice(0, 240) };
+    const rep = $('cal-f-rep').value;
+    ev[id] = { t: t.slice(0, 120), day, tm: $('cal-f-time').value || '', c: pickedColor(), n: $('cal-f-note').value.trim().slice(0, 240), r: REPS[rep] ? rep : '' };
     DB.calPut(id, pack(ev[id])).then(ok => { if (!ok) toast('Saved here, but the cloud write failed. Check your connection.'); });
     editing = null;
     $('cal-dlg').close();
     sel = day; viewOf(day);
     paint();
-    toast('📅 Event saved');
+    toast('📅 Event saved' + (ev[id].r ? ` (repeats ${REPS[ev[id].r]})` : ''));
   });
   $('cal-f-del').addEventListener('click', () => {
     const b = $('cal-f-del');
@@ -992,7 +1008,7 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
       delete ev[rm.dataset.rm];
       DB.calDel(rm.dataset.rm);
       paint();
-      toast('Event deleted');
+      toast('Event deleted (including its repeats)');
       return;
     }
     const row = e.target.closest('[data-ev]');
@@ -1032,12 +1048,121 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
         if (!v || typeof v.t !== 'string' || !v.d) continue;
         const day = typeof v.d === 'number' ? keyOf(new Date(v.d)) : '';
         if (!day) continue;
-        ev[id] = { t: v.t, day, tm: typeof v.m === 'string' && /^\d{2}:\d{2}$/.test(v.m) ? v.m : '', c: COLORS[v.c] ? v.c : 'blue', n: typeof v.n === 'string' ? v.n : '' };
+        ev[id] = { t: v.t, day, tm: typeof v.m === 'string' && /^\d{2}:\d{2}$/.test(v.m) ? v.m : '', c: COLORS[v.c] ? v.c : 'blue', n: typeof v.n === 'string' ? v.n : '', r: ['d', 'w', 'y'].includes(v.r) ? v.r : '' };
       }
     }
     sel = Habit.today(); viewOf(sel);
     paint();
   });
+
+  // ---------- Public holidays (free Nager.Date API, no key needed) ----------
+  let hol = {}, ccInit = false;                  // hol: 'YYYY-MM-DD' -> [names]
+  const flag = (c) => [...c].map(ch => String.fromCodePoint(127397 + ch.charCodeAt(0))).join('');
+  const ccSel = () => $('cal-cc').value;
+  function applyHol(year, list) {
+    for (const h of list) (hol[h.d] = hol[h.d] || []).push(h.n);
+    if (active() && signedIn && dayOf(sel).getFullYear() === year) paint();
+  }
+  async function ensureHols(year) {
+    const cc = ccSel();
+    if (!cc || hol['yr' + year]) return;
+    hol['yr' + year] = 1;
+    const ck = `jt:hol:${cc}:${year}`;
+    let c = null;
+    try { c = JSON.parse(localStorage.getItem(ck) || 'null'); } catch {}
+    if (c && c.list && Date.now() - c.at < 7 * 864e5) return applyHol(year, c.list);
+    try {
+      const r = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${cc}`);
+      if (!r.ok) throw 0;
+      const list = (await r.json()).map(x => ({ d: x.date, n: x.localName || x.name || 'Holiday' }));
+      try { localStorage.setItem(ck, JSON.stringify({ at: Date.now(), list })); } catch {}
+      applyHol(year, list);
+    } catch { if (c && c.list) applyHol(year, c.list); }  // offline: stale cache still helps
+  }
+  async function initCC() {
+    const sel = $('cal-cc');
+    let list = null;
+    try { list = JSON.parse(localStorage.getItem('jt:holccs') || 'null'); } catch {}
+    if (!list || !Array.isArray(list.c) || !list.c.length || Date.now() - list.at > 30 * 864e5) {
+      try {
+        const r = await fetch('https://date.nager.at/api/v3/AvailableCountries');
+        if (r.ok) { list = { at: Date.now(), c: (await r.json()).map(x => x.countryCode) }; try { localStorage.setItem('jt:holccs', JSON.stringify(list)); } catch {} }
+      } catch {}
+    }
+    if (!list || !Array.isArray(list.c) || !list.c.length) list = { c: ['US', 'GB', 'CA', 'AU', 'IN', 'DE', 'FR', 'ES', 'IT', 'NL', 'BR', 'MX', 'ZA', 'NG', 'PH', 'PK'] };
+    const codes = list.c;
+    let cc = '';
+    try { cc = localStorage.getItem('jt:holcc') || ''; } catch {}
+    if (!cc) {
+      const region = (navigator.language || '').split('-')[1];
+      cc = codes.includes(region) ? region : codes.includes('US') ? 'US' : codes[0];
+    }
+    sel.innerHTML = '<option value="">No holidays</option>' + codes.map(c => `<option value="${c}">${flag(c)} ${c}</option>`).join('');
+    sel.value = codes.includes(cc) ? cc : '';
+    sel.addEventListener('change', () => {
+      try { localStorage.setItem('jt:holcc', sel.value); } catch {}
+      hol = {};
+      paint();
+    });
+    paint();
+  }
+
+  // ---------- Event reminders (system notifications on this device) ----------
+  const NOTIF_KEY = 'jt:calnotif';
+  let fired = new Set();
+  try { fired = new Set(JSON.parse(localStorage.getItem('jt:notifdone') || '[]')); } catch {}
+  const saveFired = () => { try { localStorage.setItem('jt:notifdone', JSON.stringify([...fired].slice(-200))); } catch {} };
+  const notifOn = () => { try { return localStorage.getItem(NOTIF_KEY) === '1'; } catch { return false; } };
+  // Register once so phones that require a service worker can show notifications too
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname)))
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  function pushNotif(tag, title, body) {
+    const opt = { body, tag, icon: 'favicon.png', badge: 'favicon.png' };
+    try {
+      if (navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.showNotification(title, opt)).catch(() => { try { new Notification(title, opt); } catch {} });
+      else new Notification(title, opt);
+    } catch {}
+    fired.add(tag);
+    saveFired();
+  }
+  function checkReminders() {
+    if (!signedIn || !notifOn() || !('Notification' in window) || Notification.permission !== 'granted') return;
+    const now = new Date(), nowMs = now.getTime();
+    for (const [id, v] of Object.entries(ev)) {
+      for (let off = -1; off <= 1; off++) {
+        const k = keyOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + off));
+        if (!occurs(v, k)) continue;
+        const start = new Date(k + 'T' + (v.tm || '09:00') + ':00');
+        const tag = `${id}:${k}`;
+        if (fired.has(tag) || nowMs < start.getTime() - 6e5 || nowMs > start.getTime() + 3e5) continue;
+        const inMin = Math.round((start.getTime() - nowMs) / 6e4);
+        pushNotif(tag, `⏰ ${v.t}`, inMin > 0 ? `Starts at ${v.tm || '09:00'} (in ${inMin} min).` : `Starting now${v.tm ? ' (' + v.tm + ')' : ''}.`);
+      }
+    }
+  }
+  setInterval(checkReminders, 30000);
+  function paintBell() {
+    const b = $('cal-notif'), on = notifOn();
+    b.innerHTML = `<i class="fa-solid ${on ? 'fa-bell' : 'fa-bell-slash'}"></i>`;
+    b.classList.toggle('on', on);
+    b.title = on ? 'Reminders are on — click to turn off' : 'Turn on event reminders (10 min before)';
+  }
+  $('cal-notif').addEventListener('click', async () => {
+    if (!('Notification' in window)) return toast('This device does not support notifications.');
+    if (notifOn()) {
+      try { localStorage.removeItem(NOTIF_KEY); } catch {}
+      paintBell();
+      toast('Reminders off');
+      return;
+    }
+    const p = await Notification.requestPermission();
+    if (p !== 'granted') return toast('Notifications are blocked — allow them in your browser settings first.');
+    try { localStorage.setItem(NOTIF_KEY, '1'); } catch {}
+    paintBell();
+    checkReminders();
+    toast('⏰ Reminders on — 10 min before each timed event');
+  });
+  paintBell();
 
   window.Calendar = { pageChanged: paint, tasksChanged: () => { if (active()) paint(); } };
   paint();
