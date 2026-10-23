@@ -646,7 +646,7 @@ function openAI() {
   if (leaving) location.hash = '#ai';
   setTimeout(() => $('chat-input').focus(), leaving ? 80 : 0);
 }
-const AI_HELLO = 'Hi, I am JALTRON 👋. I run on this device and handle your tasks: add, complete, plan, focus, snooze, streaks, math and dates. Try: add fix login bug tomorrow high · plan my day · rescue my week · what am I forgetting?';
+const AI_HELLO = 'Hi, I am JALTRON 👋. Offline I handle your tasks, plans, streaks, math, units, dates, world clocks and random picks. Turn on Universal mode in the sidebar with your own API key and I can answer anything. Try: add fix login bug tomorrow high · plan my day · time in tokyo · flip a coin';
 function newChat() {
   aiSeq++; aiBusy = false; // drop any answer still on its way from the old chat
   if (window.JaltronAI && JaltronAI.reset) JaltronAI.reset();
@@ -674,6 +674,28 @@ $('chat-form').addEventListener('submit', (e) => {
   const v = $('chat-input').value.trim();
   if (v && !aiBusy) { $('chat-input').value = ''; ask(v); }
 });
+// ---- Universal mode: BYO OpenAI-compatible key, stored only in this browser ----
+const uniMsg = $('uni-msg');
+function uniPaint() {
+  const c = window.JaltronAI && JaltronAI.aiConfig ? JaltronAI.aiConfig() : null;
+  const on = !!(c && c.on);
+  $('uni-dot').hidden = !on;
+  $('uni-off').hidden = !on;
+  if (c) { $('uni-url').value = c.url; $('uni-model').value = c.model; }
+  uniMsg.textContent = on ? 'Universal mode is on — ask me anything.' : '';
+}
+$('uni-f').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const url = $('uni-url').value.trim(), model = $('uni-model').value.trim(), key = $('uni-key').value.trim();
+  if (!/^https:\/\/.+/i.test(url)) { uniMsg.textContent = 'Base URL must start with https://'; return; }
+  if (!key) { uniMsg.textContent = 'Paste your API key.'; return; }
+  JaltronAI.saveAI({ url, model, key });
+  $('uni-key').value = '';
+  uniPaint();
+  uniMsg.textContent = 'Saved. Universal mode is on — try "who wrote Frankenstein?".';
+});
+$('uni-off').addEventListener('click', () => { JaltronAI.saveAI(null); uniPaint(); });
+uniPaint();
 addMsg('ai', AI_HELLO);
 
 // New day: reopen finished repeating tasks, refresh due labels and streaks

@@ -1,6 +1,9 @@
-// JALTRON AI: task assistant. Everything runs locally. No model, no training, no network.
+// JALTRON AI: task assistant. Everything runs locally by default: no model, no training, no network.
 //   1. BRAIN      task commands and messy sentence parsing
-//   2. JALTRONAI  exact commands, local math/date skills, friendly fallback
+//   2. JALTRONAI  exact commands, offline skills (math, units, dates, randomness, world clock)
+//                 plus optional Universal mode: the user adds their own OpenAI-compatible API
+//                 key on the AI page and anything the offline skills cannot answer is sent to
+//                 that model. The key lives only in this browser's localStorage, never on a server.
 // ---------------------------------------------------------------------------------------
 // Offline calculator used by the math skill.
 (function (root) {
@@ -401,16 +404,23 @@ function respond(msg, tasksIn, history) {
     || /\b(?:do first|first task|next task|highest priority|most urgent thing|attention first)\b/.test(l))
     return open.length ? say(`Do this first: "${open[0].title}" (${why(open[0])}).` + (open[1] ? `\nThen: "${open[1].title}".` : '')) : say('Your plan is empty. Add a task and I will tell you what to do first.');
   if (/\b(help|what can you|commands|features|how do you work)\b/.test(l))
-    return say('I can:\n- add tasks: "add fix login bug tomorrow high", "add exam prep friday urgent", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "complete all study", "delete old task"\n- undo a delete: "undo"\n- edit: "rename login to fix auth", "move login to friday", "snooze login" (3 days), "make login low", "tag docs as study"\n- focus: "focus on login" (opens the Focus page with that task ready)\n- find and filter: "find login", "show pending", "show high priority", "clear filters"\n- plan and think: "plan my day", "what\'s due today", "what about friday?", "summary", "overdue"\n- dig deeper: "break down login", "why is login first", "what did I finish this week", "what am I forgetting", "rescue my week", "show my streaks"\n- calculate offline: "15% of 200", "5 km to miles", "days until 2026-12-25", "tip on 42.50", "bmi 70 1.75", "what time is it"\n- repeat: "add gym daily", "add read every weekday"\n- stuck? "motivate me"\n- explain the site: drag, edit, themes, saving, status');
+    return say('I can:\n- add tasks: "add fix login bug tomorrow high", "add exam prep friday urgent", or several at once with commas\n- complete / reopen / delete: "complete login", "complete all", "complete all study", "delete old task"\n- undo a delete: "undo"\n- edit: "rename login to fix auth", "move login to friday", "snooze login" (3 days), "make login low", "tag docs as study"\n- focus: "focus on login" (opens the Focus page with that task ready)\n- find and filter: "find login", "show pending", "show high priority", "clear filters"\n- plan and think: "plan my day", "what\'s due today", "what about friday?", "summary", "overdue"\n- dig deeper: "break down login", "why is login first", "what did I finish this week", "what am I forgetting", "rescue my week", "show my streaks"\n- calculate offline: "15% of 200", "5 km to miles", "days until 2026-12-25", "tip on 42.50", "bmi 70 1.75", "what time is it"\n- general offline: "flip a coin", "roll 2d6", "pick pizza or sushi", "average 4 8 15 16", "sqrt 144", "is 2028 a leap year", "what day is 2026-12-25", "time in tokyo", "tell me a joke", "random fact", "how many words in: ..."\n- repeat: "add gym daily", "add read every weekday"\n- stuck? "motivate me"\n- explain the site: drag, edit, themes, saving, status\n- anything else: turn on Universal mode in the sidebar with your own API key');
   // A general question must not borrow a loose FAQ keyword ("dark matter" is not the theme setting)
   const siteWord = /\b(?:jaltron|task|tasks|todo|to-do|list|plan|schedule|overdue|priority|balance|streak|habit|repeat|recurring|theme|dark mode|light mode|save|storage|sync|sign in|account|status|online|offline|drag|edit|rename|search|shortcut|keyboard|undo|delete|category|tags?|due date|deadline|timer|focus|summary)\b/;
   const worldQ = (/^(?:who|what|where|when|why|which)\b/.test(l) || /^how (?:tall|far|old|big|long|heavy|deep|high|many|much|does|did|was|were|is)\b/.test(l))
     && !siteWord.test(l)
     && !/^(?:what (?:can|do) you|who are you|how are you|what is your|whats your|what'?s your|who is your|who'?s your|what is my|what is jaltron|what are you|how do you work|how old are you)\b/.test(l);
-  if (worldQ) return Object.assign(say('I handle tasks right now, not general questions. Try "add physics exam tomorrow urgent", "complete login", "plan my day" or "summary".'), { unknown: true });
+  if (worldQ) {
+    const uni = window.JaltronAI && JaltronAI.universal && JaltronAI.universal();
+    return Object.assign(say(uni
+      ? 'Universal mode is on, but the model did not answer. Check the URL and key in Universal mode settings, or try an offline skill: "15% of 200", "time in tokyo", "flip a coin".'
+      : 'I do tasks, math, units, dates and random picks offline. For everything else, turn on Universal mode in the AI page sidebar with your own API key and ask me anything.'), { unknown: true });
+  }
   for (const [re, ans] of FAQ) if (re.test(l)) return say(typeof ans === 'function' ? ans() : ans);
 
-  return Object.assign(say('I did not get that. I handle tasks: try "add physics exam tomorrow urgent", "complete login", "plan my day", "summary" or "15% of 200".'), { unknown: true });
+  return Object.assign(say(window.JaltronAI && JaltronAI.universal && JaltronAI.universal()
+    ? 'Universal mode could not answer that and my offline skills do not cover it either. Check your URL and key in the Universal mode panel, or try "help".'
+    : 'I did not get that. I handle tasks, math, units, dates and random picks: try "add physics exam tomorrow urgent", "plan my day", "summary" or "15% of 200". You can also turn on Universal mode (AI page sidebar) to ask anything.'), { unknown: true });
 }
 
 const api = { respond, clean, parseTask, find };
@@ -510,12 +520,156 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     return null;
   }
 
-  // Main entry: exact task commands first, then local math/date skills.
+  // ---- Universal offline skills: randomness, quick math, dates, jokes and world clocks ----
+  const capW = (s) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+  const ZONES = { tokyo: 'Asia/Tokyo', osaka: 'Asia/Tokyo', kyoto: 'Asia/Tokyo', seoul: 'Asia/Seoul', beijing: 'Asia/Shanghai', shanghai: 'Asia/Shanghai', 'hong kong': 'Asia/Hong_Kong', taipei: 'Asia/Taipei', singapore: 'Asia/Singapore', bangkok: 'Asia/Bangkok', jakarta: 'Asia/Jakarta', manila: 'Asia/Manila', 'kuala lumpur': 'Asia/Kuala_Lumpur', delhi: 'Asia/Kolkata', mumbai: 'Asia/Kolkata', kolkata: 'Asia/Kolkata', karachi: 'Asia/Karachi', dhaka: 'Asia/Dhaka', kathmandu: 'Asia/Kathmandu', dubai: 'Asia/Dubai', 'abu dhabi': 'Asia/Dubai', riyadh: 'Asia/Riyadh', doha: 'Asia/Qatar', tehran: 'Asia/Tehran', istanbul: 'Europe/Istanbul', jerusalem: 'Asia/Jerusalem', moscow: 'Europe/Moscow', kyiv: 'Europe/Kyiv', kiev: 'Europe/Kyiv', athens: 'Europe/Athens', helsinki: 'Europe/Helsinki', stockholm: 'Europe/Stockholm', oslo: 'Europe/Oslo', copenhagen: 'Europe/Copenhagen', berlin: 'Europe/Berlin', munich: 'Europe/Berlin', frankfurt: 'Europe/Berlin', paris: 'Europe/Paris', madrid: 'Europe/Madrid', barcelona: 'Europe/Madrid', rome: 'Europe/Rome', milan: 'Europe/Rome', amsterdam: 'Europe/Amsterdam', brussels: 'Europe/Brussels', vienna: 'Europe/Vienna', zurich: 'Europe/Zurich', geneva: 'Europe/Zurich', warsaw: 'Europe/Warsaw', prague: 'Europe/Prague', budapest: 'Europe/Budapest', lisbon: 'Europe/Lisbon', dublin: 'Europe/Dublin', london: 'Europe/London', manchester: 'Europe/London', edinburgh: 'Europe/London', reykjavik: 'Atlantic/Reykjavik', lagos: 'Africa/Lagos', cairo: 'Africa/Cairo', nairobi: 'Africa/Nairobi', johannesburg: 'Africa/Johannesburg', casablanca: 'Africa/Casablanca', 'new york': 'America/New_York', nyc: 'America/New_York', boston: 'America/New_York', washington: 'America/New_York', toronto: 'America/Toronto', montreal: 'America/Toronto', chicago: 'America/Chicago', dallas: 'America/Chicago', houston: 'America/Chicago', denver: 'America/Denver', phoenix: 'America/Phoenix', 'los angeles': 'America/Los_Angeles', seattle: 'America/Los_Angeles', 'san francisco': 'America/Los_Angeles', vancouver: 'America/Vancouver', anchorage: 'America/Anchorage', honolulu: 'Pacific/Honolulu', 'mexico city': 'America/Mexico_City', bogota: 'America/Bogota', lima: 'America/Lima', caracas: 'America/Caracas', santiago: 'America/Santiago', 'sao paulo': 'America/Sao_Paulo', 'buenos aires': 'America/Argentina/Buenos_Aires', montevideo: 'America/Montevideo', sydney: 'Australia/Sydney', melbourne: 'Australia/Melbourne', brisbane: 'Australia/Brisbane', perth: 'Australia/Perth', adelaide: 'Australia/Adelaide', auckland: 'Pacific/Auckland', fiji: 'Pacific/Fiji' };
+  const JOKES = [
+    'Why do programmers prefer dark mode? Because light attracts bugs.',
+    'I told my computer I needed a break, and it said: "No problem, I\'ll go to sleep."',
+    'Why did the developer go broke? He used up all his cache.',
+    'There are 10 types of people: those who understand binary and those who don\'t.',
+    'I would tell you a UDP joke, but you might not get it.',
+    'Why did the scarecrow win an award? He was outstanding in his field.'
+  ];
+  const FACTS = [
+    'Honey never spoils — archaeologists have tasted 3,000-year-old honey from Egyptian tombs.',
+    'Octopuses have three hearts and blue blood.',
+    'A day on Venus is longer than its year: it spins once every 243 Earth days but orbits the Sun in 225.',
+    'Bananas are berries; strawberries are not.',
+    'The Eiffel Tower can grow about 15 cm taller on hot summer days.',
+    'Sharks existed before trees, by roughly 50 million years.',
+    'Lightning can heat the air around it to about five times hotter than the Sun\'s surface.',
+    'Wombats produce cube-shaped poop so it does not roll away.'
+  ];
+  const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
+  function universal(text) {
+    const t = String(text || '').trim(), l = t.toLowerCase();
+    let m;
+    if (/^(?:flip|toss)(?:\s+a|\s+the)?\s*coin\??$/.test(l) || /^heads or tails\??$/.test(l))
+      return { reply: pickOne(['Heads.', 'Tails.']), actions: [] };
+    if ((m = l.match(/^roll\s+(?:a\s+|the\s+)?(?:(\d{0,2})d(\d{1,3})|die|dice)(?:\s*(\d{1,2})\s*times?)?\??$/)) && !/\bor\b/.test(l)) {
+      const n = Math.min(m[1] ? +m[1] || 1 : m[3] ? +m[3] : 1, 20), sides = Math.min(m[1] ? +m[2] : 6, 1000);
+      const rolls = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * sides));
+      return { reply: `🎲 ${rolls.join(' + ')} = ${rolls.reduce((a, b) => a + b, 0)}${n > 1 ? ` (${n}d${sides})` : ''}`, actions: [] };
+    }
+    if ((m = l.match(/^(?:random|pick a) number between\s+(-?\d+)\s+(?:and|to)\s+(-?\d+)\??$/)) || (m = l.match(/^(?:give me a )?random number\??$/))) {
+      let a = 1, b = 100;
+      if (m[1] !== undefined) { a = +m[1]; b = +m[2]; }
+      if (a > b) [a, b] = [b, a];
+      return { reply: `${a + Math.floor(Math.random() * (b - a + 1))} (between ${a} and ${b}).`, actions: [] };
+    }
+    if ((m = l.match(/^(?:pick|choose)(?:\s+one)?(?:\s+between)?[:\s]\s*(.+?)\??$/)) || (m = l.match(/^should i\s+(.+?)\??$/))) {
+      const opts = m[1].split(/\s*(?:,|\bor\b)\s*/).map(s => s.trim()).filter(s => s && s.length <= 60);
+      if (opts.length >= 2) return { reply: `I pick: ${pickOne(opts)}.`, actions: [] };
+    }
+    if ((m = t.match(/^count\s+(words|characters|letters|chars)\s*[:\-]\s*(.+)$/i))) {
+      const k = m[1].toLowerCase(), s = m[2].trim();
+      if (k === 'words') { const w = s.split(/\s+/).filter(Boolean).length; return { reply: `${w} word${w === 1 ? '' : 's'}.`, actions: [] }; }
+      const c = [...s].length, ns = s.replace(/\s/g, '').length;
+      return { reply: `${c} character${c === 1 ? '' : 's'}${ns !== c ? ` (${ns} without spaces)` : ''}.`, actions: [] };
+    }
+    if ((m = l.match(/^(?:what\s+)?percent(?:age)?\s+of\s+(-?[\d.]+)\s+is\s+(-?[\d.]+)\??$/)))
+      return { reply: `${rnd(+m[2] / +m[1] * 100)}%`, actions: [] };
+    if ((m = l.match(/^(-?[\d.]+)\s+is\s+what\s+percent(?:age)?\s+of\s+(-?[\d.]+)\??$/)))
+      return { reply: `${rnd(+m[1] / +m[2] * 100)}%`, actions: [] };
+    if ((m = l.match(/^percent(?:age)?\s+(?:change|difference)\s+(?:from\s+)?(-?[\d.]+)\s+to\s+(-?[\d.]+)\??$/))) {
+      const a = +m[1], b = +m[2];
+      if (!a) return { reply: 'Percent change from zero is undefined.', actions: [] };
+      const p = (b - a) / Math.abs(a) * 100;
+      return { reply: `${p >= 0 ? '+' : ''}${rnd(p)}% (${a} → ${b}).`, actions: [] };
+    }
+    if ((m = l.match(/^(?:average|mean)(?:\s+of)?[:\s]\s*(.+)$/)) || (m = l.match(/^what(?:'s| is) the (?:average|mean) of\s+(.+?)\??$/))) {
+      const nums = (m[1].match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+      if (nums.length >= 2) {
+        const sum = nums.reduce((a, b) => a + b, 0);
+        return { reply: `Average of ${nums.length} numbers: ${rnd(sum / nums.length)} (sum ${rnd(sum)}).`, actions: [] };
+      }
+    }
+    if ((m = l.match(/^(?:sqrt|square root of)\s*([\d.]+)\??$/))) return { reply: `√${m[1]} = ${rnd(Math.sqrt(+m[1]))}`, actions: [] };
+    if ((m = l.match(/^(?:cbrt|cube root of)\s*(-?[\d.]+)\??$/))) return { reply: `∛${m[1]} = ${rnd(Math.cbrt(+m[1]))}`, actions: [] };
+    if ((m = l.match(/^(?:factorial of\s*)?(\d{1,3})!\??$/)) || (m = l.match(/^factorial(?: of)?\s*(\d{1,3})\??$/))) {
+      let f = 1; for (let i = 2; i <= +m[1]; i++) f *= i;
+      return { reply: `${+m[1]}! = ${f}`, actions: [] };
+    }
+    if ((m = l.match(/^is\s+(\d{1,6})\s+(?:a\s+)?prime(?:\s+number)?\??$/))) {
+      const n = +m[1]; let p = n > 1;
+      for (let i = 2; i * i <= n; i++) if (n % i === 0) { p = false; break; }
+      return { reply: `${n} is ${p ? '' : 'not '}prime.`, actions: [] };
+    }
+    if ((m = l.match(/^is\s+(\d{4})\s+(?:a\s+)?leap\s+year\??$/))) {
+      const y = +m[1], leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+      return { reply: `${y} is ${leap ? '' : 'not '}a leap year.`, actions: [] };
+    }
+    if ((m = l.match(/^(?:what\s+)?(?:day|weekday)\s+(?:is|was|will be)\s+(\d{4}-\d{2}-\d{2})\??$/)) || (m = l.match(/^what day of the week (?:is|was)\s+(\d{4}-\d{2}-\d{2})\??$/))) {
+      const d = isoDate(m[1]);
+      if (d) return { reply: `${m[1]} is a ${d.toLocaleDateString(undefined, { weekday: 'long' })}.`, actions: [] };
+    }
+    if ((m = l.match(/^(?:what(?:'s| is)? (?:the )?time (?:is it )?in|what time is it in|current time in|time in)\s+([a-z' ]+?)\s*\??$/))) {
+      const z = ZONES[m[1].trim()];
+      if (z) return { reply: `It is ${new Date().toLocaleTimeString(undefined, { timeZone: z, hour: '2-digit', minute: '2-digit' })} in ${capW(m[1].trim())}.`, actions: [] };
+    }
+    if (/^(?:tell me a |another |a )?joke\??$/.test(l) || /^make me laugh$/.test(l) || /^say something funny$/.test(l))
+      return { reply: pickOne(JOKES), actions: [] };
+    if (/^(?:tell me a |random |a )?fun? ?fact\??$/.test(l) || /^random fact$/.test(l) || /^tell me something (?:interesting|cool)$/.test(l))
+      return { reply: pickOne(FACTS), actions: [] };
+    return null;
+  }
+
+  // ---- Universal mode: bring your own OpenAI-compatible key. Stored only in this browser. ----
+  const AI_STORE = 'jt:ai';
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem(AI_STORE) || 'null'); } catch { cfg = null; }
+  const cfgOn = () => !!(cfg && cfg.url && cfg.key);
+  function saveAI(next) {
+    cfg = next && /^https:\/\/.+/i.test(next.url) && String(next.key || '').trim()
+      ? { url: String(next.url).trim().replace(/\/+$/, ''), key: String(next.key).trim(), model: String(next.model || 'gpt-4o-mini').trim() || 'gpt-4o-mini' }
+      : null;
+    try { if (cfg) localStorage.setItem(AI_STORE, JSON.stringify(cfg)); else localStorage.removeItem(AI_STORE); } catch {}
+  }
+  async function cloud(text, tasks, history, fallback) {
+    if (!cfgOn()) return null;
+    const open = (Array.isArray(tasks) ? tasks : []).filter(x => x && !x.done).slice(0, 8)
+      .map(x => `- ${x.title}${x.due ? ' (due ' + x.due + ')' : ''} [${x.prio}]`).join('\n');
+    const msgs = [{
+      role: 'system',
+      content: 'You are JALTRON, the built-in assistant of a personal task-planner web app. Answer any question clearly and concisely in plain text (no markdown headings; short "-" lists are fine). You also help the user plan their day. Their open tasks:\n' + (open || '(none yet)')
+    }];
+    // ask() already pushed the current message into history, so drop that duplicate
+    const hist = (Array.isArray(history) ? history : []).filter(h => h && (h.role === 'user' || h.role === 'assistant') && h.content);
+    if (hist.length && hist[hist.length - 1].role === 'user' && String(hist[hist.length - 1].content).trim() === String(text).trim()) hist.pop();
+    for (const h of hist.slice(-8)) msgs.push({ role: h.role, content: String(h.content).slice(0, 600) });
+    msgs.push({ role: 'user', content: String(text).slice(0, 2000) });
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => ctl.abort(), 30000) : null;
+    try {
+      const res = await fetch(cfg.url + '/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key },
+        body: JSON.stringify({ model: cfg.model, messages: msgs, temperature: 0.7, max_tokens: 500 }),
+        signal: ctl ? ctl.signal : undefined
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const d = await res.json();
+      const out = d && d.choices && d.choices[0] && d.choices[0].message && String(d.choices[0].message.content || '').trim();
+      return out ? { reply: out, actions: [] } : null;
+    } catch (e) {
+      const why = e && e.name === 'AbortError' ? 'timed out' : (e && e.message) || 'network error';
+      return { reply: `Universal mode could not reach the model (${why}), so here is my offline answer:\n\n` + fallback.reply, actions: fallback.actions || [] };
+    } finally { if (timer) clearTimeout(timer); }
+  }
+
+  // Main entry: task commands first, then offline skills, then Universal mode if a key is set.
   async function reply(text, tasks, history) {
     const msg = String(text || '').trim();
     const exact = root.Brain.respond(msg, tasks, history);
     if (!exact.unknown) return exact;
-    return localSkill(msg) || exact;
+    const local = universal(msg) || localSkill(msg);
+    if (local) return local;
+    return cfgOn() ? cloud(msg, tasks, history, exact) : exact;
   }
-  root.JaltronAI = { reply, reset: () => {}, get ready() { return true; } };
+  root.JaltronAI = {
+    reply, reset: () => {}, get ready() { return true; },
+    saveAI, universal: cfgOn,
+    aiConfig: () => (cfg ? { url: cfg.url, model: cfg.model, on: cfgOn() } : null)
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

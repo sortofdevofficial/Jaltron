@@ -1145,3 +1145,10 @@ html.theming *, html.theming *::before, html.theming *::after { transition: back
   .cal-ev::before { width: 0.45rem; height: 0.45rem; }
   .cal-foot { display: none; }
 }
+
+/* ---- AI: Universal mode panel ---- */
+.uni-form { display: grid; gap: .45rem; margin-top: .55rem; }
+.uni-form input { width: 100%; font-size: .8125rem; padding: .45rem .625rem; }
+.uni-btns { display: flex; gap: .5rem; align-items: center; }
+.uni-dot { width: .55rem; height: .55rem; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 .2rem color-mix(in srgb, #10b981 25%, transparent); }
+@media (max-width: 900px) { #uni-panel { order: 10; } }

@@ -6,7 +6,7 @@ A free, installable web app that plans your day: smart tasks, a Pomodoro focus t
 
 - **Tasks** — quick add, due dates, repeating tasks with per-task streaks, images, search, filters, smart ordering
 - **Calendar** — month grid with private, color-coded events; drag events between days, arrow-key navigation; tasks with a due date show on their day (Free: 20 events, Lite: unlimited)
-- **AI assistant** — plain-language commands, planning, math and date skills; runs 100% locally, no model or network
+- **AI assistant** — plain-language commands, planning, math, units, dates, world clocks, randomness and fun skills; runs 100% offline by default, and an optional **Universal mode** lets you paste your own OpenAI-compatible API key (stored only in your browser) so any question the offline skills can't answer goes to that model
 - **Focus** — Pomodoro timer with presets, zen mode, mini dock and session stats
 - **Insights** — category/priority charts, 7-day and 12-week heatmap, habit streaks (Lite)
 - **Grow** — streak leaderboard, drawn pet that grows with your streak, shared fake-money banks
@@ -21,7 +21,7 @@ Everything lives at the root on purpose — one file per job, no build step:
 | `index.html` | The whole app UI + SEO/social/PWA head |
 | `admin.html` | Staff-only panel to grant Lite (`noindex`) |
 | `index.js` | Task logic: add, edit, complete, filter, sort, render |
-| `ai.js` | The offline AI brain (parser, skills, chat) |
+| `ai.js` | The offline AI brain (parser, skills, chat) plus the optional bring-your-own-key Universal mode |
 | `extras.js` | Page modules: hero, focus UX, palette, shortcuts, confetti, bank, links, calendar |
 | `lib.js` | Shared library: habits, reviews, focus engine, misc UX |
 | `db.js` | Firebase: Google auth + Firestore sync (ES module) |

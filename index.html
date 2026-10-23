@@ -662,6 +662,20 @@
             <button data-ask="How am I doing?">📈 How am I doing</button>
           </div>
         </section>
+        <section class="hud panel ai-panel" id="uni-panel">
+          <div class="panel-title"><span><i class="fa-solid fa-globe"></i> Universal mode</span><span class="uni-dot" id="uni-dot" title="Universal mode is on" hidden></span></div>
+          <p class="sub">Answer anything with your own OpenAI-compatible key. It is saved only in this browser and sent only to the endpoint you choose — JALTRON servers never see it.</p>
+          <form id="uni-f" class="uni-form">
+            <input id="uni-url" inputmode="url" placeholder="Base URL, e.g. https://api.openai.com/v1" autocomplete="off" spellcheck="false">
+            <input id="uni-model" placeholder="Model, e.g. gpt-4o-mini" autocomplete="off" spellcheck="false">
+            <input id="uni-key" type="password" placeholder="API key" autocomplete="off" spellcheck="false">
+            <div class="uni-btns">
+              <button class="btn sm primary" type="submit">Save &amp; turn on</button>
+              <button class="btn sm" type="button" id="uni-off" hidden>Turn off</button>
+            </div>
+            <p class="sub" id="uni-msg" role="status"></p>
+          </form>
+        </section>
       </aside>
     </div>
   </div>
