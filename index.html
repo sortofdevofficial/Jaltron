@@ -69,6 +69,7 @@
       <button class="nav-item active" data-nav="home"><i class="fa-solid fa-house"></i><span>Home</span></button>
       <button class="nav-item" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span><b id="nav-tasks-n">0</b></button>
       <button class="nav-item" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span><b class="live" id="nav-focus-t" hidden>25:00</b></button>
+      <button class="nav-item" data-nav="calendar"><i class="fa-regular fa-calendar"></i><span>Calendar</span></button>
       <button class="nav-item" data-nav="ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Assistant</span></button>
       <button class="nav-item" data-nav="reviews"><i>⭐</i><span>Reviews</span></button>
       <button class="nav-item" data-nav="links"><i>🔗</i><span>Links</span></button>
@@ -243,6 +244,34 @@
       </div>
     </div>
   </div>
+  <div class="page" data-page="calendar">
+  <div class="lk-off hud" id="cal-off" hidden>
+    <strong>Sign in to use the calendar</strong>
+    <p class="sub">Events live in your account: private to you, on every device.</p>
+    <button class="btn primary" id="cal-signin"><i class="fa-brands fa-google"></i> Sign in</button>
+  </div>
+  <div class="cal-grid" id="cal-main" hidden>
+    <section class="hud panel cal-board">
+      <div class="panel-title">
+        <span><i class="fa-regular fa-calendar"></i> <b id="cal-month">…</b></span>
+        <div class="cal-nav">
+          <button class="icon-btn sm" id="cal-prev" aria-label="Previous month" title="Previous month"><i class="fa-solid fa-chevron-left"></i></button>
+          <button class="btn" id="cal-today">Today</button>
+          <button class="icon-btn sm" id="cal-next" aria-label="Next month" title="Next month"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="cal-week" id="cal-week" aria-hidden="true"></div>
+      <div class="cal-cells" id="cal-cells"></div>
+      <p class="sub cal-foot" id="cal-foot"></p>
+    </section>
+    <section class="hud panel cal-day">
+      <div class="panel-title"><span><i class="fa-solid fa-calendar-day"></i> <span id="cal-day-title">—</span></span><button class="btn primary" id="cal-add"><i class="fa-solid fa-plus"></i> New event</button></div>
+      <div id="cal-day-list"></div>
+      <p class="sub cal-tk-head" id="cal-tk-head" hidden>Tasks due this day</p>
+      <div id="cal-day-tasks"></div>
+    </section>
+  </div>
+  </div>
   <div class="page" data-page="plans">
   <section class="hud plans" id="plans">
     <div class="panel-title"><span><i class="fa-solid fa-bolt"></i> Plans</span><span class="sub" id="plan-state"></span></div>
@@ -252,6 +281,7 @@
         <ul>
           <li><i class="fa-solid fa-check"></i> Up to 25 tasks</li>
           <li><i class="fa-solid fa-check"></i> 3 custom categories</li>
+          <li><i class="fa-solid fa-check"></i> Calendar with 20 events</li>
           <li><i class="fa-solid fa-check"></i> Private saved links</li>
           <li><i class="fa-solid fa-check"></i> Focus timer and Ask AI</li>
           <li><i class="fa-solid fa-check"></i> Google sign-in and cloud sync</li>
@@ -265,6 +295,7 @@
           <li><i class="fa-solid fa-check"></i> Unlimited tasks</li>
           <li><i class="fa-solid fa-check"></i> 12 custom categories</li>
           <li><i class="fa-solid fa-check"></i> Repeating tasks, streaks and Insights</li>
+          <li><i class="fa-solid fa-check"></i> Unlimited calendar events</li>
           <li><i class="fa-solid fa-check"></i> Pictures: task images, avatar and cover</li>
           <li><i class="fa-solid fa-check"></i> Link covers: a picture for every saved link</li>
           <li><i class="fa-solid fa-check"></i> Crop before upload: zoom, aspect and exact pixel size</li>
@@ -722,6 +753,7 @@
       <kbd>2</kbd><span>Tasks</span>
       <kbd>3</kbd><span>Focus</span>
       <kbd>4</kbd><span>Insights</span>
+      <kbd>5</kbd><span>Calendar</span>
       <kbd>Space</kbd><span>Start or pause (Focus page)</span>
       <kbd>N</kbd><span>New task</span>
       <kbd>/</kbd><span>Search tasks</span>
@@ -798,6 +830,28 @@
       <button type="button" class="btn" id="cr-full">Use full image</button>
       <button type="button" class="btn primary" id="cr-go"><i class="fa-solid fa-check"></i> Crop &amp; upload</button>
     </div>
+  </dialog>
+
+  <dialog id="cal-dlg" class="acct" aria-label="Calendar event">
+    <div class="acct-head">
+      <div class="acct-id"><i class="fa-solid fa-calendar-day ed-ico"></i><div><strong id="cal-f-head">New event</strong><div class="sub">Anything you want to remember on a day</div></div></div>
+      <button type="button" class="icon-btn sm" id="cal-f-x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="cal-f" class="edit-form">
+      <div class="field"><label for="cal-f-title">Event</label><input id="cal-f-title" maxlength="120" required autocomplete="off" placeholder="e.g., Math exam, Dad's birthday"></div>
+      <div class="two-col">
+        <div class="field"><label for="cal-f-date">Date</label><input type="date" id="cal-f-date" required></div>
+        <div class="field"><label for="cal-f-time">Time (optional)</label><input type="time" id="cal-f-time"></div>
+      </div>
+      <div class="field"><label id="cal-f-cl-lbl">Color</label><div class="cal-colors" id="cal-f-colors" role="radiogroup" aria-labelledby="cal-f-cl-lbl"></div></div>
+      <div class="field"><label for="cal-f-note">Note (optional)</label><textarea id="cal-f-note" maxlength="240" rows="2" placeholder="Details, people, links…"></textarea></div>
+      <p class="sub" id="cal-f-msg" aria-live="polite"></p>
+      <div class="ed-actions">
+        <button type="button" class="btn danger" id="cal-f-del" hidden><i class="fa-solid fa-trash"></i> Delete</button>
+        <button type="button" class="btn" id="cal-f-cancel">Cancel</button>
+        <button type="submit" class="btn primary"><i class="fa-solid fa-check"></i> Save</button>
+      </div>
+    </form>
   </dialog>
 
   <canvas id="fx" aria-hidden="true"></canvas>

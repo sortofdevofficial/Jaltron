@@ -11,6 +11,7 @@
   // ---------- Hero, ring, level ----------
   function update(list, c) {
     tasks = list; ctx = c;
+    window.Calendar && Calendar.tasksChanged();
     const H = Habit, map = H.completions(list), day = H.today();
     const doneToday = map.get(day) || 0;
     const actionable = list.filter(t => !t.done && (t.r || (t.due && c.dayDiff(t.due) <= 0)));
@@ -120,8 +121,8 @@
   setInterval(() => Habit.tickResets(), 20000);
 
   // ---------- Navigation ----------
-  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', ai: 'AI Assistant', insights: 'Insights', plans: 'Plans', bank: 'Bank', links: 'Links', board: 'Leaderboard', reviews: 'Reviews', settings: 'Settings' };
-  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', ai: '✨', insights: '📊', plans: '⚡', bank: '🐷', links: '🔗', board: '🏆', reviews: '⭐', settings: '⚙️' };
+  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', calendar: 'Calendar', ai: 'AI Assistant', insights: 'Insights', plans: 'Plans', bank: 'Bank', links: 'Links', board: 'Leaderboard', reviews: 'Reviews', settings: 'Settings' };
+  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', calendar: '📅', ai: '✨', insights: '📊', plans: '⚡', bank: '🐷', links: '🔗', board: '🏆', reviews: '⭐', settings: '⚙️' };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
@@ -131,6 +132,7 @@
     Focus.title(`${PAGES[p]} | JALTRON`); Focus.pageChanged();
     window.Bank && Bank.pageChanged();
     window.Links && Links.pageChanged();
+    window.Calendar && Calendar.pageChanged();
     window.Board && Board.pageChanged();
     window.Reviews && Reviews.pageChanged();
     if (location.hash !== '#' + p) history.replaceState(null, '', '#' + p);
@@ -212,6 +214,7 @@
     { i: 'trophy', l: 'Go to Leaderboard', k: 'streak ranking top', run: () => go('board') },
     { i: 'piggy-bank', l: 'Go to Bank', k: 'money workspace pot', run: () => go('bank') },
     { i: 'up-right-from-square', l: 'Go to Links', k: 'bookmarks saved urls private', run: () => go('links') },
+    { i: 'calendar', l: 'Go to Calendar', k: 'events month schedule agenda dates', run: () => go('calendar') },
     { i: 'plus', l: 'New task', k: 'add create', run: newTask },
     { i: 'wand-magic-sparkles', l: 'Open AI assistant', k: 'ask chat assistant', run: () => jaltron.openChat() },
     { i: 'stopwatch', l: 'Go to Focus timer', k: 'pomodoro timer', run: () => go('focus') },
@@ -265,6 +268,7 @@
     const k = e.key.toLowerCase();
     if (k === 'n') { e.preventDefault(); newTask(); }
     else if (k === '1') go('home'); else if (k === '2') go('tasks'); else if (k === '3') go('focus'); else if (k === '4') go('insights');
+    else if (k === '5') go('calendar');
     else if (k === 'c') { e.preventDefault(); jaltron.openChat(); }
     else if (k === 'f') { e.preventDefault(); go('focus'); }
     else if (k === 't') $('theme-btn').click();
@@ -272,7 +276,7 @@
   });
 
   go(location.hash.slice(1) || 'home', true);
-  window.Extras = { go, update, startFocus, celebrate, focusId: () => Focus.taskId(), burst, toast };
+  window.Extras = { go, update, startFocus, celebrate, focusId: () => Focus.taskId(), burst, toast, tasks: () => tasks };
 })();
 document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && !document.querySelector('dialog[open]')) Extras.go('tasks', true); }, true);
 
@@ -793,4 +797,248 @@ document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELEC
   document.body.appendChild(up);
   let tick = false;
   addEventListener('scroll', () => { if (tick) return; tick = true; requestAnimationFrame(() => { tick = false; up.hidden = scrollY < 700; }); }, { passive: true });
+})();
+
+// ================= calendar =================
+// JALTRON calendar: private events on u/<uid>.cal (see db.js), one dotted field per event so tabs never clobber each other.
+// Month grid + a day panel. Open tasks with a due date show on their day; chips drag between days to reschedule.
+// The Free plan keeps 20 events (Plan.limit('events')); Lite is unlimited.
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+  const toast = (m) => window.Extras && Extras.toast(m);
+  const COLORS = { blue: '#3b82f6', cyan: '#06b6d4', green: '#10b981', amber: '#f59e0b', red: '#ef4444', violet: '#a78bfa' };
+  const PRIO_C = { high: '#ef4444', medium: '#f59e0b', low: '#10b981' };
+  const pad = (n) => String(n).padStart(2, '0');
+  const key = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+  const dayOf = (k) => { const d = new Date(k + 'T00:00'); return d; };
+  const keyOf = (d) => key(d.getFullYear(), d.getMonth(), d.getDate());
+  const pack = (v) => ({ t: v.t, d: Habit.dayMs(v.day), m: v.tm, c: v.c, n: v.n });
+
+  let signedIn = false, ev = {};                 // ev: id -> { t, day, tm, c, n }
+  let vy, vm, sel = '', editing = null, delTimer = 0;
+  sel = Habit.today();
+  const viewOf = (k) => { const d = dayOf(k); vy = d.getFullYear(); vm = d.getMonth(); };
+  viewOf(sel);
+
+  const active = () => document.querySelector('.page.active')?.dataset.page === 'calendar';
+  const evsOn = (k) => Object.entries(ev).filter(([, v]) => v.day === k)
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => (!a.tm) - (!b.tm) || (a.tm || '').localeCompare(b.tm || '') || a.t.localeCompare(b.t));
+  const tksOn = (k) => (window.Extras ? Extras.tasks() : []).filter(t => !t.done && t.due === k);
+
+  // ---------- Month grid ----------
+  function chipHtml(e) {
+    return `<button type="button" class="cal-ev" draggable="true" data-ev="${esc(e.id)}" style="--c:${COLORS[e.c]}" title="${esc(e.t)}">${e.tm ? `<b>${esc(e.tm)}</b>` : ''}<span>${esc(e.t)}</span></button>`;
+  }
+  function renderMonth() {
+    $('cal-month').textContent = dayOf(`${vy}-${pad(vm + 1)}-01`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const start = new Date(vy, vm, 1 - new Date(vy, vm, 1).getDay());
+    const today = Habit.today();
+    let nEv = 0, html = '';
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      const k = keyOf(d), evs = evsOn(k), tks = tksOn(k);
+      if (d.getMonth() === vm) nEv += evs.length;
+      html += `<div class="cal-cell${d.getMonth() !== vm ? ' out' : ''}${k === today ? ' today' : ''}${k === sel ? ' sel' : ''}" data-day="${k}">
+        <span class="cal-dn">${d.getDate()}</span>
+        ${evs.slice(0, 3).map(chipHtml).join('')}
+        ${evs.length > 3 ? `<span class="cal-more">+${evs.length - 3} more</span>` : ''}
+        ${tks.length ? `<span class="cal-td" title="${tks.length} task${tks.length > 1 ? 's' : ''} due">${tks.slice(0, 4).map(t => `<i style="--p:${PRIO_C[t.prio]}"></i>`).join('')}${tks.length > 4 ? `<em>+${tks.length - 4}</em>` : ''}</span>` : ''}
+      </div>`;
+    }
+    $('cal-cells').innerHTML = html;
+    const due = (window.Extras ? Extras.tasks() : []).filter(t => !t.done && t.due).length;
+    $('cal-foot').textContent = `${nEv} event${nEv === 1 ? '' : 's'} this month · ${due} open task${due === 1 ? '' : 's'} with due dates · Tip: drag an event onto another day to move it.`;
+  }
+
+  // ---------- Day panel ----------
+  function rowHtml(e) {
+    return `<div class="cal-row" data-ev="${esc(e.id)}" style="--c:${COLORS[e.c]}">
+      <span class="cal-rt">${e.tm ? esc(e.tm) : 'All-day'}</span>
+      <span class="cal-rn"><b>${esc(e.t)}</b>${e.n ? `<small>${esc(e.n)}</small>` : ''}</span>
+      <button type="button" class="cal-rm" data-rm="${esc(e.id)}" aria-label="Delete ${esc(e.t)}" title="Delete"><i class="fa-solid fa-xmark"></i></button>
+    </div>`;
+  }
+  function tkRow(t) {
+    return `<div class="cal-tk"><button type="button" class="cal-tk-c" data-tk="${t.id}" aria-label="Complete ${esc(t.title)}"><i class="fa-solid fa-check"></i></button><span class="cal-tk-t" title="${esc(t.title)}">${esc(t.title)}</span><button type="button" class="cal-tk-f" data-tkf="${t.id}" aria-label="Focus on ${esc(t.title)}" title="Focus on this"><i class="fa-solid fa-bullseye"></i></button></div>`;
+  }
+  function renderDay() {
+    const d = dayOf(sel);
+    $('cal-day-title').textContent = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) + (sel === Habit.today() ? ' · Today' : '');
+    const evs = evsOn(sel);
+    $('cal-day-list').innerHTML = evs.length ? evs.map(rowHtml).join('')
+      : '<div class="empty"><i class="fa-solid fa-calendar-day"></i><p>Nothing planned. Add an event, or give a task this due date.</p></div>';
+    const tks = tksOn(sel);
+    $('cal-tk-head').hidden = !tks.length;
+    $('cal-day-tasks').innerHTML = tks.map(tkRow).join('');
+  }
+
+  function paint() {
+    $('cal-off').hidden = signedIn;
+    $('cal-main').hidden = !signedIn;
+    if (!signedIn || !active()) return;
+    renderMonth(); renderDay();
+  }
+
+  // ---------- Event editor ----------
+  $('cal-f-colors').innerHTML = Object.entries(COLORS).map(([k, v]) => `<button type="button" class="sw" data-c="${k}" style="--c:${v}" role="radio" aria-checked="false" aria-label="${k}"></button>`).join('');
+  const pickColor = (k) => { if (!COLORS[k]) k = 'blue'; $('cal-f-colors').dataset.c = k; $('cal-f-colors').querySelectorAll('.sw').forEach(s => { const on = s.dataset.c === k; s.classList.toggle('on', on); s.setAttribute('aria-checked', String(on)); }); };
+  const pickedColor = () => $('cal-f-colors').dataset.c || 'blue';
+  $('cal-f-colors').addEventListener('click', (e) => { const s = e.target.closest('.sw'); if (s) pickColor(s.dataset.c); });
+
+  function openEditor(id, day) {
+    const v = id ? ev[id] : null;
+    editing = id || null;
+    $('cal-f-head').textContent = v ? 'Edit event' : 'New event';
+    $('cal-f-title').value = v ? v.t : '';
+    $('cal-f-date').value = v ? v.day : (day || sel);
+    $('cal-f-time').value = v ? v.tm : '';
+    $('cal-f-note').value = v ? v.n : '';
+    $('cal-f-msg').textContent = '';
+    $('cal-f-del').hidden = !v;
+    $('cal-f-del').classList.remove('sure');
+    pickColor(v ? v.c : 'blue');
+    $('cal-dlg').showModal();
+    setTimeout(() => $('cal-f-title').focus(), 30);
+  }
+  $('cal-f').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!window.DB || !DB.user) return;
+    const t = $('cal-f-title').value.trim(), day = $('cal-f-date').value;
+    if (!t || !day) return;
+    if (!editing && Object.keys(ev).length >= Plan.limit('events')) { $('cal-f-msg').textContent = Plan.msg('events'); return; }
+    const id = editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+    ev[id] = { t: t.slice(0, 120), day, tm: $('cal-f-time').value || '', c: pickedColor(), n: $('cal-f-note').value.trim().slice(0, 240) };
+    DB.calPut(id, pack(ev[id])).then(ok => { if (!ok) toast('Saved here, but the cloud write failed. Check your connection.'); });
+    editing = null;
+    $('cal-dlg').close();
+    sel = day; viewOf(day);
+    paint();
+    toast('📅 Event saved');
+  });
+  $('cal-f-del').addEventListener('click', () => {
+    const b = $('cal-f-del');
+    if (!editing) return;
+    if (!b.classList.contains('sure')) {   // two clicks: arm, then delete
+      b.classList.add('sure');
+      clearTimeout(delTimer);
+      delTimer = setTimeout(() => b.classList.remove('sure'), 2600);
+      return;
+    }
+    const id = editing;
+    delete ev[id];
+    DB.calDel(id);
+    editing = null;
+    $('cal-dlg').close();
+    paint();
+    toast('Event deleted');
+  });
+  $('cal-f-x').addEventListener('click', () => $('cal-dlg').close());
+  $('cal-f-cancel').addEventListener('click', () => $('cal-dlg').close());
+  $('cal-dlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+
+  // ---------- Grid and panel events ----------
+  const cells = $('cal-cells');
+  cells.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-ev]');
+    if (chip && !e.target.closest('.cal-cell')?.contains(chip)) return;
+    if (chip) return openEditor(chip.dataset.ev);
+    const cell = e.target.closest('[data-day]');
+    if (cell) { sel = cell.dataset.day; paint(); }
+  });
+  cells.addEventListener('dblclick', (e) => {
+    const chip = e.target.closest('[data-ev]');
+    if (chip) return;
+    const cell = e.target.closest('[data-day]');
+    if (cell && signedIn) openEditor(null, cell.dataset.day);
+  });
+  cells.addEventListener('dragstart', (e) => {
+    const chip = e.target.closest('[data-ev]');
+    if (!chip) return;
+    e.dataTransfer.setData('text/plain', chip.dataset.ev);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  cells.addEventListener('dragover', (e) => {
+    if (![...e.dataTransfer.types].includes('text/plain')) return;
+    const cell = e.target.closest('[data-day]');
+    if (!cell) return;
+    e.preventDefault();
+    cells.querySelectorAll('.over').forEach(x => x.classList.remove('over'));
+    cell.classList.add('over');
+  });
+  cells.addEventListener('dragleave', (e) => { const cell = e.target.closest('[data-day]'); if (cell && !cell.contains(e.relatedTarget)) cell.classList.remove('over'); });
+  cells.addEventListener('drop', (e) => {
+    const cell = e.target.closest('[data-day]');
+    cells.querySelectorAll('.over').forEach(x => x.classList.remove('over'));
+    if (!cell) return;
+    const id = e.dataTransfer.getData('text/plain'), v = ev[id];
+    e.preventDefault();
+    if (!v || v.day === cell.dataset.day) return;
+    v.day = cell.dataset.day;
+    DB.calPut(id, pack(v));
+    sel = v.day; viewOf(sel);
+    paint();
+    toast('📅 Moved to ' + dayOf(v.day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+  });
+  $('cal-day-list').addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) {
+      if (!rm.classList.contains('sure')) {
+        rm.classList.add('sure');
+        setTimeout(() => rm.classList.remove('sure'), 2600);
+        return;
+      }
+      delete ev[rm.dataset.rm];
+      DB.calDel(rm.dataset.rm);
+      paint();
+      toast('Event deleted');
+      return;
+    }
+    const row = e.target.closest('[data-ev]');
+    if (row) openEditor(row.dataset.ev);
+  });
+  $('cal-day-tasks').addEventListener('click', (e) => {
+    const tk = e.target.closest('[data-tk]'), fk = e.target.closest('[data-tkf]');
+    if (tk) dispatchEvent(new CustomEvent('jaltron:toggle-task', { detail: tk.dataset.tk }));
+    else if (fk) { const t = (window.Extras ? Extras.tasks() : []).find(x => x.id === Number(fk.dataset.tkf)); if (t && window.Extras) Extras.startFocus(t); }
+  });
+  $('cal-add').addEventListener('click', () => { if (signedIn) openEditor(null); });
+  $('cal-prev').addEventListener('click', () => { vm--; if (vm < 0) { vm = 11; vy--; } paint(); });
+  $('cal-next').addEventListener('click', () => { vm++; if (vm > 11) { vm = 0; vy++; } paint(); });
+  $('cal-today').addEventListener('click', () => { sel = Habit.today(); viewOf(sel); paint(); });
+  $('cal-signin').addEventListener('click', () => window.DB ? DB.signIn() : toast('Cloud is still loading, try again'));
+
+  // Arrow keys walk the days while the Calendar page is open
+  document.addEventListener('keydown', (e) => {
+    if (!active() || !signedIn) return;
+    if (document.querySelector('dialog[open]') || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const d = dayOf(sel);
+    d.setDate(d.getDate() + step);
+    sel = keyOf(d); viewOf(sel);
+    paint();
+  });
+
+  // ---------- Account events ----------
+  addEventListener('jaltron:user', (e) => {
+    signedIn = !!e.detail.user;
+    const c = e.detail.profile && e.detail.profile.cal;
+    ev = {};
+    if (c && typeof c === 'object') {
+      for (const [id, v] of Object.entries(c)) {
+        if (!v || typeof v.t !== 'string' || !v.d) continue;
+        const day = typeof v.d === 'number' ? keyOf(new Date(v.d)) : '';
+        if (!day) continue;
+        ev[id] = { t: v.t, day, tm: typeof v.m === 'string' && /^\d{2}:\d{2}$/.test(v.m) ? v.m : '', c: COLORS[v.c] ? v.c : 'blue', n: typeof v.n === 'string' ? v.n : '' };
+      }
+    }
+    sel = Habit.today(); viewOf(sel);
+    paint();
+  });
+
+  window.Calendar = { pageChanged: paint, tasksChanged: () => { if (active()) paint(); } };
+  paint();
 })();

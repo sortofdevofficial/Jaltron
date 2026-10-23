@@ -5,6 +5,7 @@ A free, installable web app that plans your day: smart tasks, a Pomodoro focus t
 ## Features
 
 - **Tasks** — quick add, due dates, repeating tasks with per-task streaks, images, search, filters, smart ordering
+- **Calendar** — month grid with private, color-coded events; drag events between days, arrow-key navigation; tasks with a due date show on their day (Free: 20 events, Lite: unlimited)
 - **AI assistant** — plain-language commands, planning, math and date skills; runs 100% locally, no model or network
 - **Focus** — Pomodoro timer with presets, zen mode, mini dock and session stats
 - **Insights** — category/priority charts, 7-day and 12-week heatmap, habit streaks (Lite)
@@ -21,7 +22,7 @@ Everything lives at the root on purpose — one file per job, no build step:
 | `admin.html` | Staff-only panel to grant Lite (`noindex`) |
 | `index.js` | Task logic: add, edit, complete, filter, sort, render |
 | `ai.js` | The offline AI brain (parser, skills, chat) |
-| `extras.js` | Hero dashboard, focus timer, palette, confetti, bank |
+| `extras.js` | Page modules: hero, focus UX, palette, shortcuts, confetti, bank, links, calendar |
 | `lib.js` | Shared library: habits, reviews, focus engine, misc UX |
 | `db.js` | Firebase: Google auth + Firestore sync (ES module) |
 | `style.css` | All styling, light/dark themes |

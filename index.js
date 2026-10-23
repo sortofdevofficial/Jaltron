@@ -249,6 +249,13 @@ $('task-list').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') commitEdit(Number(e.target.dataset.edit));
   if (e.key === 'Escape') { editingId = null; render(); }
 });
+// Calendar day panel: complete or reopen a task without leaving the page (see extras.js)
+addEventListener('jaltron:toggle-task', (e) => {
+  const id = Number(e.detail);
+  if (!tasks.some(t => t.id === id)) return;
+  tasks = tasks.map(t => t.id === id ? (t.done ? Habit.reopen(t) : Habit.complete(t)) : t);
+  render();
+});
 $('task-list').addEventListener('dblclick', (e) => {
   const title = e.target.closest('.task-title');
   if (title) { editingId = Number(title.closest('.task-item').dataset.id); render(); }
