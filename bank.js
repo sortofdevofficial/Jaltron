@@ -103,9 +103,9 @@
   function renderBanks() {
     const uid = window.DB && DB.user ? DB.user.uid : '';
     if (!signedIn) { $('bk-ws').innerHTML = ''; return; }
-    if (banksErr === 'rules') { $('bk-ws').innerHTML = '<p class="sub">Shared banks are blocked by Firestore rules. Publish the latest firestore.rules in the Firebase console, then reload this page.</p>'; return; }
-    if (banksErr) { $('bk-ws').innerHTML = '<p class="sub">Could not load your banks. Check your connection.</p>'; return; }
-    if (!banksReady) { $('bk-ws').innerHTML = '<p class="sub">Looking for your banks...</p>'; return; }
+    if (banksErr === 'rules') { $('bk-ws').innerHTML = '<p class="sub"><i class="fa-solid fa-triangle-exclamation"></i> Shared banks are blocked by Firestore rules. Publish the latest firestore.rules in the Firebase console, then reload this page.</p>'; return; }
+    if (banksErr) { $('bk-ws').innerHTML = '<p class="sub"><i class="fa-solid fa-triangle-exclamation"></i> Could not load your banks. Check your connection.</p>'; return; }
+    if (!banksReady) { $('bk-ws').innerHTML = '<p class="sub"><i class="fa-solid fa-spinner fa-spin"></i> Looking for your banks...</p>'; return; }
     const sorted = banks.slice().sort((a, b) => (view(a).owner === uid ? 0 : 1) - (view(b).owner === uid ? 0 : 1) || view(a).nm.localeCompare(view(b).nm));
     keepInputs(() => { $('bk-ws').innerHTML = sorted.map(p => bankCard(p, uid)).join('') || '<div class="empty"><i class="fa-solid fa-users"></i>No shared bank yet. Name one above, then add people by their username.</div>'; });
     fillNames($('bk-ws'));

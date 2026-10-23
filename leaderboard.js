@@ -6,13 +6,22 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
   const TOP = 10;
   let rows = null, mine = null, at = 0, busy = false;
-  const note = (t) => { $('bd-list').innerHTML = `<li class="bd-note">${t}</li>`; };
+  const note = (t, o = {}) => {
+    const icon = o.icon || 'fa-trophy';
+    $('bd-list').innerHTML = `<li class="bd-note">
+      <span class="bd-note-ico"><i class="fa-solid ${icon}"></i></span>
+      <strong>${esc(t)}</strong>
+      ${o.sub ? `<p class="sub">${esc(o.sub)}</p>` : ''}
+      ${o.act === 'signin' ? '<button class="btn primary" data-bd-act="signin"><i class="fa-brands fa-google"></i> Sign in</button>'
+        : o.act === 'tasks' ? '<button class="btn primary" data-bd-act="tasks"><i class="fa-solid fa-list-check"></i> Go to tasks</button>' : ''}
+    </li>`;
+  };
   const fillNames = () => $('bd-list').querySelectorAll('[data-nm]').forEach(el => DB.nameOf(el.dataset.nm).then(n => { el.textContent = '@' + (n || 'someone'); }));
   function paint() {
     const me = window.DB && DB.user ? DB.user.uid : '';
-    if (!me) return note('Sign in to see the leaderboard.');
-    if (!rows) return note(busy ? 'Loading...' : 'Could not load the leaderboard. Publish the latest firestore.rules, then press Refresh.');
-    if (!rows.length) return note('Nobody is on the board yet. Finish a task today to be the first.');
+    if (!me) return note('Sign in to see the leaderboard', { icon: 'fa-user', sub: 'Your streak ranks next to everyone else\'s.', act: 'signin' });
+    if (!rows) return note(busy ? 'Loading the leaderboard…' : 'Could not load the leaderboard', busy ? { icon: 'fa-spinner fa-spin' } : { icon: 'fa-triangle-exclamation', sub: 'Publish the latest firestore.rules, then press Refresh.' });
+    if (!rows.length) return note('Nobody is on the board yet', { icon: 'fa-trophy', sub: 'Finish a task today to be the first one up there.', act: 'tasks' });
     const live = (d) => d && d >= Habit.dayMs(Habit.addDays(Habit.today(), -1));
     $('bd-list').innerHTML = rows.map((r, i) => `<li class="bd-row${r.id === me ? ' me' : ''}${i < 3 ? ' top' + (i + 1) : ''}">
       <span class="bd-rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>
@@ -35,6 +44,12 @@
     busy = false; paint();
   }
   $('bd-refresh').addEventListener('click', load);
+  $('bd-list').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-bd-act]');
+    if (!b) return;
+    if (b.dataset.bdAct === 'signin') { if (window.DB) DB.signIn(); return; }
+    location.hash = '#tasks';
+  });
   addEventListener('jaltron:user', () => { rows = null; at = 0; if (document.querySelector('.page.active')?.dataset.page === 'board') setTimeout(load, 400); });
   window.Board = { pageChanged: () => { if (document.querySelector('.page.active')?.dataset.page === 'board' && Date.now() - at > 30000) load(); else paint(); } };
 })();

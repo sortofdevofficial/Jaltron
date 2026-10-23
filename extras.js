@@ -22,13 +22,15 @@
     const hello = h < 5 ? '🌙 Late night' : h < 12 ? '☀️ Good morning' : h < 18 ? '🌤️ Good afternoon' : '🌆 Good evening';
     $('hero-hello').textContent = c.name ? `${hello}, @${c.name}` : hello;
     let title, sub;
-    if (!list.length) { title = 'Your plan is empty'; sub = 'Add your first task on the left, press N, or tell the AI what you need.'; }
+    if (!list.length) { title = 'Your plan is empty'; sub = 'Add your first task, press N, or tell the AI what you need.'; }
     else if (goal && !actionable.length) { title = 'Everything for today is done'; sub = `${doneToday} finished. Plan tomorrow, or pick something from your backlog.`; }
     else if (goal) { title = `${actionable.length} ${actionable.length === 1 ? 'task' : 'tasks'} left today`; sub = overdue ? `${overdue} ${overdue === 1 ? 'is' : 'are'} overdue. Start with those.` : `${doneToday} already done. Keep the momentum.`; }
     else { title = 'Nothing is due today'; sub = 'Give a task a due date, or start a focus session on your top item.'; }
     $('hero-title').textContent = title;
     $('hero-sub').textContent = sub;
     $('hero-signin').hidden = !!c.signedIn;
+    $('hero-add').hidden = !!list.length;
+    $('hero-focus').classList.toggle('primary', !!list.length);
 
     const pct = goal ? doneToday / goal : 0;
     $('ring-fill').style.strokeDashoffset = String(RING * (1 - pct));
@@ -38,7 +40,7 @@
     next3 = list.filter(t => !t.done).sort((a, b) => c.score(b) - c.score(a)).slice(0, 3);
     $('next-list').innerHTML = next3.length
       ? next3.map(t => `<li class="p-${t.prio}" data-id="${t.id}"><span title="${esc(t.title)}">${esc(t.title)}</span>${t.due ? `<small>${esc(t.due.slice(5))}</small>` : ''}<button data-focus="${t.id}" aria-label="Focus on ${esc(t.title)}"><i class="fa-solid fa-bullseye"></i></button></li>`).join('')
-      : '<li class="none" style="border:none;background:none">Nothing waiting. Nice.</li>';
+      : '<li class="none"><i class="fa-regular fa-clock"></i> Nothing waiting. Enjoy the calm.</li>';
 
     petUpdate(map, day, c);
     Focus.sync(list, c);
@@ -56,6 +58,7 @@
     if (b) startFocus(tasks.find(t => t.id === Number(b.dataset.focus)));
   });
   $('hero-focus').addEventListener('click', () => startFocus(next3[0] || null));
+  $('hero-add').addEventListener('click', () => newTask());
   $('hero-signin').addEventListener('click', () => window.DB ? DB.signIn() : toast('Cloud is still loading, try again'));
   $('hero-keys').addEventListener('click', () => $('keys-dlg').showModal());
   $('keys-close').addEventListener('click', () => $('keys-dlg').close());
@@ -95,7 +98,7 @@
     $('pet-title').hidden = !art || !nm; $('pet-title').textContent = nm;
     if (document.activeElement !== $('pet-name')) $('pet-name').value = nm;
     const who = nm || 'Your pet';
-    $('pet-msg').textContent = !art ? 'Draw a pet and it grows with your streak.' : doneToday ? `🔥 ${n}-day streak. ${who} is happy! 😄` : `😴 ${who} is sleepy. Finish a task today to wake it up.`;
+    $('pet-msg').textContent = !art ? '🐾 Draw a pet and it grows with your streak.' : doneToday ? `🔥 ${n}-day streak. ${who} is happy! 😄` : `😴 ${who} is sleepy. Finish a task today to wake it up.`;
     if (!art) return;
     if (st < STAGES.length - 1) {
       const [nx, d] = STAGES[st + 1], lo = STAGES[st][1];

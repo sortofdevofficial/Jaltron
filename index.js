@@ -123,7 +123,12 @@ function render() {
 
   const listEl = $('task-list');
   if (!filtered.length) {
-    listEl.innerHTML = `<div class="empty"><i class="fa-regular fa-clipboard"></i><p>${syncing ? 'Loading your tasks...' : total ? '🔍 No tasks match this view.' : '📝 Your plan is empty. Add a task to get started.'}</p></div>`;
+    const empty = syncing
+      ? `<i class="fa-solid fa-spinner fa-spin"></i><p><strong>Loading your tasks…</strong></p><p class="sub">One moment while the cloud answers.</p>`
+      : total
+        ? `<i class="fa-solid fa-magnifying-glass"></i><p><strong>No tasks match this view</strong></p><p class="sub">Try another search, category or filter.</p><button class="btn" id="empty-clear"><i class="fa-solid fa-rotate-left"></i> Clear filters</button>`
+        : `<i class="fa-regular fa-clipboard"></i><p><strong>Your plan is empty</strong></p><p class="sub">Add a task with Quick Add, press N, or ask the AI.</p><button class="btn primary" id="empty-add"><i class="fa-solid fa-plus"></i> Add your first task</button>`;
+    listEl.innerHTML = `<div class="empty">${empty}</div>`;
     return;
   }
 
@@ -217,6 +222,17 @@ function commitEdit(id) {
 
 // Task list actions (event delegation)
 $('task-list').addEventListener('click', (e) => {
+  const emptyAdd = e.target.closest('#empty-add');
+  if (emptyAdd) { $('task-title').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('task-title').focus(); return; }
+  const emptyClear = e.target.closest('#empty-clear');
+  if (emptyClear) {
+    query = ''; currentFilter = 'all'; currentCat = 'all'; view = 'all'; sortMode = 'manual';
+    $('search').value = ''; $('cat-filter').value = 'all'; $('sort-mode').value = 'manual';
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === 'all'));
+    render();
+    return;
+  }
   const pdel = e.target.closest('[data-picdel]');
   if (pdel) { removeTaskImage(Number(pdel.closest('.task-item').dataset.id), Number(pdel.dataset.picdel)); return; }
   const pic = e.target.closest('[data-pic]');
