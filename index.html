@@ -245,6 +245,15 @@
         <span><i class="fa-regular fa-calendar"></i> <b id="cal-month">…</b></span>
         <div class="cal-nav">
           <select id="cal-cc" class="cal-cc" title="Public holidays shown from this country" aria-label="Holiday country"></select>
+          <div class="cal-layers">
+            <button class="icon-btn sm" id="cal-layers" aria-haspopup="true" aria-expanded="false" aria-label="Holidays and festivals" title="Holidays & festivals"><i class="fa-solid fa-layer-group"></i></button>
+            <div class="cal-layers-pop" id="cal-layers-pop" hidden>
+              <p class="sub cal-layers-head">Show on the calendar</p>
+              <label><input type="checkbox" id="lay-fest" checked> <span>Festivals &amp; faith days</span></label>
+              <label><input type="checkbox" id="lay-fun" checked> <span>World &amp; fun days</span></label>
+              <p class="sub cal-layers-note">Public holidays follow the country menu. Festival dates can vary by a day.</p>
+            </div>
+          </div>
           <button class="icon-btn sm" id="cal-notif" aria-label="Event reminders" title="Event reminders"><i class="fa-solid fa-bell-slash"></i></button>
           <button class="icon-btn sm" id="cal-prev" aria-label="Previous month" title="Previous month"><i class="fa-solid fa-chevron-left"></i></button>
           <button class="btn" id="cal-today">Today</button>

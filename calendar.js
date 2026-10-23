@@ -49,14 +49,15 @@
     const today = Habit.today();
     ensureHols(vy);
     ensureHols(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 41).getFullYear());
+    ensureObs();
     let nEv = 0, nHol = 0, html = '';
     for (let i = 0; i < 42; i++) {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-      const k = keyOf(d), evs = evsOn(k), tks = tksOn(k), hs = hol[k] || [];
+      const k = keyOf(d), evs = evsOn(k), tks = tksOn(k), hs = allOn(k);
       if (d.getMonth() === vm) { nEv += evs.length; nHol += hs.length; }
       html += `<div class="cal-cell${d.getMonth() !== vm ? ' out' : ''}${k === today ? ' today' : ''}${k === sel ? ' sel' : ''}" data-day="${k}">
         <span class="cal-dn">${d.getDate()}</span>
-        ${hs.length ? `<span class="cal-hol" title="${esc(hs.join(' · '))}">${holEmoji(hs[0])} ${esc(hs[0])}</span>` : ''}
+        ${hs.length ? `<span class="cal-hol" title="${esc(hs.map(h => h.n).join(' · '))}"><span class="cal-hol-e">${holEmoji(hs[0].n)}</span><span class="cal-hol-t">${esc(hs[0].n)}</span></span>` : ''}
         ${evs.slice(0, 3).map(chipHtml).join('')}
         ${evs.length > 3 ? `<span class="cal-more">+${evs.length - 3} more</span>` : ''}
         ${tks.length ? `<span class="cal-td" title="${tks.length} task${tks.length > 1 ? 's' : ''} due">${tks.slice(0, 4).map(t => `<i style="--p:${PRIO_C[t.prio]}"></i>`).join('')}${tks.length > 4 ? `<em>+${tks.length - 4}</em>` : ''}</span>` : ''}
@@ -64,7 +65,7 @@
     }
     $('cal-cells').innerHTML = html;
     const due = (window.Extras ? Extras.tasks() : []).filter(t => !t.done && t.due).length;
-    const holTxt = nHol ? ` · ${nHol} public hol${nHol === 1 ? 'iday' : 'idays'}` : '';
+    const holTxt = nHol ? ` · ${nHol} holiday${nHol === 1 ? '' : 's'} & festivals` : '';
     $('cal-foot').textContent = `${nEv} event${nEv === 1 ? '' : 's'} this month${holTxt} · ${due} open task${due === 1 ? '' : 's'} with due dates · Tip: drag an event onto another day to move it.`;
   }
 
@@ -99,8 +100,8 @@
   function renderDay() {
     const d = dayOf(sel);
     $('cal-day-title').textContent = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) + (sel === Habit.today() ? ' · Today' : '');
-    const evs = evsOn(sel), hs = hol[sel] || [];
-    $('cal-day-list').innerHTML = (hs.length ? hs.map(n => `<div class="cal-holrow"><span class="cal-hol-img" data-hn="${esc(n)}">${holEmoji(n)}</span><span class="cal-hol-n"><b>${esc(n)}</b><small>Public holiday</small></span></div>`).join('') : '')
+    const evs = evsOn(sel), hs = allOn(sel);
+    $('cal-day-list').innerHTML = (hs.length ? hs.map(h => `<div class="cal-holrow"><span class="cal-hol-img" data-hn="${esc(h.n)}">${holEmoji(h.n)}</span><span class="cal-hol-n"><b>${esc(h.n)}</b><small>${esc(h.p)}</small></span></div>`).join('') : '')
       + (evs.length ? evs.map(rowHtml).join('')
         : hs.length ? '' : '<div class="empty"><i class="fa-solid fa-calendar-day"></i><p>Nothing planned. Add an event, or give a task this due date.</p></div>');
     const tks = tksOn(sel);
@@ -285,7 +286,9 @@
   });
 
   // ---------- Public holidays (free Nager.Date API, no key needed) ----------
-  let hol = {}, ccInit = false;                  // hol: 'YYYY-MM-DD' -> [names]
+  // hol: 'YYYY-MM-DD' -> [{ n: name, p: 'Public holiday' }]. Festivals live in obs (see below) and merge on the fly.
+  let hol = {}, ccInit = false;
+  const pubYears = new Set();
   const flag = (c) => [...c].map(ch => String.fromCodePoint(127397 + ch.charCodeAt(0))).join('');
   const ccSel = () => $('cal-cc').value;
   const holEmoji = (n) => {
@@ -304,12 +307,40 @@
     if (/children/.test(s)) return '🧸';
     if (/patrick/.test(s)) return '🍀';
     if (/carnival|mardi gras/.test(s)) return '🎭';
-    if (/eid|ramadan/.test(s)) return '🌙';
-    if (/diwali/.test(s)) return '🪔';
+    // faith days
+    if (/diwali|deepavali/.test(s)) return '🪔';
+    if (/holi|dolyatra/.test(s)) return '🎨';
+    if (/ganesh|chaturthi/.test(s)) return '🐘';
+    if (/janmashtami|krishna/.test(s)) return '🪈';
+    if (/raksha/.test(s)) return '🧵';
+    if (/shivaratri|shiva/.test(s)) return '🔱';
+    if (/navratri|durga|dussehra|dasara|saptami|ashtami|navami/.test(s)) return '🪷';
+    if (/rama navami|rath yatra|valmiki|hanuman/.test(s)) return '🏹';
+    if (/karaka|karva|chaturthi/.test(s)) return '🌙';
+    if (/chhath/.test(s)) return '🌅';
+    if (/pongal|sankranti|bihu|onam|vishu|ugadi|gudi|mesadi|vaisakhi/.test(s)) return '🌾';
+    if (/guru|nanak|vaisakhi|sikh/.test(s)) return '🙏';
+    if (/mahavir|jain/.test(s)) return '🧘';
+    if (/buddha|vesak/.test(s)) return '☸️';
+    if (/ramadan|ramzan|eid|bakrid|muharram|ashura|milad|jamat|hazarat|prophet/.test(s)) return '🌙';
     if (/hanukkah|chanukah/.test(s)) return '🕎';
+    if (/purim/.test(s)) return '🎭';
+    if (/passover|pesach|seder/.test(s)) return '🍷';
+    if (/rosh hashana|rosh hashanah|shofar/.test(s)) return '🍎';
+    if (/yom kippur|advent|all saints|all souls|immaculate|assumption/.test(s)) return '🕯️';
+    if (/sukkot|shavuot|simchat|torah/.test(s)) return '🌿';
+    if (/good friday|ascension|pentecost|epiphany|annunciation|lent|maundy/.test(s)) return '✝️';
     if (/lunar|spring festival|chinese new year/.test(s)) return '🧧';
     if (/harvest|grain/.test(s)) return '🌾';
     if (/saint|st\.?\s/.test(s)) return '⛪';
+    if (/earth|environment|ocean|water|bee|animal/.test(s)) return '🌍';
+    if (/yoga|health|mental/.test(s)) return '🧘';
+    if (/book|poetry|museum|education|teacher/.test(s)) return '📚';
+    if (/chess/.test(s)) return '♟️';
+    if (/coffee|food/.test(s)) return '☕';
+    if (/kindness|peace|human rights|happiness/.test(s)) return '🤝';
+    if (/star wars/.test(s)) return '🚀';
+    if (/april fools/.test(s)) return '🤡';
     return '🎉';
   };
   // Real pictures for holidays: Wikipedia thumbnails, cached for a month, emoji if offline/unknown
@@ -318,11 +349,13 @@
   try { imgCache = JSON.parse(localStorage.getItem(IMG_KEY) || '{}'); } catch {}
   const saveImg = () => { try { localStorage.setItem(IMG_KEY, JSON.stringify(imgCache)); } catch {} };
   async function holImage(name) {
+    // "Hanukkah (Day 4)" and "Sukkot (Day 7) / Hoshanah Rabah" still have a useful main article
+    const q = name.replace(/\s*\(Day \d+\)/i, '').replace(/\s*\/.*$/, '').trim() || name;
     const c = imgCache[name];
     if (c && Date.now() - c.at < 30 * 864e5) return c.u;
     let u = null;
     try {
-      const r = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(name.replace(/\s+/g, '_')) + '?redirect=true');
+      const r = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(q.replace(/\s+/g, '_')) + '?redirect=true');
       if (r.ok) {
         const d = await r.json();
         if (d && d.thumbnail && d.thumbnail.source) u = String(d.thumbnail.source);
@@ -349,13 +382,13 @@
     });
   }
   function applyHol(year, list) {
-    for (const h of list) (hol[h.d] = hol[h.d] || []).push(h.n);
+    for (const h of list) (hol[h.d] = hol[h.d] || []).push({ n: h.n, p: 'Public holiday' });
     if (active() && signedIn && dayOf(sel).getFullYear() === year) paint();
   }
   async function ensureHols(year) {
     const cc = ccSel();
-    if (!cc || hol['yr' + year]) return;
-    hol['yr' + year] = 1;
+    if (!cc || pubYears.has(year)) return;
+    pubYears.add(year);
     const ck = `jt:hol:${cc}:${year}`;
     let c = null;
     try { c = JSON.parse(localStorage.getItem(ck) || 'null'); } catch {}
@@ -391,9 +424,111 @@
     sel.addEventListener('change', () => {
       try { localStorage.setItem('jt:holcc', sel.value); } catch {}
       hol = {};
+      pubYears.clear();
       paint();
     });
     paint();
+  }
+
+  // ---------- Festivals & faith days ----------
+  // The server proxy (api/festivals.js) turns Google's public ICS calendars into JSON: Hindu, Muslim, Sikh,
+  // Jain, Buddhist and Parsi days from the India calendar, plus Jewish and Christian calendars. We cache the
+  // whole answer for a week, and keep world/fun days locally so the layer still works offline.
+  const FEST_KEY = 'jt:fest';
+  const PACK_KEY = 'jt:holsets';
+  let apiObs = [], obs = {}, festInit = false, festTry = 0;
+  let packs = { fest: true, fun: true };
+  try {
+    const p = JSON.parse(localStorage.getItem(PACK_KEY) || 'null');
+    if (p && typeof p === 'object') packs = { fest: p.fest !== false, fun: p.fun !== false };
+  } catch {}
+  const FUN_DAYS = [
+    ['01-01', "New Year's Day"], ['01-24', 'International Day of Education'],
+    ['02-02', 'World Wetlands Day'], ['02-14', "Valentine's Day"],
+    ['03-08', "International Women's Day"], ['03-20', 'International Day of Happiness'],
+    ['03-21', 'World Poetry Day'], ['03-22', 'World Water Day'],
+    ['04-01', "April Fools' Day"], ['04-07', 'World Health Day'],
+    ['04-22', 'Earth Day'], ['04-23', 'World Book Day'],
+    ['05-04', 'Star Wars Day'], ['05-18', 'International Museum Day'],
+    ['05-20', 'World Bee Day'], ['06-05', 'World Environment Day'],
+    ['06-08', 'World Oceans Day'], ['06-21', 'International Yoga Day'],
+    ['07-20', 'International Chess Day'], ['08-12', 'International Youth Day'],
+    ['08-19', 'World Photography Day'], ['09-21', 'International Day of Peace'],
+    ['09-27', 'World Tourism Day'], ['10-01', 'International Coffee Day'],
+    ['10-04', 'World Animal Day'], ['10-05', 'World Teachers Day'],
+    ['10-10', 'World Mental Health Day'], ['10-16', 'World Food Day'],
+    ['10-31', 'Halloween'], ['11-13', 'World Kindness Day'],
+    ['11-19', "International Men's Day"], ['12-03', 'International Day of Persons with Disabilities'],
+    ['12-10', 'Human Rights Day'], ['12-31', "New Year's Eve"]
+  ];
+  const funList = () => {
+    const out = [], y = new Date().getFullYear();
+    for (let yy = y - 2; yy <= y + 8; yy++) for (const [md, n] of FUN_DAYS) out.push({ d: `${yy}-${md}`, n, p: 'World & fun day', k: 'fun' });
+    return out;
+  };
+  function rebuildObs() {
+    obs = {};
+    const add = (d, n, p) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !n) return;
+      const list = obs[d] = obs[d] || [];
+      if (!list.some(x => x.n === n)) list.push({ n, p });
+    };
+    if (packs.fest) for (const e of apiObs) add(e.d, e.n, e.p);
+    if (packs.fun) for (const e of funList()) add(e.d, e.n, e.p);
+    if (active() && signedIn) paint();
+  }
+  function applyObs(list) {
+    apiObs = list.filter(e => e && typeof e.n === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.d))
+      .map(e => ({ d: e.d, n: e.n.slice(0, 120), p: typeof e.p === 'string' ? e.p.slice(0, 40) : 'Festival' }));
+    rebuildObs();
+  }
+  async function ensureObs() {
+    if (festInit || Date.now() - festTry < 3e5) return;
+    festTry = Date.now();
+    let c = null;
+    try { c = JSON.parse(localStorage.getItem(FEST_KEY) || 'null'); } catch {}
+    if (c && Array.isArray(c.e) && Date.now() - c.at < 7 * 864e5) { festInit = true; return applyObs(c.e); }
+    try {
+      const r = await fetch('/api/festivals');
+      if (!r.ok) throw 0;
+      const d = await r.json();
+      if (!d || !Array.isArray(d.events)) throw 0;
+      try { localStorage.setItem(FEST_KEY, JSON.stringify({ at: Date.now(), e: d.events })); } catch {}
+      festInit = true;
+      applyObs(d.events);
+    } catch { if (c && Array.isArray(c.e)) { festInit = true; applyObs(c.e); } }   // stale cache beats nothing
+  }
+  const savePacks = () => { try { localStorage.setItem(PACK_KEY, JSON.stringify(packs)); } catch {} };
+  function paintLayers() {
+    const f = $('lay-fest'), u = $('lay-fun');
+    if (f) f.checked = packs.fest;
+    if (u) u.checked = packs.fun;
+  }
+  const closeLayers = () => {
+    const pop = $('cal-layers-pop');
+    if (pop) pop.hidden = true;
+    if ($('cal-layers')) $('cal-layers').setAttribute('aria-expanded', 'false');
+  };
+  if ($('cal-layers')) {
+    $('cal-layers').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pop = $('cal-layers-pop'), open = pop.hidden;
+      pop.hidden = !open;
+      $('cal-layers').setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', (e) => { if (!e.target.closest('.cal-layers')) closeLayers(); });
+    $('lay-fest').addEventListener('change', (e) => { packs.fest = e.target.checked; savePacks(); rebuildObs(); });
+    $('lay-fun').addEventListener('change', (e) => { packs.fun = e.target.checked; savePacks(); rebuildObs(); });
+    paintLayers();
+  }
+  rebuildObs();
+
+  // Merge public holidays and festivals for a day, dropping duplicate names (public holiday label wins)
+  function allOn(k) {
+    const out = [], seen = new Set();
+    for (const h of hol[k] || []) if (!seen.has(h.n)) { seen.add(h.n); out.push(h); }
+    for (const h of obs[k] || []) if (!seen.has(h.n)) { seen.add(h.n); out.push(h); }
+    return out;
   }
 
   // ---------- Event reminders (system notifications on this device) ----------

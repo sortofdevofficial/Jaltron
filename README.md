@@ -5,7 +5,7 @@ A free, installable web app that plans your day: smart tasks, a Pomodoro focus t
 ## Features
 
 - **Tasks** — quick add, due dates, repeating tasks with per-task streaks, images, search, filters, smart ordering
-- **Calendar** — month grid with private, color-coded events; repeat daily, weekly or yearly; drag events between days, arrow-key navigation; system-notification reminders 10 minutes before timed events; public holidays for your country (free Nager.Date API, no key) with Wikipedia photos and emoji fallbacks; a "Coming up" list that jumps to the next occurrence; tasks with a due date show on their day (Free: 20 events, Lite: unlimited)
+- **Calendar** — month grid with private, color-coded events; repeat daily, weekly or yearly; drag events between days, arrow-key navigation; system-notification reminders 10 minutes before timed events; public holidays for your country (free Nager.Date API, no key); Hindu, Muslim, Sikh, Jain, Buddhist, Parsi, Jewish and Christian festivals from Google's public calendars, plus world/fun days, each layer toggleable; Wikipedia photos and emoji fallbacks; a "Coming up" list that jumps to the next occurrence; tasks with a due date show on their day (Free: 20 events, Lite: unlimited)
 - **AI assistant** — plain-language commands, planning, math, units, dates, world clocks, randomness and fun skills; runs 100% offline by default, and an optional **Universal mode** lets you paste your own OpenAI-compatible API key (stored only in your browser) so any question the offline skills can't answer goes to that model
 - **Focus** — Pomodoro timer with presets, zen mode, mini dock and session stats
 - **Insights** — category/priority charts, 7-day and 12-week heatmap, habit streaks (Lite)
@@ -26,11 +26,12 @@ Everything lives at the root on purpose — one file per job, no build step:
 | `bank.js` | Fake bank page module (`window.Bank`) |
 | `links.js` | Saved links page module (`window.Links`) |
 | `leaderboard.js` | Streak leaderboard page module |
-| `calendar.js` | Calendar page module (`window.Calendar`): events, repeats, holidays, reminders |
+| `calendar.js` | Calendar page module (`window.Calendar`): events, repeats, holidays, festivals, reminders |
 | `lib.js` | Shared library: habits, reviews, focus engine, misc UX |
 | `db.js` | Firebase: Google auth + Firestore sync (ES module) |
 | `style.css` | All styling, light/dark themes |
 | `api/image.js` | Serverless image proxy (Vercel function) |
+| `api/festivals.js` | Serverless festival proxy: parses Google's public holiday ICS feeds into JSON (Vercel function) |
 | `firestore.rules` | Database security rules |
 | `manifest.webmanifest` | PWA manifest — makes the app installable |
 | `robots.txt` | Crawler rules (admin page excluded) |
@@ -50,4 +51,4 @@ Classic scripts load in order `lib.js → ai.js → extras.js → bank.js → li
 
 ## Deploying
 
-Static hosting on Vercel: push, import the repo, done — `vercel.json` handles URLs, caching and security headers, and `api/` deploys the image proxy. Firebase config lives in `db.js`; Firestore access is locked down by `firestore.rules`.
+Static hosting on Vercel: push, import the repo, done — `vercel.json` handles URLs, caching and security headers, and `api/` deploys the image proxy and the festival calendar proxy. Firebase config lives in `db.js`; Firestore access is locked down by `firestore.rules`.
