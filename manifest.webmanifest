@@ -1,0 +1,17 @@
+{
+  "name": "JALTRON — AI Plan Manager",
+  "short_name": "JALTRON",
+  "description": "Smart tasks, a focus timer, streaks and a built-in assistant that plans your day.",
+  "lang": "en",
+  "id": "/",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef6fb",
+  "theme_color": "#eef6fb",
+  "categories": ["productivity"],
+  "icons": [
+    { "src": "favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }
+  ]
+}

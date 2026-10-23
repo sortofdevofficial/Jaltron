@@ -1,0 +1,7 @@
+# JALTRON — AI Plan Manager
+User-agent: *
+Allow: /
+Disallow: /admin
+
+# Have a live domain? Point this at your sitemap (uncomment and edit):
+# Sitemap: https://your-domain.com/sitemap.xml

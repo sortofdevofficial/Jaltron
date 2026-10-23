@@ -3,10 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>JALTRON - AI Plan Manager</title>
+
+  <!-- ============ SEO ============ -->
+  <title>JALTRON — AI Plan Manager for Tasks, Focus & Habits</title>
+  <meta name="description" content="JALTRON is a free AI plan manager: smart tasks, a Pomodoro focus timer, streaks, insights and a built-in assistant that plans your day. Sign in with Google to sync everywhere.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="application-name" content="JALTRON">
+  <!-- Have a live domain? Uncomment these two and add your sitemap to robots.txt:
+  <link rel="canonical" href="https://your-domain.com/">
+  <meta property="og:url" content="https://your-domain.com/">
+  -->
+
+  <!-- ============ Social cards (Discord, X, iMessage, Slack) ============ -->
+  <meta property="og:site_name" content="JALTRON">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="JALTRON — AI Plan Manager">
+  <meta property="og:description" content="Smart tasks, a focus timer, streaks and a built-in assistant that plans your day. Free to use.">
+  <meta property="og:image" content="favicon.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="JALTRON — AI Plan Manager">
+  <meta name="twitter:description" content="Smart tasks, a focus timer, streaks and a built-in assistant that plans your day. Free to use.">
+  <meta name="twitter:image" content="favicon.png">
+
+  <!-- ============ Rich results (structured data for Google) ============ -->
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebApplication","name":"JALTRON","alternateName":"JALTRON AI Plan Manager","applicationCategory":"ProductivityApplication","operatingSystem":"Any","browserRequirements":"Requires JavaScript","description":"AI-powered plan manager with smart tasks, a Pomodoro focus timer, streaks, insights, reviews, a command palette and a built-in assistant.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"featureList":["AI task assistant","Pomodoro focus timer","Streaks and habit tracking","Insights charts and heatmap","Streak leaderboard","Command palette and keyboard shortcuts","Cloud sync with Google sign-in"]}
+  </script>
+
+  <!-- ============ App / PWA (installable from the browser) ============ -->
   <meta name="theme-color" id="theme-color" content="#eef6fb">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="JALTRON">
+  <link rel="manifest" href="manifest.webmanifest">
   <script>try{var t=localStorage.getItem("jt:theme");document.documentElement.dataset.theme=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"}catch(e){}</script>
   <link id="favicon" rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+
+  <!-- ============ Loading (preconnect + preload before paint) ============ -->
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="modulepreload" href="db.js">
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js">
@@ -19,6 +53,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <noscript><p style="margin:2rem;text-align:center;font:600 1rem system-ui,sans-serif">JALTRON is a free AI plan manager: smart tasks, a focus timer, streaks and an assistant that plans your day. It needs JavaScript — please enable it and reload.</p></noscript>
 
   <div class="shell">
   <nav class="side" id="side" aria-label="Main navigation">
