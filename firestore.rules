@@ -10,6 +10,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Public website data written by the bot (vouches, leaderboards): anyone can read, only admins write.
+    match /pub/{id} { allow read: if true; allow write: if isAdmin(); }
+
     // Bot panel: only admins (the bot machine signs in with an account listed in admins/)
     match /bot/{id} { allow read, write: if isAdmin(); }
 

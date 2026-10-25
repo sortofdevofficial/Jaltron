@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legit Proof | JALTRON</title>
+  <meta name="description" content="Real, verified vouches from our Discord community.">
+  <script>try{var t=localStorage.getItem("jt:theme");document.documentElement.dataset.theme=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"}catch(e){}</script>
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .lg{max-width:64rem;margin:0 auto;padding:1.25rem 1rem 3rem;color:var(--text)}
+    .lg h1{margin:0 0 .25rem;font-size:1.6rem}.lg .sub{color:var(--muted);margin:0 0 1rem}
+    .lg-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.75rem;margin-bottom:1rem}
+    .lg-stat{padding:.9rem 1rem;text-align:center}.lg-stat b{display:block;font-size:1.7rem;color:var(--accent)}.lg-stat span{font-size:.75rem;color:var(--muted)}
+    .lg-chart{padding:.9rem 1rem;margin-bottom:1rem}.lg-chart h3,.lg-box h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted)}
+    .lg-chart svg{width:100%;height:6rem;display:block}
+    .lg-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.75rem}
+    .lg-tabs button{all:unset;cursor:pointer;padding:.4rem .9rem;border-radius:99px;border:1px solid var(--border);font-size:.8rem;font-weight:600}
+    .lg-tabs button.on{background:var(--accent);color:#04101a;border-color:var(--accent)}
+    .lg-tools{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem}
+    .lg-tools input,.lg-tools select{padding:.5rem .7rem;border-radius:.5rem;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font:inherit;font-size:.82rem}
+    .lg-tools input{flex:1;min-width:9rem}
+    .lg-list{display:grid;gap:.5rem}
+    .lg-card{display:flex;gap:.7rem;align-items:center;padding:.7rem .9rem}
+    .lg-card img,.lg-row img{width:2.4rem;height:2.4rem;border-radius:50%;flex:none;background:var(--panel-3)}
+    .lg-card .tx{min-width:0;flex:1;font-size:.85rem;line-height:1.5}
+    .lg-card .tx b{cursor:pointer}.lg-card .tx b:hover{color:var(--accent)}
+    .lg-card .it{display:inline-block;margin-top:.15rem;padding:.1rem .55rem;border-radius:99px;background:color-mix(in srgb,var(--accent) 18%,transparent);font-weight:600;font-size:.78rem}
+    .lg-card small,.lg-row small{color:var(--muted);font-size:.72rem}
+    .lg-card a{color:var(--accent);font-size:.72rem;text-decoration:none;white-space:nowrap}
+    .lg-row{display:flex;align-items:center;gap:.7rem;padding:.6rem .9rem}
+    .lg-row .bar{flex:1;height:.45rem;border-radius:99px;background:var(--panel-3);overflow:hidden}.lg-row .bar i{display:block;height:100%;background:var(--accent)}
+    .lg-row .nm{width:9rem;font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lg-row .n{font-weight:700;min-width:2.5rem;text-align:right}
+    .lg-chips{display:flex;flex-wrap:wrap;gap:.4rem}
+    .lg-chips button{all:unset;cursor:pointer;padding:.3rem .7rem;border-radius:99px;border:1px solid var(--border);font-size:.8rem}
+    .lg-chips button:hover{border-color:var(--accent)}.lg-chips b{color:var(--accent);margin-left:.3rem}
+    .lg-box{padding:.9rem 1rem;margin-bottom:.75rem}.lg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:.75rem}
+    .lg-pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;margin:.75rem 0;font-size:.8rem;color:var(--muted)}
+    .lg-pager div{display:flex;gap:.4rem;align-items:center}
+    .lg-empty{padding:2rem;text-align:center;color:var(--muted)}
+    @media(max-width:36rem){.lg-row .nm{width:6rem}}
+  </style>
+</head>
+<body>
+<main class="lg">
+  <h1>✅ Legit Proof</h1>
+  <p class="sub" id="sub">Loading...</p>
+  <div class="lg-stats" id="stats"></div>
+  <section class="hud lg-chart"><h3>Vouches per day (last 30 days)</h3><svg id="chart" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></section>
+  <div class="lg-tabs" id="tabs">
+    <button data-t="wall" class="on">All vouches</button><button data-t="top">Top vouched</button><button data-t="items">Items</button><button data-t="community">Community</button>
+  </div>
+
+  <section id="p-wall">
+    <div class="lg-tools">
+      <input id="q" placeholder="Search item" autocomplete="off">
+      <input id="who" list="names" placeholder="Pick a person" autocomplete="off">
+      <select id="role"><option value="any">Gave or got</option><option value="got">Got vouches</option><option value="gave">Gave vouches</option></select>
+      <select id="sort"><option value="new">Newest first</option><option value="old">Oldest first</option></select>
+      <select id="size"><option>10</option><option selected>25</option><option>50</option><option>100</option><option>500</option><option value="0">All</option></select>
+      <button class="btn" id="csv" title="Download the vouches matching your filters">Export CSV</button>
+    </div>
+    <datalist id="names"></datalist>
+    <div class="lg-pager"><span id="count"></span><div><button class="btn" id="prev">‹ Prev</button><span id="pg"></span><button class="btn" id="next">Next ›</button></div></div>
+    <div class="lg-list" id="wall"></div>
+  </section>
+  <section id="p-top" hidden><div class="lg-list" id="top"></div></section>
+  <section id="p-items" hidden><div class="hud lg-box"><div class="lg-chips" id="items"></div></div></section>
+  <section id="p-community" hidden><div class="lg-grid" id="comm"></div></section>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n || 0).toLocaleString();
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const clear = (e) => { e.textContent = ''; return e; };
+  let M = {}, V = [], U = {}, C = null, page = 0, view = [];
+
+  // The data comes through /api/pub (cached by Vercel), never straight from Firestore.
+  const get = (name) => fetch('/api/pub?name=' + name).then((r) => r.ok ? r.json() : null).catch(() => null);
+
+  // Chunks (oldest first) -> one list. V rows: { i: message id, a: giver id, r: receiver id, w: item, t: time }
+  function expand(D) {
+    const rows = [], users = {};
+    for (const ch of D.chunks || []) {
+      for (const [id, u] of Object.entries(ch.u || {})) users[id] = u; // later chunks are newer, so the newest name wins
+      for (const [i, a, r, w, t] of ch.r || []) rows.push({ i, a, r, w: (ch.i || [])[w] || '', t });
+    }
+    return { rows, users };
+  }
+  const name = (id) => (U[id] && U[id][0]) || 'Unknown';
+  const avatar = (id) => {
+    const i = el('img'); i.loading = 'lazy'; i.alt = '';
+    const v = U[id] && U[id][1];
+    i.src = v ? `https://cdn.discordapp.com/avatars/${id}/${v}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(id) >> 22n) % 6n)}.png`;
+    return i;
+  };
+  const ago = (ms) => { const s = Math.max(1, (Date.now() - ms) / 1000); for (const [n, l] of [[31536000, 'y'], [2592000, 'mo'], [86400, 'd'], [3600, 'h'], [60, 'm']]) if (s >= n) return Math.floor(s / n) + l + ' ago'; return 'just now'; };
+  const tally = (key) => { const m = new Map(); V.forEach((v) => { const k = key(v); m.set(k, (m.get(k) || 0) + 1); }); return [...m].sort((a, b) => b[1] - a[1]); };
+
+  // ── header, stats, chart ──
+  function paintTop() {
+    $('sub').textContent = 'Every vouch below was posted by a real member in our Discord and is copied here automatically. We never write them ourselves.';
+    const cut = Date.now() - 30 * 864e5, last30 = V.filter((v) => v.t >= cut).length;
+    const box = clear($('stats'));
+    [[fmt(V.length), 'Total vouches'], [fmt(new Set(V.map((v) => v.a)).size), 'Different people vouched'], [fmt(last30), 'Last 30 days'], [V.length ? new Date(V[0].t).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '-', 'Vouching since']].forEach(([v, l]) => {
+      const c = el('div', 'hud lg-stat'); c.appendChild(el('b', '', v)); c.appendChild(el('span', '', l)); box.appendChild(c);
+    });
+    const days = [...Array(30)].map((_, i) => new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10)), per = {};
+    V.forEach((v) => { if (v.t >= cut - 864e5) { const k = new Date(v.t).toISOString().slice(0, 10); per[k] = (per[k] || 0) + 1; } });
+    const vals = days.map((k) => per[k] || 0), max = Math.max(1, ...vals);
+    $('chart').innerHTML = vals.map((v, i) => `<rect x="${i * 10 + 1}" y="${58 - (v / max) * 56}" width="8" height="${(v / max) * 56 + 1}" rx="2" fill="var(--accent)"><title>${days[i]}: ${v}</title></rect>`).join('');
+  }
+
+  // ── all vouches: filter by item / person, choose how many to show ──
+  function filtered() {
+    const q = $('q').value.trim().toLowerCase(), p = $('who').value.trim().toLowerCase(), role = $('role').value;
+    let rows = V.filter((v) => {
+      if (q && !v.w.toLowerCase().includes(q)) return false;
+      if (!p) return true;
+      const a = name(v.a).toLowerCase().includes(p), r = name(v.r).toLowerCase().includes(p);
+      return role === 'got' ? r : role === 'gave' ? a : a || r;
+    });
+    if ($('sort').value === 'new') rows = [...rows].reverse();
+    return rows;
+  }
+  const proof = (v) => `https://discord.com/channels/${M.gid}/${M.ch}/${v.i}`;
+  function pick(id, role) { $('who').value = name(id); $('role').value = role; page = 0; show('wall'); paintWall(); }
+  function paintWall() {
+    view = filtered();
+    const size = Number($('size').value) || view.length || 1, pages = Math.max(1, Math.ceil(view.length / size));
+    page = Math.min(page, pages - 1);
+    const from = page * size, rows = view.slice(from, from + size), box = clear($('wall'));
+    $('count').textContent = view.length ? `Showing ${fmt(from + 1)}-${fmt(from + rows.length)} of ${fmt(view.length)}` : 'No vouches match';
+    $('pg').textContent = `${page + 1} / ${pages}`; $('prev').disabled = page === 0; $('next').disabled = page >= pages - 1;
+    if (!rows.length) box.appendChild(el('div', 'hud lg-empty', 'No vouches match your filters.'));
+    rows.forEach((v) => {
+      const c = el('div', 'hud lg-card'), tx = el('div', 'tx');
+      c.appendChild(avatar(v.a));
+      const by = el('b', '', name(v.a)); by.onclick = () => pick(v.a, 'gave');
+      const to = el('b', '', name(v.r)); to.onclick = () => pick(v.r, 'got');
+      tx.appendChild(by); tx.appendChild(document.createTextNode(' vouched for ')); tx.appendChild(to);
+      tx.appendChild(document.createElement('br')); tx.appendChild(el('span', 'it', v.w || 'Not specified'));
+      tx.appendChild(document.createElement('br')); tx.appendChild(el('small', '', new Date(v.t).toLocaleString() + ' · ' + ago(v.t)));
+      c.appendChild(tx);
+      if (M.gid) { const a = el('a', '', 'Proof ↗'); a.href = proof(v); a.target = '_blank'; a.rel = 'noopener'; a.title = 'Open the original message in Discord (members only)'; c.appendChild(a); }
+      box.appendChild(c);
+    });
+  }
+  function exportCsv() {
+    const q = (s) => '"' + String(s).replace(/"/g, '""') + '"';
+    const csv = ['date,from,to,item,discord_message_id', ...view.map((v) => [new Date(v.t).toISOString(), q(name(v.a)), q(name(v.r)), q(v.w), v.i].join(','))].join('\n');
+    const a = el('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'vouches.csv'; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  function paintTopList() {
+    const box = clear($('top')), rows = tally((v) => v.r).slice(0, 100), max = (rows[0] && rows[0][1]) || 1;
+    rows.forEach(([id, c], i) => {
+      const r = el('div', 'hud lg-row'); r.appendChild(el('b', '', '#' + (i + 1))); r.appendChild(avatar(id)); r.appendChild(el('span', 'nm', name(id)));
+      const bar = el('div', 'bar'), fill = el('i'); fill.style.width = (c / max * 100) + '%'; bar.appendChild(fill); r.appendChild(bar); r.appendChild(el('span', 'n', fmt(c)));
+      r.style.cursor = 'pointer'; r.onclick = () => pick(id, 'got'); box.appendChild(r);
+    });
+  }
+  function paintItems() {
+    const box = clear($('items'));
+    const m = new Map(); V.forEach((v) => { const k = (v.w || 'Not specified').toLowerCase(), e = m.get(k) || { n: v.w || 'Not specified', c: 0 }; e.c++; m.set(k, e); });
+    [...m.values()].sort((a, b) => b.c - a.c).slice(0, 200).forEach((e) => {
+      const b = el('button', '', e.n); b.appendChild(el('b', '', e.c));
+      b.onclick = () => { $('q').value = e.n; $('who').value = ''; page = 0; show('wall'); paintWall(); }; box.appendChild(b);
+    });
+  }
+  function fillNames() {
+    const dl = clear($('names')), seen = new Set();
+    tally((v) => v.r).concat(tally((v) => v.a)).forEach(([id]) => { const n = name(id); if (seen.has(n) || seen.size > 3000) return; seen.add(n); const o = el('option'); o.value = n; dl.appendChild(o); });
+  }
+
+  // ── community (leaderboards and giveaways from the bot) ──
+  function paintCommunity() {
+    const box = clear($('comm'));
+    if (!C || !C.leaderboard) { box.appendChild(el('div', 'hud lg-empty', 'Community stats are not available yet.')); return; }
+    const card = (title, rows) => {
+      const b = el('div', 'hud lg-box'); b.appendChild(el('h3', '', title));
+      if (!rows.length) b.appendChild(el('div', 'lg-empty', 'Nothing yet.'));
+      rows.forEach(([n, val, img]) => { const r = el('div', 'lg-row'); if (img) { const i = el('img'); i.src = img; i.loading = 'lazy'; i.alt = ''; r.appendChild(i); } r.appendChild(el('span', 'nm', n)); r.appendChild(el('span', 'n', val)); b.appendChild(r); });
+      box.appendChild(b);
+    };
+    const dur = (s) => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${fmt(h)}h ${m}m` : `${m}m`; };
+    const nm = (x) => (x.user && x.user.username) || 'Unknown';
+    card('Server', [['Members', fmt(C.stats && C.stats.members)], ['Bot online for', dur(((C.stats && C.stats.uptime) || 0) / 1000)]]);
+    card('Top chatters', (C.leaderboard.messages || []).map((x) => [nm(x), 'Lv ' + x.level + ' · ' + fmt(x.messages), x.user && x.user.avatar]));
+    card('Top voice', (C.leaderboard.voice || []).map((x) => [nm(x), dur(x.seconds), x.user && x.user.avatar]));
+    card('Top inviters', (C.invites || []).map((x) => [nm(x), fmt(x.total), x.user && x.user.avatar]));
+    const gw = C.giveaways || { active: [], recent: [] };
+    card('Active giveaways', gw.active.map((g) => [g.prize, 'ends ' + new Date(g.endsAt).toLocaleDateString()]));
+    card('Recent giveaways', gw.recent.map((g) => [g.prize, g.winners && g.winners.length ? g.winners.map((w) => w.t).join(', ') : 'no winner']));
+  }
+
+  function show(t) {
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+    ['wall', 'top', 'items', 'community'].forEach((k) => { $('p-' + k).hidden = k !== t; });
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => show(b.dataset.t));
+  ['q', 'who'].forEach((id) => $(id).addEventListener('input', () => { page = 0; paintWall(); }));
+  ['role', 'sort', 'size'].forEach((id) => $(id).addEventListener('change', () => { page = 0; paintWall(); }));
+  $('prev').onclick = () => { page--; paintWall(); $('wall').scrollIntoView({ block: 'start' }); };
+  $('next').onclick = () => { page++; paintWall(); $('wall').scrollIntoView({ block: 'start' }); };
+  $('csv').onclick = exportCsv;
+
+  (async () => {
+    let D; [D, C] = await Promise.all([get('legit'), get('community')]);
+    if (!D || !D.chunks) { $('sub').textContent = 'Vouches are not available right now. Please try again later.'; return; }
+    M = D; ({ rows: V, users: U } = expand(D));
+    paintTop(); fillNames(); paintWall(); paintTopList(); paintItems(); paintCommunity();
+  })();
+})();
+</script>
+</body>
+</html>
