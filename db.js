@@ -453,7 +453,13 @@ const adminSet = (uid, days) => setDoc(doc(db, 's', uid), days === 0 ? { p: 'fre
 // Re-reads the plan doc (staff switch Lite on by hand, so this picks it up without a full reload)
 const refreshPlan = async () => { const s = await getDoc(doc(db, 's', auth.currentUser.uid)); return s.exists() ? { p: s.data().p, e: s.data().e || 0 } : null; };
 
+// Bot panel (admins only): bot/s = status + log written by agent.js, bot/cmd = the Start/Stop/Restart you send it.
+const bot = {
+  watch: (cb) => onSnapshot(doc(db, 'bot', 's'), (d) => cb(d.exists() ? d.data() : null), () => cb(null)),
+  command: (c) => setDoc(doc(db, 'bot', 'cmd'), { c, n: Date.now() + '-' + Math.random().toString(36).slice(2, 7), t: Date.now() }),
+};
 window.DB = {
+  bot,
   refreshPlan,
   isAdmin, adminFind, adminSet, lbTop, lbRank, setLbOptOut,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt, linkPut, linkDel, calPut, calDel,
