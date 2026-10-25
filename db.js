@@ -10,7 +10,7 @@
 //   rv/<uid>     { s: 1-5 stars (number), tx: review text (string ≤280), t: timestamp ms (int), a: picture (optional, refreshed on login) }  one review per user; readable by all, writable only by owner. No username stored — cards resolve it from nm/<name>
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, getCountFromServer, setDoc, addDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, getDoc, getDocs, getCountFromServer, setDoc, addDoc, updateDoc, deleteDoc, orderBy, deleteField, writeBatch, runTransaction, query, where, limit, onSnapshot, increment, arrayUnion, arrayRemove, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyDlqQYIPue53vx1tpm7-DYYKMZB4OatiDg',
@@ -458,8 +458,13 @@ const bot = {
   watch: (cb) => onSnapshot(doc(db, 'bot', 's'), (d) => cb(d.exists() ? d.data() : null), () => cb(null)),
   command: (c) => setDoc(doc(db, 'bot', 'cmd'), { c, n: Date.now() + '-' + Math.random().toString(36).slice(2, 7), t: Date.now() }),
 };
+// Vouches typed on the website: vq/<uid> { r: receiver Discord id, w: item, c: comment, n: name, at: server time, done }. The bot posts it in Discord and sets done/st/mid/er.
+const vouch = {
+  send: (r, w, c, n) => setDoc(doc(db, 'vq', auth.currentUser.uid), { r, w, ...(c ? { c } : {}), n, at: serverTimestamp(), done: false }),
+  watch: (cb) => onSnapshot(doc(db, 'vq', auth.currentUser.uid), (s) => cb(s.exists() ? s.data() : null), () => cb(null)),
+};
 window.DB = {
-  bot,
+  bot, vouch,
   refreshPlan,
   isAdmin, adminFind, adminSet, lbTop, lbRank, setLbOptOut,
   save, u, setUsername, setCats, setAvatar, setCover, setPet, setFocus, setPetArt, linkPut, linkDel, calPut, calDel,

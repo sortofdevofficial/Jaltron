@@ -13,6 +13,22 @@ service cloud.firestore {
     // Public website data written by the bot (vouches, leaderboards): anyone can read, only admins write.
     match /pub/{id} { allow read: if true; allow write: if isAdmin(); }
 
+    // Vouches typed on the website (one per account per hour). The bot (an admin account) posts them in Discord and marks them done.
+    match /vq/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.auth.token.email_verified == true
+        && request.resource.data.keys().hasOnly(['r', 'w', 'c', 'n', 'at', 'done'])
+        && request.resource.data.r is string && request.resource.data.r.matches('^[0-9]{15,25}$')
+        && request.resource.data.w is string && request.resource.data.w.size() >= 1 && request.resource.data.w.size() <= 80
+        && (!('c' in request.resource.data) || (request.resource.data.c is string && request.resource.data.c.size() <= 200))
+        && request.resource.data.n is string && request.resource.data.n.size() >= 1 && request.resource.data.n.size() <= 32
+        && request.resource.data.done == false
+        && request.resource.data.at == request.time
+        && (resource == null || request.time > resource.data.at + duration.value(1, 'h'));
+      allow read, write: if isAdmin();
+    }
+
     // Bot panel: only admins (the bot machine signs in with an account listed in admins/)
     match /bot/{id} { allow read, write: if isAdmin(); }
 

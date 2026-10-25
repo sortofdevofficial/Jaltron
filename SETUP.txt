@@ -1,0 +1,6 @@
+WEBSITE SETUP
+1. Upload everything in this folder to your website repo (keep the api/ folder as it is). Vercel deploys it.
+2. Open Firebase Console > Firestore > Rules, paste the content of firestore.rules and press Publish.
+3. Menu link (optional): add this line under "Main" in the sidebar of index.html:
+     <a class="nav-item" href="discord"><i>💬</i><span>Discord</span></a>
+Pages: /admin (bot control, staff only) and /discord (stats, leaderboards, giveaways, vouches).
