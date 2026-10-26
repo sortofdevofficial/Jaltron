@@ -72,7 +72,7 @@
       try { await DB.adminSet(cur.uid, Number(b.dataset.days)); show('Done.'); find(cur.uid); } catch { show('Could not save. Is this account in the admins collection?'); }
     });
 
-    // Bot control: agent.js on the bot machine reads the command you send here through Firestore
+    // Bot control: the bot (node bot.js) on the bot machine reads the command you send here through Firestore
     let botOn = false, botDoc = null;
     function botPaint() {
       const d = botDoc, up = !!d && Date.now() - Number(d.hb || 0) < 150000, run = up && d.s === 'running';

@@ -121,8 +121,15 @@
   setInterval(() => Habit.tickResets(), 20000);
 
   // ---------- Navigation ----------
-  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', calendar: 'Calendar', ai: 'AI Assistant', insights: 'Insights', plans: 'Plans', bank: 'Bank', links: 'Links', board: 'Leaderboard', reviews: 'Reviews', settings: 'Settings' };
-  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', calendar: '📅', ai: '✨', insights: '📊', plans: '⚡', bank: '🐷', links: '🔗', board: '🏆', reviews: '⭐', settings: '⚙️' };
+  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', calendar: 'Calendar', ai: 'AI Assistant', insights: 'Insights', plans: 'Plans', bank: 'Bank', links: 'Links', board: 'Leaderboard', reviews: 'Reviews', discord: 'Discord', settings: 'Settings' };
+  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', calendar: '📅', ai: '✨', insights: '📊', plans: '⚡', bank: '🐷', links: '🔗', board: '🏆', reviews: '⭐', discord: '💬', settings: '⚙️' };
+  // Clean URLs: /tasks, /focus, /calendar, /leaderboard, /discord ... (old #links still work)
+  const SLUG = { board: 'leaderboard' }, FROM = { leaderboard: 'board', task: 'tasks' };
+  const pathOf = (p) => p === 'home' ? '/' : '/' + (SLUG[p] || p);
+  const pageFromUrl = () => {
+    const h = location.hash.slice(1), s = location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0].toLowerCase(), k = FROM[s] || s;
+    return PAGES[h] ? h : PAGES[k] ? k : 'home';
+  };
   function go(p, quiet) {
     if (!PAGES[p]) p = 'home';
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
@@ -135,13 +142,15 @@
     window.Calendar && Calendar.pageChanged();
     window.Board && Board.pageChanged();
     window.Reviews && Reviews.pageChanged();
-    if (location.hash !== '#' + p) history.replaceState(null, '', '#' + p);
+    if (p === 'discord') { const f = $('dc-frame'); if (f && !f.getAttribute('src')) f.src = 'dc?embed=1'; }
+    if (location.pathname !== pathOf(p) || location.hash) history[quiet ? 'replaceState' : 'pushState'](null, '', pathOf(p));
     if (!quiet) scrollTo({ top: 0 });
   }
   const clickEl = (q) => document.querySelector(q).click();
   const newTask = () => { go('tasks'); setTimeout(() => { $('task-title').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('task-title').focus(); }, 30); };
   document.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => go(b.dataset.nav)));
-  addEventListener('hashchange', () => go(location.hash.slice(1), true));
+  addEventListener('popstate', () => go(pageFromUrl(), true));
+  addEventListener('hashchange', () => { const h = location.hash.slice(1); if (PAGES[h]) go(h, true); });
   $('nav-add').addEventListener('click', newTask);
   $('top-add').addEventListener('click', newTask);
   $('nav-keys').addEventListener('click', () => $('keys-dlg').showModal());
@@ -275,7 +284,7 @@
     else if (e.key === '?') $('keys-dlg').showModal();
   });
 
-  go(location.hash.slice(1) || 'home', true);
+  go(pageFromUrl(), true);
   window.Extras = { go, update, startFocus, celebrate, focusId: () => Focus.taskId(), burst, toast, tasks: () => tasks };
 })();
 document.addEventListener('keydown', (e) => { if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && !document.querySelector('dialog[open]')) Extras.go('tasks', true); }, true);

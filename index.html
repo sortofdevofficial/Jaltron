@@ -83,6 +83,8 @@
     </div>
     <button class="side-pet" id="pet-side" hidden aria-label="Your pet, open Home"><span class="pet" id="pet-side-art"></span><span class="sp-t"><b id="pet-side-n">0</b><small>day streak</small></span></button>
     <div class="nav tools">
+      <p class="nav-label">Community</p>
+      <button class="nav-item" data-nav="discord"><i>💬</i><span>Discord</span></button>
       <p class="nav-label">Tools</p>
       <button class="nav-item" id="nav-add"><i class="fa-solid fa-plus"></i><span>New task</span><kbd>N</kbd></button>
       <button class="nav-item" id="nav-keys"><i class="fa-regular fa-keyboard"></i><span>Shortcuts</span><kbd>?</kbd></button>
@@ -451,7 +453,8 @@
   </div>
   </div>
 
-  <div class="page" data-page="settings">
+  <div class="page" data-page="discord"><iframe id="dc-frame" title="Discord" loading="lazy" allow="clipboard-write"></iframe></div>
+<div class="page" data-page="settings">
   <section class="hud panel set">
     <div class="panel-title"><span><i class="fa-solid fa-circle-half-stroke"></i> Appearance</span><span class="sub" id="theme-state"></span></div>
     <p class="sub">Pick how JALTRON looks. Your choice is saved on this device and used every time you open the site.</p>
