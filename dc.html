@@ -139,16 +139,36 @@
   const copy = (text, what) => { try { navigator.clipboard.writeText(text).then(() => toast((what || 'Copied') + ' copied')); } catch { toast(text); } };
 
   // Everything comes through /api/pub (cached by Vercel), never straight from Firestore.
-  const get = (name) => fetch('/api/pub?name=' + name).then((r) => r.ok ? r.json() : null).catch(() => null);
+  // The last payload is kept in localStorage with its version: an unchanged reply is a 304 with no body.
+  const CACHE = 'jt:pub:v1:';
+  const get = async (name) => {
+    let hit = null;
+    try { hit = JSON.parse(localStorage.getItem(CACHE + name) || 'null'); } catch {}
+    try {
+      const r = await fetch('/api/pub?name=' + name, { headers: hit && hit.v ? { 'X-Pub-Version': hit.v } : {} });
+      if (r.status === 304) return hit && hit.d;
+      if (!r.ok) return hit && hit.d;
+      const d = await r.json(), v = r.headers.get('X-Pub-Version') || '';
+      try { localStorage.setItem(CACHE + name, JSON.stringify({ v, d })); } catch {}
+      return d;
+    } catch { return hit && hit.d; }
+  };
 
   // ── saved format: a vouch is [id in base 36, giver #, receiver #, item #, comment?]; the time is inside the Discord message id ──
   const unb36 = (s) => [...s].reduce((n, c) => n * 36n + BigInt(parseInt(c, 36)), 0n).toString();
   const idTime = (id) => Number((BigInt(id) >> 22n) + 1420070400000n);
   function expand(D) {
     const rows = [], users = {};
+    const Gu = Array.isArray(D.u) ? D.u : null, Gitems = Array.isArray(D.i) ? D.i : null;
+    if (Gu) for (const [id, n, v] of Gu) users[id] = [n || 'User', v || null];
     for (const ch of D.chunks || []) {
-      const items = ch.i || [];
-      if (Array.isArray(ch.u)) {
+      const items = Gitems || ch.i || [];
+      if (ch.v === 2 && Gu) {
+        for (const [m, gi, ri, wi, c] of ch.r || []) {
+          const id = unb36(m), a = Gu[gi] && Gu[gi][0], r = Gu[ri] && Gu[ri][0];
+          if (a && r) rows.push({ i: id, a, r, w: items[wi] || '', t: idTime(id), c: c || '' });
+        }
+      } else if (Array.isArray(ch.u)) {
         ch.u.forEach(([id, n, v]) => { users[id] = [n || 'User', v || null]; });
         for (const [m, g, r, w, c] of ch.r || []) { const id = unb36(m); rows.push({ i: id, a: ch.u[g][0], r: ch.u[r][0], w: items[w] || '', t: idTime(id), c: c || '' }); }
       } else { // first saved format (ids and times in every row)

@@ -78,14 +78,42 @@
   let M = {}, V = [], U = {}, C = null, page = 0, view = [];
 
   // The data comes through /api/pub (cached by Vercel), never straight from Firestore.
-  const get = (name) => fetch('/api/pub?name=' + name).then((r) => r.ok ? r.json() : null).catch(() => null);
+  // The last payload is kept in localStorage with its version: an unchanged reply is a 304 with no body.
+  const CACHE = 'jt:pub:v1:';
+  const get = async (name) => {
+    let hit = null;
+    try { hit = JSON.parse(localStorage.getItem(CACHE + name) || 'null'); } catch {}
+    try {
+      const r = await fetch('/api/pub?name=' + name, { headers: hit && hit.v ? { 'X-Pub-Version': hit.v } : {} });
+      if (r.status === 304) return hit && hit.d;
+      if (!r.ok) return hit && hit.d;
+      const d = await r.json(), v = r.headers.get('X-Pub-Version') || '';
+      try { localStorage.setItem(CACHE + name, JSON.stringify({ v, d })); } catch {}
+      return d;
+    } catch { return hit && hit.d; }
+  };
 
   // Chunks (oldest first) -> one list. V rows: { i: message id, a: giver id, r: receiver id, w: item, t: time }
+  const unb36 = (s) => [...s].reduce((n, c) => n * 36n + BigInt(parseInt(c, 36)), 0n).toString();
+  const idTime = (id) => Number((BigInt(id) >> 22n) + 1420070400000n);
   function expand(D) {
     const rows = [], users = {};
+    const Gu = Array.isArray(D.u) ? D.u : null, Gitems = Array.isArray(D.i) ? D.i : null;
+    if (Gu) for (const [id, n, v] of Gu) users[id] = [n || 'User', v || null];
     for (const ch of D.chunks || []) {
-      for (const [id, u] of Object.entries(ch.u || {})) users[id] = u; // later chunks are newer, so the newest name wins
-      for (const [i, a, r, w, t] of ch.r || []) rows.push({ i, a, r, w: (ch.i || [])[w] || '', t });
+      const items = Gitems || ch.i || [];
+      if (ch.v === 2 && Gu) {
+        for (const [m, gi, ri, wi] of ch.r || []) {
+          const id = unb36(m), a = Gu[gi] && Gu[gi][0], r = Gu[ri] && Gu[ri][0];
+          if (a && r) rows.push({ i: id, a, r, w: items[wi] || '', t: idTime(id) });
+        }
+      } else if (Array.isArray(ch.u)) {
+        ch.u.forEach(([id, n, v]) => { users[id] = [n || 'User', v || null]; }); // later chunks are newer, so the newest name wins
+        for (const [m, g, r, w] of ch.r || []) { const id = unb36(m); rows.push({ i: id, a: ch.u[g][0], r: ch.u[r][0], w: items[w] || '', t: idTime(id) }); }
+      } else {
+        for (const [id, u] of Object.entries(ch.u || {})) users[id] = u;
+        for (const [i, a, r, w, t] of ch.r || []) rows.push({ i, a, r, w: items[w] || '', t });
+      }
     }
     return { rows, users };
   }
