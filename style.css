@@ -80,7 +80,11 @@ h1 { font-family: 'Exo 2', 'Inter', sans-serif; font-size: 1.1875rem; font-weigh
 
 /* ---------- Navigation shell ---------- */
 .shell { display: grid; grid-template-columns: 14.75rem minmax(0, 1fr); min-height: 100vh; }
-.side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 1.125rem; padding: 1.25rem 0.875rem; border-right: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(1rem); z-index: 35; }
+.side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 1.125rem; padding: 1.25rem 0.875rem; border-right: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(1rem); z-index: 35; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--border-hover) transparent; }
+.side::-webkit-scrollbar { width: 0.5rem; }
+.side::-webkit-scrollbar-track { background: transparent; }
+.side::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 0.25rem; }
+.side::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .side .brand { padding: 0 0.5rem 0.25rem; }
 .nav { display: flex; flex-direction: column; gap: 0.25rem; }
 .nav-label { font-size: 0.6875rem; color: var(--muted); padding: 0 0.75rem 0.25rem; font-weight: 600; }

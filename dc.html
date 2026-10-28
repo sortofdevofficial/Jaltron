@@ -36,7 +36,7 @@
     .dc-card .tx b{cursor:pointer}.dc-card .tx b:hover{color:var(--accent)}
     .dc-card .it{display:inline-block;margin-top:.2rem;padding:.12rem .6rem;border-radius:99px;background:color-mix(in srgb,var(--accent) 18%,transparent);font-weight:600;font-size:.78rem}
     .dc-card .web{font-size:.68rem;margin-left:.35rem;color:var(--muted)}
-    .dc-card q{display:block;margin-top:.25rem;color:var(--muted);font-size:.8rem}
+    .dc-card q{display:block;margin-top:.25rem;color:var(--muted);font-size:.8rem;white-space:pre-line}
     .dc-card small{color:var(--muted);font-size:.72rem}
     .dc-card .ids{display:block;margin-top:.15rem;font:.66rem 'JetBrains Mono',ui-monospace,monospace;color:var(--muted);word-break:break-all}
     .dc-card .ids span{cursor:pointer}.dc-card .ids span:hover{color:var(--accent)}
@@ -90,7 +90,7 @@
         <div class="dc-form">
           <select id="vf-who"></select>
           <input id="vf-item" maxlength="80" placeholder="What did you get? (e.g. Nitro)" autocomplete="off">
-          <textarea id="vf-note" maxlength="200" placeholder="Optional comment"></textarea>
+          <textarea id="vf-note" maxlength="300" rows="3" placeholder="Optional comment — every line is saved"></textarea>
           <button class="btn primary" id="vf-go">Post my vouch</button>
         </div>
         <p class="dc-msg" id="vf-msg"></p>
@@ -336,7 +336,7 @@
     const r = $('vf-who').value, w = $('vf-item').value.trim(), c = $('vf-note').value.trim();
     if (!r || !w) return say('Pick a person and write what you got.', true);
     $('vf-go').disabled = true;
-    try { await DB.vouch.send(r, w.slice(0, 80), c.slice(0, 200), me.name.slice(0, 32)); say('⏳ Sent. The bot posts it in Discord within about a minute.'); $('vf-item').value = ''; $('vf-note').value = ''; }
+    try { await DB.vouch.send(r, w.slice(0, 80), c.slice(0, 300), me.name.slice(0, 32)); say('⏳ Sent. The bot posts it in Discord within about a minute.'); $('vf-item').value = ''; $('vf-note').value = ''; }
     catch (e) { say(e.code === 'permission-denied' ? 'You can add one vouch per hour, and your Google email must be verified.' : 'Could not send: ' + e.message, true); }
     $('vf-go').disabled = false;
   };
