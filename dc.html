@@ -7,7 +7,6 @@
   <script>try{var t=localStorage.getItem("jt:theme");document.documentElement.dataset.theme=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"}catch(e){}</script>
   <link rel="icon" href="favicon.png">
   <link rel="stylesheet" href="style.css">
-  <script type="module" src="db.js"></script>
   <style>
     .dc{max-width:68rem;margin:0 auto;padding:1.25rem 1rem 3rem;color:var(--text)}
     .embed .dc{padding-top:.25rem}.embed .back{display:none}
@@ -83,19 +82,6 @@
 
   <section id="p-vouches" hidden>
     <div class="dc-stats" id="stats"></div>
-    <section class="hud dc-box" id="add">
-      <h3>Add your vouch</h3>
-      <div id="vf-out"><p class="sub" style="margin:0 0 .5rem;color:var(--muted)">Sign in with Google to add a vouch. It is posted in our Discord and saved here too.</p><button class="btn primary" id="vf-login">Sign in with Google</button></div>
-      <div id="vf-in" hidden>
-        <div class="dc-form">
-          <select id="vf-who"></select>
-          <input id="vf-item" maxlength="80" placeholder="What did you get? (e.g. Nitro)" autocomplete="off">
-          <textarea id="vf-note" maxlength="300" rows="3" placeholder="Optional comment — every line is saved"></textarea>
-          <button class="btn primary" id="vf-go">Post my vouch</button>
-        </div>
-        <p class="dc-msg" id="vf-msg"></p>
-      </div>
-    </section>
     <section class="hud dc-chart"><h3>Vouches per day (last 30 days)</h3><svg id="chart" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></section>
     <div class="dc-tabs sm" id="subtabs"><button data-s="wall" class="on">All vouches</button><button data-s="top">Top vouched</button><button data-s="items">Items</button></div>
     <section class="hud dc-prof" id="prof" hidden>
@@ -133,7 +119,7 @@
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const clear = (e) => { e.textContent = ''; return e; };
   const MEDAL = ['🥇', '🥈', '🥉'];
-  let M = {}, V = [], U = {}, C = null, page = 0, view = [], me = null, unwatch = null, picked = null;
+  let M = {}, V = [], U = {}, C = null, page = 0, view = [], picked = null;
 
   const toast = (t) => { const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 1600); };
   const copy = (text, what) => { try { navigator.clipboard.writeText(text).then(() => toast((what || 'Copied') + ' copied')); } catch { toast(text); } };
@@ -199,7 +185,8 @@
     const box = clear($('ov')), s = (C && C.stats) || {};
     if (!C || !C.stats) { box.appendChild(el('div', 'hud dc-empty', 'Server stats are not available yet.')); return; }
     stat(box, '👥', fmt(s.members), 'Members');
-    stat(box, '💎', fmt(s.boosts) + (s.tier ? ` · L${s.tier}` : ''), 'Server boosts');
+    const tier = s.tier || 0, need = { 0: 2, 1: 7, 2: 14 }[tier];
+    stat(box, '💎', fmt(s.boosts) + (tier ? ` · Tier ${tier}` : ''), need ? `${Math.max(0, need - (s.boosts || 0))} boosts to Tier ${tier + 1}` : 'Server boosts');
     if (s.youtube != null) stat(box, '📺', fmt(s.youtube), 'YouTube subscribers');
     stat(box, '💬', fmt(s.messages), 'Messages counted');
     stat(box, '🎙️', fmt(Math.floor((s.voiceSec || 0) / 3600)) + 'h', 'Voice time');
@@ -309,37 +296,7 @@
   function fillNames() {
     const dl = clear($('names')), seen = new Set();
     tally((v) => v.r).concat(tally((v) => v.a)).forEach(([id]) => { const n = name(id); if (seen.has(n) || seen.size > 3000) return; seen.add(n); const o = el('option'); o.value = n; dl.appendChild(o); });
-    const sel = clear($('vf-who')), first = el('option', '', 'Who are you vouching for?'); first.value = ''; sel.appendChild(first);
-    tally((v) => v.r).slice(0, 50).forEach(([id, c]) => { const o = el('option', '', `${name(id)} (${c} vouches)`); o.value = id; sel.appendChild(o); });
   }
-
-  // ── Add a vouch from the website (the bot posts it in Discord) ──
-  const say = (t, bad) => { const m = $('vf-msg'); m.textContent = t; m.className = 'dc-msg ' + (bad ? 'bad' : 'ok'); };
-  function paintForm() { $('vf-in').hidden = !me; $('vf-out').hidden = !!me; }
-  function watchMine() {
-    if (unwatch) { unwatch(); unwatch = null; }
-    if (!me || !window.DB) return;
-    unwatch = DB.vouch.watch((d) => {
-      if (!d) return;
-      if (!d.done) say('⏳ Sent. Waiting for the bot to post it in Discord…');
-      else if (d.st === 'posted') say('✅ Your last vouch is posted in Discord. It appears in the list below within a few minutes.');
-      else if (d.st === 'rejected') say('❌ ' + (d.er || 'That vouch was rejected.'), true);
-    });
-  }
-  addEventListener('jaltron:user', (e) => {
-    const d = e.detail || {};
-    me = d.user ? { name: (d.profile && d.profile.n) || d.user.displayName || 'Member' } : null;
-    paintForm(); watchMine();
-  });
-  $('vf-login').onclick = () => window.DB && DB.signIn();
-  $('vf-go').onclick = async () => {
-    const r = $('vf-who').value, w = $('vf-item').value.trim(), c = $('vf-note').value.trim();
-    if (!r || !w) return say('Pick a person and write what you got.', true);
-    $('vf-go').disabled = true;
-    try { await DB.vouch.send(r, w.slice(0, 80), c.slice(0, 300), me.name.slice(0, 32)); say('⏳ Sent. The bot posts it in Discord within about a minute.'); $('vf-item').value = ''; $('vf-note').value = ''; }
-    catch (e) { say(e.code === 'permission-denied' ? 'You can add one vouch per hour, and your Google email must be verified.' : 'Could not send: ' + e.message, true); }
-    $('vf-go').disabled = false;
-  };
 
   // ── Leaderboards and giveaways (from the bot) ──
   function paintBoards() {
@@ -372,6 +329,10 @@
         const c = el('div', 'dc-gw'), t = el('b', '', '🎉 ' + g.prize); t.appendChild(el('span', 'dc-chip' + (live ? '' : ' end'), live ? 'LIVE' : 'ENDED')); c.appendChild(t);
         const host = (g.host && (g.host.username || g.host.t)) || 'staff';
         c.appendChild(el('div', '', `#${g.gwId} · ${fmt(g.entries)} entries · ${g.winnersCount} winner${g.winnersCount > 1 ? 's' : ''} · host ${host}`));
+        const r = g.requirements, req = r ? [r.level ? `Level ${r.level}+` : '', r.invites ? `${r.invites}+ invites` : '', r.role ? 'role required' : ''].filter(Boolean).join(' · ') : '';
+        if (req) c.appendChild(el('div', '', '🔒 Requirements: ' + req));
+        if (g.bonusRoles) c.appendChild(el('div', '', `🎁 Bonus entries: ${g.bonusRoles} role${g.bonusRoles > 1 ? 's' : ''} get extra weight`));
+        if (g.ping) c.appendChild(el('div', '', '🔔 Pinged: ' + (g.ping === 'everyone' ? '@everyone' : 'a role')));
         c.appendChild(el('div', '', live ? 'Ends ' + new Date(g.endsAt).toLocaleString() + ' (' + dur(Math.max(0, (g.endsAt - Date.now()) / 1000)) + ' left)' : 'Ended ' + new Date(g.endedAt || g.endsAt).toLocaleString() + ' · winners: ' + (g.winners && g.winners.length ? g.winners.map((w) => w.username || w.t).join(', ') : 'none')));
         b.appendChild(c);
       });
@@ -403,7 +364,7 @@
     let D; [D, C] = await Promise.all([get('legit'), get('community')]);
     if (D && D.chunks) { M = D; ({ rows: V, users: U } = expand(D)); }
     $('sub').textContent = C ? '' : 'Live data is not available right now. Please try again later.';
-    paintOverview(); paintVouchStats(); fillNames(); paintWall(); paintTopList(); paintItems(); paintBoards(); paintGiveaways(); paintForm();
+    paintOverview(); paintVouchStats(); fillNames(); paintWall(); paintTopList(); paintItems(); paintBoards(); paintGiveaways();
     const u = q0.get('u');                                                      // /legit?u=<user id> opens that person's vouches
     if (u && U[u]) pick(u, 'any'); else if (location.pathname === '/legit') show('vouches');
   })();

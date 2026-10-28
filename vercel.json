@@ -1,5 +1,4 @@
 {
-  "cleanUrls": true,
   "trailingSlash": false,
   "headers": [
     {
@@ -43,13 +42,22 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/legit",
-      "destination": "/dc.html"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/legit", "destination": "/legit.html" },
+    { "source": "/discord", "destination": "/dc.html" },
+    { "source": "/dc", "destination": "/dc.html" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/tasks", "destination": "/index.html" },
+    { "source": "/task", "destination": "/index.html" },
+    { "source": "/focus", "destination": "/index.html" },
+    { "source": "/calendar", "destination": "/index.html" },
+    { "source": "/ai", "destination": "/index.html" },
+    { "source": "/insights", "destination": "/index.html" },
+    { "source": "/plans", "destination": "/index.html" },
+    { "source": "/bank", "destination": "/index.html" },
+    { "source": "/links", "destination": "/index.html" },
+    { "source": "/leaderboard", "destination": "/index.html" },
+    { "source": "/board", "destination": "/index.html" },
+    { "source": "/reviews", "destination": "/index.html" },
+    { "source": "/settings", "destination": "/index.html" }
   ]
 }
