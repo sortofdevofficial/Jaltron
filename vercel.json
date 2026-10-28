@@ -44,12 +44,12 @@
   ],
   "rewrites": [
     {
-      "source": "/:page(home|task|tasks|focus|calendar|ai|insights|plans|bank|links|leaderboard|board|reviews|settings|discord)",
-      "destination": "/index.html"
-    },
-    {
       "source": "/legit",
       "destination": "/dc.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
