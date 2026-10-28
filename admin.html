@@ -8,17 +8,6 @@
   <link rel="icon" href="favicon.png">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="db.js"></script>
-  <style>
-    .bot{max-width:60rem;margin:1rem auto;padding:1rem}
-    .bot h2{font-size:1rem;margin:0 0 .75rem}
-    .bot-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:.75rem}
-    .bot-bar .sp{flex:1}
-    .pill{padding:.2rem .65rem;border-radius:99px;font-size:.7rem;font-weight:700;text-transform:uppercase;background:#6b7280;color:#fff}
-    .pill.running{background:#16a34a}.pill.crashed{background:#dc2626}.pill.stopped{background:#6b7280}
-    .btn[disabled]{opacity:.45;pointer-events:none}
-    .bot-log{height:18rem;overflow:auto;margin:0;padding:.6rem .75rem;border-radius:.6rem;background:#05070f;color:#cfd8ff;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
-    .bot-log .err{color:#ff7b7b}.bot-log .sys{color:#22e5ff}
-  </style>
 </head>
 <body>
   <main class="adm hud">
@@ -39,16 +28,6 @@
       </div>
     </div>
   </main>
-  <main class="hud bot" id="bot-tool" hidden>
-    <h2>Bot control</h2>
-    <div class="bot-bar">
-      <span class="pill" id="b-pill">PC offline</span><span class="sub" id="b-info"></span><span class="sp"></span>
-      <button class="btn primary" id="b-start" disabled>Start</button>
-      <button class="btn" id="b-restart" disabled>Restart</button>
-      <button class="btn danger" id="b-stop" disabled>Stop</button>
-    </div>
-    <pre class="bot-log" id="b-log"></pre>
-  </main>
   <script>
     const $ = (id) => document.getElementById(id);
     let cur = null;
@@ -58,7 +37,7 @@
       if (!e.detail.user) { show('Sign in with an admin account.'); $('a-login').hidden = false; $('a-tool').hidden = true; return; }
       $('a-login').hidden = true;
       let ok = false; try { ok = await DB.isAdmin(); } catch {}
-      $('a-tool').hidden = !ok; botInit(ok); show(ok ? 'Signed in as ' + e.detail.user.email : 'This account is not an admin.');
+      $('a-tool').hidden = !ok; show(ok ? 'Signed in as ' + e.detail.user.email : 'This account is not an admin.');
     });
     $('a-login').onclick = () => DB.signIn();
     async function find(q) {
@@ -71,26 +50,6 @@
       if (!cur) return;
       try { await DB.adminSet(cur.uid, Number(b.dataset.days)); show('Done.'); find(cur.uid); } catch { show('Could not save. Is this account in the admins collection?'); }
     });
-
-    // Bot control: the bot (node bot.js) on the bot machine reads the command you send here through Firestore
-    let botOn = false, botDoc = null;
-    function botPaint() {
-      const d = botDoc, up = !!d && Date.now() - Number(d.hb || 0) < 150000, run = up && d.s === 'running';
-      $('b-pill').className = 'pill ' + (up ? d.s : ''); $('b-pill').textContent = up ? d.s : 'PC offline';
-      $('b-info').textContent = run ? 'pid ' + d.pid + ' · up ' + Math.floor((Date.now() - Number(d.st)) / 60000) + ' min' : '';
-      $('b-start').disabled = !up || run; $('b-stop').disabled = !run; $('b-restart').disabled = !run;
-      const box = $('b-log'), stick = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
-      box.textContent = '';
-      let rows = []; try { rows = JSON.parse((d && d.l) || '[]'); } catch {}
-      for (const [t, kind, m] of rows) { const l = document.createElement('div'); l.className = kind; l.textContent = new Date(t).toLocaleTimeString() + '  ' + m; box.appendChild(l); }
-      if (stick) box.scrollTop = box.scrollHeight;
-    }
-    function botInit(ok) {
-      $('bot-tool').hidden = !ok;
-      if (!ok || botOn) return; botOn = true;
-      DB.bot.watch((d) => { botDoc = d; botPaint(); }); setInterval(botPaint, 30000);
-    }
-    ['start', 'stop', 'restart'].forEach((c) => $('b-' + c).onclick = () => DB.bot.command(c).catch((e) => alert('Could not send: ' + e.message)));
   </script>
 </body>
 </html>

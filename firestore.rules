@@ -29,8 +29,6 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Bot panel: only admins (the bot machine signs in with an account listed in admins/)
-    match /bot/{id} { allow read, write: if isAdmin(); }
 
     // Admins: accounts you list by hand in the console (admins/<uid>, any fields). Clients can only check themselves.
     match /admins/{id} {
