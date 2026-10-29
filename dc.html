@@ -78,7 +78,10 @@
     <button data-t="overview" class="on">Overview</button><button data-t="vouches">Vouches</button><button data-t="boards">Leaderboards</button><button data-t="giveaways">Giveaways</button>
   </div>
 
-  <section id="p-overview"><div class="dc-stats" id="ov"></div></section>
+  <section id="p-overview">
+    <div class="dc-stats" id="ov"></div>
+    <section class="hud dc-chart"><h3>Messages per hour (last 24 hours)</h3><svg id="act-chart" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></section>
+  </section>
 
   <section id="p-vouches" hidden>
     <div class="dc-stats" id="stats"></div>
@@ -189,7 +192,11 @@
     stat(box, '💎', fmt(s.boosts) + (tier ? ` · Tier ${tier}` : ''), need ? `${Math.max(0, need - (s.boosts || 0))} boosts to Tier ${tier + 1}` : 'Server boosts');
     if (s.youtube != null) stat(box, '📺', fmt(s.youtube), 'YouTube subscribers');
     stat(box, '💬', fmt(s.messages), 'Messages counted');
+    stat(box, '⚡', fmt(s.msgHour || 0), 'Messages past hour');
+    stat(box, '📈', fmt(s.msgToday || 0), 'Messages today');
     stat(box, '🎙️', fmt(Math.floor((s.voiceSec || 0) / 3600)) + 'h', 'Voice time');
+    stat(box, '🔊', fmt(s.voiceNow || 0), 'In voice now');
+    stat(box, '🎤', fmt(Math.floor((s.voiceTodaySec || 0) / 3600)) + 'h', 'Voice today');
     stat(box, '✅', fmt(V.length), 'Vouches');
     stat(box, '🎉', fmt(((C.giveaways && C.giveaways.active) || []).length), 'Active giveaways');
     if (s.counting != null) stat(box, '🔢', fmt(s.counting), 'Counting channel');
@@ -198,6 +205,11 @@
     stat(box, '⏱️', dur((s.uptime || 0) / 1000), 'Bot uptime');
     stat(box, '📡', (s.ping || 0) + ' ms', 'Bot ping');
     if (s.created) stat(box, '📅', new Date(s.created).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }), 'Server created');
+    // Hourly message activity chart
+    const hourly = Array.isArray(s.hourlyMsg) && s.hourlyMsg.length ? s.hourlyMsg : new Array(24).fill(0);
+    const max = Math.max(1, ...hourly), vals = hourly.slice(-24);
+    const step = 300 / vals.length;
+    $('act-chart').innerHTML = vals.map((v, i) => `<rect x="${i * step + 1}" y="${58 - (v / max) * 56}" width="${step - 2}" height="${(v / max) * 56 + 1}" rx="2" fill="var(--accent)"><title>${i - vals.length + 1}h ago: ${v}</title></rect>`).join('');
     $('sub').textContent = C.updatedAt ? 'Live from our Discord bot · updated ' + ago(C.updatedAt) : 'Live from our Discord bot';
   }
 

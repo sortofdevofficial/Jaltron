@@ -43,8 +43,8 @@
   ],
   "rewrites": [
     { "source": "/legit", "destination": "/legit.html" },
-    { "source": "/discord", "destination": "/dc.html" },
-    { "source": "/dc", "destination": "/dc.html" },
+    { "source": "/discord", "destination": "/index.html" },
+    { "source": "/dc", "destination": "/index.html" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/tasks", "destination": "/index.html" },
     { "source": "/task", "destination": "/index.html" },

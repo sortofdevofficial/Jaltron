@@ -142,7 +142,7 @@
     window.Calendar && Calendar.pageChanged();
     window.Board && Board.pageChanged();
     window.Reviews && Reviews.pageChanged();
-    if (p === 'discord') { const f = $('dc-frame'); if (f && !f.getAttribute('src')) f.src = 'dc?embed=1'; }
+    if (p === 'discord') { try { window.initDiscordPage && window.initDiscordPage(); } catch {} }
     if (location.pathname !== pathOf(p) || location.hash) history[quiet ? 'replaceState' : 'pushState'](null, '', pathOf(p));
     if (!quiet) scrollTo({ top: 0 });
   }

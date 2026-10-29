@@ -481,7 +481,47 @@
   </div>
   </div>
 
-  <div class="page" data-page="discord"><iframe id="dc-frame" title="Discord" loading="lazy" allow="clipboard-write"></iframe></div>
+  <div class="page" data-page="discord">
+    <main class="dc">
+      <a class="back" href="/">← Back to JALTRON</a>
+      <header class="hud dc-hero"><div><h1>💬 Discord</h1><p id="dc-sub">Loading…</p></div><div class="dc-live"><i></i><span>Live</span></div></header>
+      <div class="dc-tabs" id="dc-tabs">
+        <button data-t="overview" class="on">Overview</button><button data-t="vouches">Vouches</button><button data-t="boards">Leaderboards</button><button data-t="giveaways">Giveaways</button>
+      </div>
+      <section id="dc-p-overview">
+        <div class="dc-stats" id="dc-ov"></div>
+        <section class="hud dc-chart"><h3>Messages per hour (last 24 hours)</h3><svg id="dc-act-chart" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></section>
+      </section>
+      <section id="dc-p-vouches" hidden>
+        <div class="dc-stats" id="dc-stats"></div>
+        <section class="hud dc-chart"><h3>Vouches per day (last 30 days)</h3><svg id="dc-chart" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></section>
+        <div class="dc-tabs sm" id="dc-subtabs"><button data-s="wall" class="on">All vouches</button><button data-s="top">Top vouched</button><button data-s="items">Items</button></div>
+        <section class="hud dc-prof" id="dc-prof" hidden>
+          <div id="dc-pf-av"></div>
+          <div class="grow"><h2 id="dc-pf-name"></h2><span class="pid" id="dc-pf-id" title="Click to copy the user ID"></span><div class="badges" id="dc-pf-badges"></div></div>
+          <div class="acts"><button class="btn" id="dc-pf-link">Copy link</button><button class="btn" id="dc-pf-clear">Show everyone</button></div>
+        </section>
+        <div id="dc-s-wall">
+          <div class="dc-tools">
+            <input id="dc-q" placeholder="Search item" autocomplete="off">
+            <input id="dc-who" list="dc-names" placeholder="Pick a person" autocomplete="off">
+            <select id="dc-role"><option value="any">Gave or got</option><option value="got">Got vouches</option><option value="gave">Gave vouches</option></select>
+            <select id="dc-sort"><option value="new">Newest first</option><option value="old">Oldest first</option></select>
+            <select id="dc-size"><option>10</option><option selected>25</option><option>50</option><option>100</option><option>500</option><option value="0">All</option></select>
+            <button class="btn" id="dc-csv" title="Download the vouches matching your filters">Export CSV</button>
+          </div>
+          <datalist id="dc-names"></datalist>
+          <div class="dc-pager"><span id="dc-count"></span><div><button class="btn" id="dc-prev">‹ Prev</button><span id="dc-pg"></span><button class="btn" id="dc-next">Next ›</button></div></div>
+          <div class="dc-list" id="dc-wall"></div>
+        </div>
+        <div id="dc-s-top" hidden><div class="dc-list" id="dc-top"></div></div>
+        <div id="dc-s-items" hidden><div class="hud dc-box"><div class="dc-chips" id="dc-items"></div></div></div>
+      </section>
+      <section id="dc-p-boards" hidden><div class="dc-grid" id="dc-boards"></div></section>
+      <section id="dc-p-giveaways" hidden><div class="dc-grid" id="dc-gws"></div></section>
+    </main>
+    <div id="dc-toast"></div>
+  </div>
 <div class="page" data-page="settings">
   <section class="hud panel set">
     <div class="panel-title"><span><i class="fa-solid fa-circle-half-stroke"></i> Appearance</span><span class="sub" id="theme-state"></span></div>
@@ -915,6 +955,7 @@
   <script src="lib.js"></script>
   <script src="ai.js"></script>
   <script src="extras.js"></script>
+  <script src="dc.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

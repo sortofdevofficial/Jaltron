@@ -28,7 +28,7 @@ Everything lives at the root on purpose — one file per job, no build step:
 | `style.css` | All styling, light/dark themes |
 | `api/image.js` | Serverless image proxy (Vercel function) |
 | `api/pub.js` | Serverless function: vouches proxied live from the bot (`BOT_URL`), leaderboards from Firestore, cached by Vercel's CDN |
-| `dc.html` | Discord page: stats, leaderboards, giveaways, vouches (`/discord` in the app, `/legit` public) |
+| `dc.html` / `dc.js` | Discord page: stats, leaderboards, giveaways, vouches (`/discord` is now inline in the SPA, `/legit` stays public) |
 | `firestore.rules` | Database security rules |
 | `manifest.webmanifest` | PWA manifest — makes the app installable |
 | `robots.txt` | Crawler rules (admin page excluded) |
@@ -37,7 +37,7 @@ Everything lives at the root on purpose — one file per job, no build step:
 
 ## How the pieces talk
 
-Classic scripts load in order `lib.js → ai.js → extras.js → index.js` and share globals; `db.js` is an ES module that loads in parallel and reports sign-in state via events. The cloud layout is documented at the top of `db.js`.
+Classic scripts load in order `lib.js → ai.js → extras.js → dc.js → index.js` and share globals; `db.js` is an ES module that loads in parallel and reports sign-in state via events. The cloud layout is documented at the top of `db.js`.
 
 ## SEO & PWA
 
