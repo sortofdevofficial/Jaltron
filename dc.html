@@ -206,6 +206,7 @@
     const cut = Date.now() - 30 * 864e5, box = clear($('stats'));
     stat(box, '✅', fmt(V.length), 'Total vouches'); stat(box, '🤝', fmt(new Set(V.map((v) => v.a)).size), 'People who vouched');
     stat(box, '🔥', fmt(V.filter((v) => v.t >= cut).length), 'Last 30 days'); stat(box, '📅', V.length ? new Date(V[0].t).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '-', 'Vouching since');
+    if (!V.length) { const n = el('div', 'hud dc-empty', 'Vouches are still syncing from Discord. '); const a = el('a', '', 'Refresh'); a.href = location.href; n.appendChild(a); box.appendChild(n); }
     const days = [...Array(30)].map((_, i) => new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10)), per = {};
     V.forEach((v) => { if (v.t >= cut - 864e5) { const k = new Date(v.t).toISOString().slice(0, 10); per[k] = (per[k] || 0) + 1; } });
     const vals = days.map((k) => per[k] || 0), max = Math.max(1, ...vals);
