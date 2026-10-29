@@ -1362,7 +1362,7 @@
       if (!av || av.length > 200) av = DB.user.photoURL || '';
       if (av.length > 200) av = '';
       const now = Date.now();
-      const fields = { s: selScore, tx, t: now };
+      const fields = { s: selScore, tx: txt, t: now };
       if (av) fields.a = av;
       await DB.rvPublish(fields); // full replace, so a legacy stored name is dropped along the way
       myReview = { s: fNum(selScore), tx: fStr(txt), t: { integerValue: String(now) } };
@@ -1373,7 +1373,7 @@
       setScore(selScore, true);
       toast('Review published! ☕🎉');
       const existing = allReviews.findIndex(r => r.uid === uid);
-      const rv = { uid, s: selScore, tx, t: now, a: av };
+      const rv = { uid, s: selScore, tx: txt, t: now, a: av };
       if (existing >= 0) allReviews[existing] = rv; else allReviews.unshift(rv);
       await resolveNames(allReviews); // picks up my uid if this is my first review
       renderAvg();
