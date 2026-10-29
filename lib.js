@@ -881,8 +881,8 @@
     const nb = $('nav-focus-t'); nb.hidden = !act; nb.textContent = fmt(l);
     document.title = on ? `${fmt(l)} ${LABEL[st.mode]} | JALTRON` : base;
     if (fast === true) return;
-    // The focused task's first picture becomes the backdrop of the big card and the mini dock
-    const cover = t && t.i && t.i.length && root.Img ? root.Img.parts(t.i[0]).t : '';
+    // Your own uploaded picture wins; otherwise the focused task's first picture is the backdrop.
+    const cover = customBg || (t && t.i && t.i.length && root.Img ? root.Img.parts(t.i[0]).t : '');
     $('fp-bg').hidden = !cover;
     $('fd-bg').hidden = !cover;
     if (cover) {
@@ -1000,6 +1000,150 @@
     }
     renderPick(); paint();
   }
+  // ---- atmosphere: your own background picture ----
+  let customBg = '';
+  try { customBg = localStorage.getItem('jt:focus:bg') || ''; } catch {}
+  const bgNote = $('bg-note'), BG_TIP = 'Shown behind the timer, on this device.';
+  const noteBg = (m) => { if (bgNote) bgNote.textContent = m; };
+  if (customBg) noteBg('Your picture is set. Upload another or clear it.');
+
+  function setBg(dataUrl) {
+    customBg = dataUrl || '';
+    try { dataUrl ? localStorage.setItem('jt:focus:bg', dataUrl) : localStorage.removeItem('jt:focus:bg'); }
+    catch { toast('This browser cannot store such a big picture.'); }
+    paint();
+  }
+  // Downscale in the browser so a phone photo still fits in localStorage.
+  function shrinkBg(file) {
+    return new Promise((res, rej) => {
+      const img = new Image(), url = URL.createObjectURL(file);
+      const done = (fn, v) => { URL.revokeObjectURL(url); fn(v); };
+      img.onload = () => {
+        try {
+          const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.naturalWidth * k));
+          c.height = Math.max(1, Math.round(img.naturalHeight * k));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          let q = 0.84, out = c.toDataURL('image/jpeg', q);
+          while (out.length > 1.8e6 && q > 0.4) { q -= 0.12; out = c.toDataURL('image/jpeg', q); }
+          done(res, out);
+        } catch (e) { done(rej, e); }
+      };
+      img.onerror = () => done(rej, new Error('That file is not a picture.'));
+      img.src = url;
+    });
+  }
+  $('bg-file').addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (!/^image\//.test(f.type)) return toast('Choose an image file (JPG, PNG or WebP).');
+    if (f.size > 25e6) return toast('That picture is over 25 MB.');
+    noteBg('Preparing…');
+    try { setBg(await shrinkBg(f)); noteBg('Your picture is set. Upload another or clear it.'); toast('Background updated'); }
+    catch (err) { noteBg(BG_TIP); toast(err.message || 'Could not read that picture.'); }
+  });
+  $('bg-clear').addEventListener('click', () => { setBg(''); noteBg(BG_TIP); toast('Background cleared'); });
+
+  // ---- soundtrack: a pasted link, plus generated ambience (no files need to load) ----
+  const mu = { tracks: [] };
+  try { mu.tracks = JSON.parse(localStorage.getItem('jt:focus:mus') || '[]').filter(x => x && x.u).slice(0, 8); } catch {}
+  const muUrl = $('mu-url'), muAudio = $('mu-audio'), muFrame = $('mu-frame'), muNow = $('mu-now'), muPlayer = $('mu-player'), muVol = $('mu-vol');
+  try { muVol.value = localStorage.getItem('jt:focus:vol') || 70; } catch {}
+  muAudio.volume = Number(muVol.value) / 100;
+
+  let actx = null, nSrc = null, nGain = null;
+  function noise(kind) {
+    if (nSrc) { try { nSrc.stop(); } catch {} nSrc = null; }
+    if (nGain) { try { nGain.disconnect(); } catch {} nGain = null; }
+    document.querySelectorAll('#mu-sounds [data-snd]').forEach(b => b.classList.toggle('on', b.dataset.snd === (kind || 'off')));
+    try { localStorage.setItem('jt:focus:snd', kind || 'off'); } catch {}
+    if (!kind) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const len = actx.sampleRate * 2, buf = actx.createBuffer(1, len, actx.sampleRate), d = buf.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random() * 2 - 1;
+        if (kind === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+        else d[i] = w * 0.6;
+      }
+      nSrc = actx.createBufferSource(); nSrc.buffer = buf; nSrc.loop = true;
+      const flt = actx.createBiquadFilter();
+      flt.type = kind === 'rain' ? 'bandpass' : 'lowpass';
+      flt.frequency.value = kind === 'rain' ? 1400 : 900;
+      flt.Q.value = kind === 'rain' ? 0.6 : 0.7;
+      nGain = actx.createGain();
+      nGain.gain.value = Number(muVol.value) / 100 * (kind === 'rain' ? 0.45 : 0.6);
+      nSrc.connect(flt); flt.connect(nGain); nGain.connect(actx.destination);
+      nSrc.start();
+      muNow.textContent = kind === 'rain' ? 'Rain' : 'Brown noise';
+    } catch { toast('This browser cannot play generated sound.'); }
+  }
+  $('mu-sounds').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-snd]');
+    if (!b) return;
+    const kind = b.dataset.snd === 'off' ? '' : b.dataset.snd;
+    noise(kind);
+    if (!kind) muNow.textContent = muAudio.hidden && muFrame.hidden ? 'Off' : muNow.textContent;
+  });
+
+  const ytId = (u) => (String(u).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/) || [])[1] || '';
+  function stopAll(silent) {
+    muFrame.hidden = true; muFrame.removeAttribute('src');
+    try { muAudio.pause(); } catch {}
+    muAudio.hidden = true; muAudio.removeAttribute('src'); muAudio.load();
+    muPlayer.hidden = true;
+    noise('');
+    muNow.textContent = 'Off';
+    if (!silent) toast('Music stopped');
+  }
+  const trackName = (u) => { try { const x = new URL(u); return (x.hostname.replace(/^www\./, '') + x.pathname).slice(0, 46); } catch { return String(u).slice(0, 46); } };
+  function paintTracks() {
+    $('mu-list').innerHTML = mu.tracks.map(x => `<li><button type="button" data-u="${esc(x.u)}" title="Play again"><i class="fa-solid fa-play"></i><span>${esc(x.t)}</span></button><button type="button" class="fp-x" data-x="${esc(x.u)}" aria-label="Remove"><i class="fa-solid fa-xmark"></i></button></li>`).join('');
+    try { localStorage.setItem('jt:focus:mus', JSON.stringify(mu.tracks)); } catch {}
+  }
+  function playUrl(raw) {
+    const u = String(raw || '').trim();
+    if (!/^https?:\/\//i.test(u)) return toast('Paste a full link that starts with https://');
+    noise('');
+    const id = ytId(u);
+    muFrame.hidden = true; muFrame.removeAttribute('src');
+    try { muAudio.pause(); } catch {}
+    muAudio.hidden = true; muAudio.removeAttribute('src'); muAudio.load();
+    muPlayer.hidden = false;
+    if (id) {
+      muFrame.hidden = false;
+      muFrame.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1`;
+      muNow.textContent = 'YouTube';
+    } else {
+      muAudio.hidden = false;
+      muAudio.volume = Number(muVol.value) / 100;
+      muAudio.src = u;
+      muAudio.play().catch(() => toast('That link did not play. Try a direct audio file.'));
+      muNow.textContent = 'Playing';
+    }
+    mu.tracks = [{ u, t: trackName(u) }, ...mu.tracks.filter(x => x.u !== u)].slice(0, 8);
+    paintTracks();
+  }
+  $('mu-form').addEventListener('submit', (e) => { e.preventDefault(); playUrl(muUrl.value); });
+  $('mu-list').addEventListener('click', (e) => {
+    const x = e.target.closest('[data-x]');
+    if (x) { mu.tracks = mu.tracks.filter(t => t.u !== x.dataset.x); paintTracks(); return; }
+    const b = e.target.closest('[data-u]');
+    if (b) { muUrl.value = b.dataset.u; playUrl(b.dataset.u); }
+  });
+  $('mu-stop').addEventListener('click', () => stopAll());
+  muVol.addEventListener('input', () => {
+    const v = Number(muVol.value) / 100;
+    muAudio.volume = v;
+    if (nGain) nGain.gain.value = v * 0.55;
+    try { localStorage.setItem('jt:focus:vol', muVol.value); } catch {}
+  });
+  paintTracks();
+
   root.Focus = {
     start, pause, toggle, reset, sync,
     taskId: () => (active() ? st.taskId : null),

@@ -233,6 +233,34 @@
           <ul class="fp-log" id="fp-log"></ul>
         </section>
         <section class="hud panel fp-card">
+          <div class="panel-title"><span><i class="fa-solid fa-image"></i> Background</span><button class="btn sm" id="bg-clear" type="button">Clear</button></div>
+          <div class="fp-bg-row">
+            <label class="btn primary fp-upload"><i class="fa-solid fa-upload"></i> Upload image<input type="file" id="bg-file" accept="image/*"></label>
+            <span class="sub" id="bg-note">Shown behind the timer, on this device.</span>
+          </div>
+        </section>
+        <section class="hud panel fp-card">
+          <div class="panel-title"><span><i class="fa-solid fa-music"></i> Soundtrack</span><b class="fp-now" id="mu-now">Off</b></div>
+          <form class="fp-music" id="mu-form">
+            <input id="mu-url" type="url" placeholder="Paste a YouTube or audio URL" aria-label="Music URL" autocomplete="off" spellcheck="false">
+            <button class="btn primary" id="mu-play" type="submit"><i class="fa-solid fa-play"></i></button>
+          </form>
+          <div class="fp-player" id="mu-player" hidden>
+            <iframe id="mu-frame" title="Music player" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
+            <audio id="mu-audio" controls preload="none" hidden></audio>
+          </div>
+          <div class="fp-mu-row">
+            <label class="fp-vol"><i class="fa-solid fa-volume-low" aria-hidden="true"></i><input type="range" id="mu-vol" min="0" max="100" value="70" aria-label="Volume"></label>
+            <button class="btn" id="mu-stop" type="button"><i class="fa-solid fa-stop"></i> Stop</button>
+          </div>
+          <div class="fp-sounds" id="mu-sounds" role="group" aria-label="Ambient sound">
+            <button type="button" data-snd="rain">🌧 Rain</button>
+            <button type="button" data-snd="brown">🌫 Brown noise</button>
+            <button type="button" data-snd="off" class="on">Off</button>
+          </div>
+          <ul class="fp-tracks" id="mu-list"></ul>
+        </section>
+        <section class="hud panel fp-card">
           <div class="panel-title"><span><i class="fa-solid fa-sliders"></i> Settings</span></div>
           <div class="fp-cfg">
             <label>Focus<input type="number" id="cf-focus" min="1" max="180"></label>
