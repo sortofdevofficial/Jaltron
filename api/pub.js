@@ -1,5 +1,5 @@
 // Vercel serverless function: serves the bot's PUBLIC data.
-//   GET /api/pub?name=legit       the bot's live vouch feed, proxied from BOT_URL/api/legit
+//   GET /api/pub?name=legit       the bot's live vouch feed, proxied from https://dbot.wisp.uno/api/legit
 //   GET /api/pub?name=community   leaderboards, giveaways, server stats (still from Firestore)
 // Vouch documents are no longer written to Firebase: the bot keeps them on disk and serves them itself.
 // Replies are cached by Vercel's CDN; a request that already has the current X-Pub-Version (or ETag)
@@ -7,8 +7,8 @@
 const KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDlqQYIPue53vx1tpm7-DYYKMZB4OatiDg'; // public web key, same as db.js
 const PROJECT = process.env.FIREBASE_PROJECT || 'jaltron0';
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/pub/`;
-// Set BOT_URL in Vercel to the bot's public address, e.g. http://1.2.3.4:3001 (no trailing slash).
-const BOT_URL = String(process.env.BOT_URL || '').replace(/\/+$/, '');
+// The bot's public address. Override with BOT_URL in Vercel only if the host ever changes.
+const BOT_URL = String(process.env.BOT_URL || 'https://dbot.wisp.uno').replace(/\/+$/, '');
 
 async function doc(name) {
   const r = await fetch(`${BASE}${name}?key=${KEY}`);
