@@ -3,11 +3,10 @@
 //   GET  /api/stats          bot uptime / ping / members / YouTube subs
 //   GET  /api/community      leaderboards, invites, giveaways   (refreshed every 30s)
 //   GET  /api/moderation     open+closed tickets, warns, stats
-//   POST /api/logs/event     website activity (login, game launch...) -> Discord log channel
 // Everything except health needs:  Authorization: Bearer <API_KEY>
 const http = require('http');
-const { EmbedBuilder, Events } = require('discord.js');
-const { API_KEY, API_PORT, CH, log, getYT, limited, plain } = require('./core');
+const { Events } = require('discord.js');
+const { API_KEY, API_PORT, log, getYT } = require('./core');
 const leveling = require('./leveling');
 const invites = require('./invites');
 const giveaways = require('./giveaways');
@@ -18,22 +17,8 @@ const pub = require('./pub');
 const pkg = require('./package.json');
 const EXTRA_PORT = Number(pkg.config?.EXTRA_API_PORT || process.env.EXTRA_API_PORT || 0); // optional 2nd port (e.g. the old moderation port)
 
-const EVENT_STYLES = {
-  login: { title: '🔑 Website login', color: 0x2ECC71 },
-  logout: { title: '🚪 Website logout', color: 0xE74C3C },
-  username_change: { title: '📝 Username changed', color: 0x3498DB },
-  game_launch: { title: '🎮 Game launched', color: 0xF1C40F },
-  other: { title: '🌐 Website event', color: 0x95A5A6 },
-};
-
 // ── helpers ──
 const json = (res, code, body, headers) => { res.writeHead(code, { 'Content-Type': 'application/json', ...headers }); res.end(JSON.stringify(body)); };
-const readJsonBody = req => new Promise(resolve => {
-  let body = '';
-  req.on('data', c => { body += c; if (body.length > 16384) { req.destroy(); resolve({}); } });
-  req.on('end', () => { try { resolve(JSON.parse(body || '{}')); } catch { resolve({}); } });
-  req.on('error', () => resolve({}));
-});
 
 // Display names are looked up live (never stored) and cached for 10 minutes.
 const userCache = new Map();
@@ -114,34 +99,6 @@ function makeHandler(client) {
           stats: { uptime: client.uptime, ping: client.ws.ping, members: guild?.memberCount ?? 0, openTicketCount: open.length, activeWarnCount: warns.totalActive() },
           tickets: { open, closed }, warns: recentWarns, warnStats: warns.stats(),
         });
-      }
-
-      if (req.method === 'POST' && pathname === '/api/logs/event') {
-        const body = await readJsonBody(req);
-        const type = String(body.type || '').toLowerCase().slice(0, 24);
-        const style = EVENT_STYLES[type] || EVENT_STYLES.other;
-        const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-        const wait = limited(`ev:${ip}:${type}`, 1000, 15, 60000);
-        if (wait) return json(res, 429, { error: 'Slow down.', retryAfter: wait }, { 'Retry-After': String(wait) });
-
-        const name = plain(body.name, 32) || 'Player';
-        const detail = plain(body.game || body.details || body.action, 80);
-        const from = plain(body.oldName, 32), to = plain(body.newName, 32);
-        const text =
-          type === 'username_change' ? `${from || name} changed their username to ${to || name}`
-          : type === 'login' ? `${name} signed in to PlayStash`
-          : type === 'logout' ? `${name} signed out of PlayStash`
-          : type === 'game_launch' ? `${name} launched ${detail || 'a game'}`
-          : `${name}: ${detail || 'website event'}`;
-
-        const embed = new EmbedBuilder().setTitle(style.title).setDescription(text).setColor(style.color).setTimestamp();
-        const uid = /^\d{17,20}$/.test(String(body.userId ?? '')) ? String(body.userId) : null;
-        if (uid) embed.setFooter({ text: `Website user ID: ${uid}` });
-
-        const ch = await client.channels.fetch(CH.website).catch(() => null);
-        if (!ch?.isTextBased()) return json(res, 503, { error: 'Log channel unavailable' });
-        await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
-        return json(res, 200, { success: true });
       }
     } catch (err) {
       log('ERROR', `API ${pathname} failed: ${err.message}`);
