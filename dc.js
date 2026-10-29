@@ -16,14 +16,17 @@
   const get = async (name) => {
     let hit = null;
     try { hit = JSON.parse(localStorage.getItem(CACHE + name) || 'null'); } catch {}
+    // Never hang on a slow upstream: after 9s fall back to the cached copy, if there is one.
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 9000);
     try {
-      const r = await fetch('/api/pub?name=' + name, { headers: hit && hit.v ? { 'X-Pub-Version': hit.v } : {} });
+      const r = await fetch('/api/pub?name=' + name, { headers: hit && hit.v ? { 'X-Pub-Version': hit.v } : {}, signal: ctl.signal });
       if (r.status === 304) return hit && hit.d;
       if (!r.ok) return hit && hit.d;
       const d = await r.json(), v = r.headers.get('X-Pub-Version') || '';
       try { localStorage.setItem(CACHE + name, JSON.stringify({ v, d })); } catch {}
       return d;
     } catch { return hit && hit.d; }
+    finally { clearTimeout(timer); }
   };
 
   // ── saved format: a vouch is [id in base 36, giver #, receiver #, item #, comment?]; the time is inside the Discord message id ──
@@ -69,7 +72,12 @@
   // ── Overview ──
   function paintOverview() {
     const box = clear($('ov')), s = (C && C.stats) || {};
-    if (!C || !C.stats) { box.appendChild(el('div', 'hud dc-empty', 'Server stats are not available yet.')); return; }
+    if (!C || !s.members) {
+      const n = el('div', 'hud dc-empty', 'Server stats are not available right now. ');
+      const a = el('a', '', 'Try again');
+      a.href = '#'; a.onclick = (e) => { e.preventDefault(); retry(); };
+      n.appendChild(a); box.appendChild(n); return;
+    }
     stat(box, '👥', fmt(s.members), 'Members');
     const tier = s.tier || 0, need = { 0: 2, 1: 7, 2: 14 }[tier];
     stat(box, '💎', fmt(s.boosts) + (tier ? ` · Tier ${tier}` : ''), need ? `${Math.max(0, need - (s.boosts || 0))} boosts to Tier ${tier + 1}` : 'Server boosts');
@@ -90,11 +98,14 @@
     if (s.created) stat(box, '📅', new Date(s.created).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }), 'Server created');
     // Hourly message activity chart
     const hourly = Array.isArray(s.hourlyMsg) && s.hourlyMsg.length ? s.hourlyMsg : new Array(24).fill(0);
-    const max = Math.max(1, ...hourly), vals = hourly.slice(-24);
-    const step = 300 / vals.length;
-    $('act-chart').innerHTML = vals.map((v, i) => `<rect x="${i * step + 1}" y="${58 - (v / max) * 56}" width="${step - 2}" height="${(v / max) * 56 + 1}" rx="2" fill="var(--accent)"><title>${i - vals.length + 1}h ago: ${v}</title></rect>`).join('');
-    $('sub').textContent = C.updatedAt ? 'Live from our Discord bot · updated ' + ago(C.updatedAt) : 'Live from our Discord bot';
+    const max = Math.max(1, ...hourly), vals = hourly.slice(-24), step = 300 / vals.length;
+    const label = (i) => { const h = (new Date().getHours() - (vals.length - 1 - i) + 24) % 24; return String(h).padStart(2, '0') + ':00'; };
+    $('act-chart').innerHTML = gradient('dcg1', '#22d3ee', '#8b5cf6') + vals.map((v, i) =>
+      `<rect class="bar" x="${i * step + 1}" y="${58 - (v / max) * 54}" width="${Math.max(step - 2, 1)}" height="${(v / max) * 54 + 2}" rx="2" fill="url(#dcg1)"><title>${label(i)} — ${v} message${v === 1 ? '' : 's'}</title></rect>`).join('');
+    $('sub').textContent = C.updatedAt ? `Live from our Discord bot · updated ${ago(C.updatedAt)}` : 'Live from our Discord bot';
   }
+  // Bars are drawn as an SVG gradient: no theme-specific colours needed.
+  const gradient = (id, from, to) => `<defs><linearGradient id="${id}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs>`;
 
   // ── Vouches ──
   function paintVouchStats() {
@@ -105,7 +116,7 @@
     const days = [...Array(30)].map((_, i) => new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10)), per = {};
     V.forEach((v) => { if (v.t >= cut - 864e5) { const k = new Date(v.t).toISOString().slice(0, 10); per[k] = (per[k] || 0) + 1; } });
     const vals = days.map((k) => per[k] || 0), max = Math.max(1, ...vals);
-    $('chart').innerHTML = vals.map((v, i) => `<rect x="${i * 10 + 1}" y="${58 - (v / max) * 56}" width="8" height="${(v / max) * 56 + 1}" rx="2" fill="var(--accent)"><title>${days[i]}: ${v}</title></rect>`).join('');
+    $('chart').innerHTML = gradient('dcg2', '#34d399', '#f59e0b') + vals.map((v, i) => `<rect class="bar" x="${i * 10 + 1}" y="${58 - (v / max) * 54}" width="8" height="${(v / max) * 54 + 2}" rx="2" fill="url(#dcg2)"><title>${days[i]} — ${v} vouch${v === 1 ? '' : 'es'}</title></rect>`).join('');
   }
   function filtered() {
     const q = $('q').value.trim().toLowerCase(), p = $('who').value.trim().toLowerCase(), role = $('role').value;
@@ -254,17 +265,27 @@
   $('next').onclick = () => { page++; paintWall(); $('wall').scrollIntoView({ block: 'start' }); };
   $('csv').onclick = exportCsv;
   $('pf-clear').onclick = clearPick;
-  $('pf-link').onclick = () => copy(`${location.origin}/legit?u=${picked}`, 'Link');
+  $('pf-link').onclick = () => picked && copy(`${location.origin}/discord?u=${encodeURIComponent(picked)}`, 'Link');
 
-  let loaded = false;
-  window.initDiscordPage = async () => {
-    if (loaded) return;
-    loaded = true;
-    let D; [D, C] = await Promise.all([get('legit'), get('community')]);
-    if (D && D.chunks) { M = D; ({ rows: V, users: U } = expand(D)); }
-    $('sub').textContent = C ? '' : 'Live data is not available right now. Please try again later.';
-    paintOverview(); paintVouchStats(); fillNames(); paintWall(); paintTopList(); paintItems(); paintBoards(); paintGiveaways();
-    const u = q0.get('u');
-    if (u && U[u]) pick(u, 'any');
-  };
+  let busy = false, loaded = false;
+  async function load() {
+    if (busy) return;
+    busy = true;
+    $('sub').textContent = 'Loading live data…';
+    try {
+      let D; [D, C] = await Promise.all([get('legit'), get('community')]);
+      if (D && D.chunks) { M = D; ({ rows: V, users: U } = expand(D)); }
+      loaded = !!(D && D.chunks) || !!(C && C.stats);
+      $('sub').textContent = C && C.stats ? (C.updatedAt ? `Live · updated ${ago(C.updatedAt)}` : 'Live from our Discord bot')
+        : 'Live data is not available right now. Please try again later.';
+      paintOverview(); paintVouchStats(); fillNames(); paintWall(); paintTopList(); paintItems(); paintBoards(); paintGiveaways();
+      const u = q0.get('u');
+      if (u && U[u]) pick(u, 'any');
+    } finally { busy = false; }
+  }
+  const retry = () => load();
+  window.initDiscordPage = () => { if (!loaded) load(); };
+  window.reloadDiscordPage = retry;
+  // Open /discord directly: the router already ran before this file loaded, so start it here.
+  if (document.querySelector('.page.active')?.dataset.page === 'discord') load();
 })();

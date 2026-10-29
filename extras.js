@@ -142,7 +142,11 @@
     window.Calendar && Calendar.pageChanged();
     window.Board && Board.pageChanged();
     window.Reviews && Reviews.pageChanged();
-    if (p === 'discord') { try { window.initDiscordPage && window.initDiscordPage(); } catch {} }
+    // dc.js loads after this file: on the very first call the init does not exist yet, so retry on the next tick.
+    if (p === 'discord') {
+      const start = () => { try { window.initDiscordPage && window.initDiscordPage(); } catch {} };
+      window.initDiscordPage ? start() : setTimeout(start, 0);
+    }
     if (location.pathname !== pathOf(p) || location.hash) history[quiet ? 'replaceState' : 'pushState'](null, '', pathOf(p));
     if (!quiet) scrollTo({ top: 0 });
   }

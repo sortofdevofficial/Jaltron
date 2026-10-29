@@ -27,8 +27,8 @@ Everything lives at the root on purpose — one file per job, no build step:
 | `db.js` | Firebase: Google auth + Firestore sync (ES module) |
 | `style.css` | All styling, light/dark themes |
 | `api/image.js` | Serverless image proxy (Vercel function) |
-| `api/pub.js` | Serverless function: vouches proxied live from the bot (`BOT_URL`), leaderboards from Firestore, cached by Vercel's CDN |
-| `dc.html` / `dc.js` | Discord page: stats, leaderboards, giveaways, vouches (`/discord` is now inline in the SPA, `/legit` stays public) |
+| `api/pub.js` | Serverless function: vouches and community stats proxied live from the bot (`BOT_URL`), cached by Vercel's CDN |
+| `dc.js` | Discord page inside the SPA: live stats, leaderboards, giveaways, vouches (`dc.html` is the old standalone page, `/legit` stays public) |
 | `firestore.rules` | Database security rules |
 | `manifest.webmanifest` | PWA manifest — makes the app installable |
 | `robots.txt` | Crawler rules (admin page excluded) |
