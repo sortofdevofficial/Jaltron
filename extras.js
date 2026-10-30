@@ -118,7 +118,6 @@
   $('pet-side').addEventListener('click', () => go('home'));
 
   $('dt-all').addEventListener('click', () => { go('tasks'); clickEl('[data-view="all"]'); clickEl('[data-filter="done"]'); });
-  setInterval(() => Habit.tickResets(), 20000);
 
   // ---------- Navigation ----------
   const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', calendar: 'Calendar', ai: 'AI Assistant', insights: 'Insights', plans: 'Plans', bank: 'Bank', links: 'Links', board: 'Leaderboard', reviews: 'Reviews', chat: 'Chat', discord: 'Discord', settings: 'Settings' };
@@ -201,6 +200,7 @@
       const a = Math.random() * Math.PI * 2, v = 3 + Math.random() * 7;
       parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 4, s: 3 + Math.random() * 4, c: cols[i % cols.length], life: 1, r: Math.random() * 6 });
     }
+    cv.classList.add('on');
     if (!raf) raf = requestAnimationFrame(loop);
   }
   function loop() {
@@ -213,7 +213,7 @@
       cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * .6); cx.restore();
     }
     raf = parts.length ? requestAnimationFrame(loop) : 0;
-    if (!raf) cx.clearRect(0, 0, innerWidth, innerHeight);
+    if (!raf) { cx.clearRect(0, 0, innerWidth, innerHeight); cv.classList.remove('on'); }
   }
   function celebrate(el, allDone) {
     const r = el.getBoundingClientRect();

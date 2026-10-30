@@ -249,9 +249,9 @@
   }
 
   // ── Live chat: mirrored from the bot's Discord channel, and posts back into it ──
-  let chatMsgs = [], chatStamp = 0, chatBusy = false, chatTick = null, chatStarted = false;
+  let chatMsgs = [], chatStamp = 0, chatBusy = false, chatTick = null, chatStarted = false, chatLoading = false;
 
-  // Identity comes from the signed-in JALTRON account: picture, @username and a short account ID.
+  // Identity comes from the signed-in JALTRON account: picture and @username.
   // The local snapshot (jc:<uid>) is read first so the details show up even if the sign-in event fired before this file loaded.
   function chatProfile() {
     const user = window.DB && DB.user;
@@ -263,12 +263,12 @@
     return { uid: user.uid, n: nick.slice(0, 24), pic };
   }
   function paintMe() {
-    const av = $('chat-av'), who = $('chat-who'), id = $('chat-uid'), form = $('chat-form'), lock = $('chat-lock');
+    const av = $('chat-av'), who = $('chat-who'), form = $('chat-form'), lock = $('chat-lock');
     if (!av || !who) return;
     const me = chatProfile(), label = me ? me.n : 'Guest';
     const initial = el('div', 'dc-av', label.slice(0, 1).toUpperCase());
     initial.style.width = initial.style.height = '2.4rem';
-    if (!window.DB) { who.textContent = 'Checking your account…'; if (id) id.hidden = true; if (form) form.hidden = true; if (lock) lock.hidden = true; return; }
+    if (!window.DB) { who.textContent = 'Checking your account…'; if (form) form.hidden = true; if (lock) lock.hidden = true; return; }
     clear(av);
     if (me && me.pic) {
       const im = el('img'); im.src = me.pic; im.alt = ''; im.referrerPolicy = 'no-referrer';
@@ -276,14 +276,6 @@
       av.appendChild(im);
     } else av.appendChild(initial);
     who.textContent = me ? '@' + me.n : '🔒 Not signed in';
-    if (id) {
-      id.hidden = !me;
-      if (me) {
-        id.textContent = '🆔 ' + me.uid.slice(0, 8).toUpperCase();
-        id.title = 'Your account ID · click to copy';
-        id.onclick = () => copy(me.uid, 'Account ID');
-      }
-    }
     if (form) form.hidden = !me;
     if (lock) lock.hidden = !!me;
     if ($('chat-text')) $('chat-text').disabled = !me;
@@ -320,7 +312,8 @@
   }
   async function loadChat(force) {
     const box = $('chat-log');
-    if (!box) return;
+    if (!box || chatLoading) return;
+    chatLoading = true;
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 9000);
     try {
       const r = await fetch('/api/chat', { cache: 'no-store', signal: ctl.signal });
@@ -337,7 +330,7 @@
     } catch {
       if (!chatMsgs.length) { clear(box).appendChild(el('div', 'dc-empty', '💤 Chat is offline right now.')); }
       $('chat-state').textContent = '⚠️ Live chat is unavailable right now — try again shortly.';
-    } finally { clearTimeout(timer); }
+    } finally { clearTimeout(timer); chatLoading = false; }
   }
   async function sendChat(e) {
     if (e) e.preventDefault();

@@ -8,6 +8,7 @@ let nextId = 1;
 let currentFilter = 'all';
 let currentCat = 'all';
 let query = '';
+let searchT = 0;
 let editingId = null;
 // canSavePet (below) stays false until the cloud answers, so pet and focus numbers are never saved from an old offline copy
 let bootName = '', syncing = false, fromCache = false; // fromCache: showing last visit's copy, the cloud has not answered yet // bootName: shown from the last visit before Firebase has loaded
@@ -137,7 +138,7 @@ function render() {
     const extra = t.i ? t.i.length - 1 : 0;
     return `
     <div class="task-item p-${t.prio} ${t.done ? 'completed' : ''} ${window.Extras && Extras.focusId() === t.id ? 'focusing' : ''} ${cover ? 'has-img' : ''}" data-id="${t.id}" ${canDrag ? 'draggable="true"' : ''}>
-      ${cover ? `<span class="task-bg" aria-hidden="true"><img src="${escapeHtml(cover)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>` : ''}
+      ${cover ? `<span class="task-bg" aria-hidden="true"><img src="${escapeHtml(cover)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>` : ''}
       <div class="task-left">
         <button class="check-btn" data-act="toggle" aria-label="Toggle complete"><i class="fa-solid fa-check"></i></button>
         <div class="task-main">
@@ -312,7 +313,7 @@ $('views').addEventListener('click', (e) => {
   render();
 });
 $('sort-mode').addEventListener('change', (e) => { sortMode = e.target.value; render(); });
-$('search').addEventListener('input', (e) => { query = e.target.value.trim(); render(); });
+$('search').addEventListener('input', (e) => { query = e.target.value.trim(); clearTimeout(searchT); searchT = setTimeout(render, 120); });
 $('cat-filter').addEventListener('change', (e) => { currentCat = e.target.value; render(); });
 $('clear-done').addEventListener('click', () => {
   const n = tasks.filter(t => t.done && !t.r).length;
@@ -727,7 +728,7 @@ function trackImages() {
 let cardTarget = null;
 const upBusy = new Map(); // task id -> pictures still uploading
 const picsHtml = (t, from = 0) => (t.i && t.i.length > from
-  ? `<div class="pics">${t.i.slice(from).map((p, k) => { const i = k + from; return `<span class="pic-wrap"><button class="pic" data-pic="${i}" aria-label="View image ${i + 1}"><img src="${escapeHtml(Img.parts(p).t)}" alt="" loading="lazy"></button><button class="pic-x" data-picdel="${i}" title="Remove image" aria-label="Remove image ${i + 1}"><i class="fa-solid fa-xmark"></i></button></span>`; }).join('')}</div>` : '');
+  ? `<div class="pics">${t.i.slice(from).map((p, k) => { const i = k + from; return `<span class="pic-wrap"><button class="pic" data-pic="${i}" aria-label="View image ${i + 1}"><img src="${escapeHtml(Img.parts(p).t)}" alt="" loading="lazy" decoding="async"></button><button class="pic-x" data-picdel="${i}" title="Remove image" aria-label="Remove image ${i + 1}"><i class="fa-solid fa-xmark"></i></button></span>`; }).join('')}</div>` : '');
 function removeTaskImage(id, k) {
   const t = tasks.find(x => x.id === id);
   if (!t || !t.i || !t.i[k]) return t ? t.i : [];
