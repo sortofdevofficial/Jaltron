@@ -29,7 +29,7 @@ Everything lives at the root on purpose — one file per job, no build step:
 | `api/image.js` | Serverless image proxy (Vercel function) |
 | `api/pub.js` | Serverless function: vouches and community stats proxied live from the bot (`BOT_URL`), cached by Vercel's CDN |
 | `api/chat.js` | Serverless function: website ↔ Discord chat (GET mirrors the channel, POST posts as the visitor via the bot) |
-| `dc.js` | Discord page inside the SPA: live stats, leaderboards, giveaways, vouches and live chat (`dc.html` is the old standalone page, `/legit` stays public) |
+| `dc.js` | Discord page (live stats, leaderboards, giveaways, vouches) and the Community → Chat page, where visitors chat as their signed-in JALTRON account (`dc.html` is the old standalone page, `/legit` stays public) |
 | `firestore.rules` | Database security rules |
 | `manifest.webmanifest` | PWA manifest — makes the app installable |
 | `robots.txt` | Crawler rules (admin page excluded) |

@@ -44,6 +44,7 @@
   "rewrites": [
     { "source": "/legit", "destination": "/legit.html" },
     { "source": "/discord", "destination": "/index.html" },
+    { "source": "/chat", "destination": "/index.html" },
     { "source": "/dc", "destination": "/index.html" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/tasks", "destination": "/index.html" },

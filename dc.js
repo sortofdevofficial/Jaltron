@@ -249,7 +249,46 @@
   }
 
   // ── Live chat: mirrored from the bot's Discord channel, and posts back into it ──
-  let chatMsgs = [], chatStamp = 0, chatBusy = false, chatTick = null;
+  let chatMsgs = [], chatStamp = 0, chatBusy = false, chatTick = null, chatStarted = false;
+
+  // Identity comes from the signed-in JALTRON account: picture, @username and a short account ID.
+  // The local snapshot (jc:<uid>) is read first so the details show up even if the sign-in event fired before this file loaded.
+  function chatProfile() {
+    const user = window.DB && DB.user;
+    if (!user) return null;
+    let p = {};
+    try { p = (JSON.parse(localStorage.getItem('jc:' + user.uid) || 'null') || {}).profile || {}; } catch {}
+    const pic = p.a ? (window.Img ? Img.parts(p.a).u : '') : (user.photoURL || '');
+    const nick = String(p.n || user.displayName || String(user.email || '').split('@')[0] || 'Member').trim();
+    return { uid: user.uid, n: nick.slice(0, 24), pic };
+  }
+  function paintMe() {
+    const av = $('chat-av'), who = $('chat-who'), id = $('chat-uid'), form = $('chat-form'), lock = $('chat-lock');
+    if (!av || !who) return;
+    const me = chatProfile(), label = me ? me.n : 'Guest';
+    const initial = el('div', 'dc-av', label.slice(0, 1).toUpperCase());
+    initial.style.width = initial.style.height = '2.4rem';
+    if (!window.DB) { who.textContent = 'Checking your account…'; if (id) id.hidden = true; if (form) form.hidden = true; if (lock) lock.hidden = true; return; }
+    clear(av);
+    if (me && me.pic) {
+      const im = el('img'); im.src = me.pic; im.alt = ''; im.referrerPolicy = 'no-referrer';
+      im.onerror = () => { if (im.parentNode) im.replaceWith(initial); };
+      av.appendChild(im);
+    } else av.appendChild(initial);
+    who.textContent = me ? '@' + me.n : '🔒 Not signed in';
+    if (id) {
+      id.hidden = !me;
+      if (me) {
+        id.textContent = '🆔 ' + me.uid.slice(0, 8).toUpperCase();
+        id.title = 'Your account ID · click to copy';
+        id.onclick = () => copy(me.uid, 'Account ID');
+      }
+    }
+    if (form) form.hidden = !me;
+    if (lock) lock.hidden = !!me;
+    if ($('chat-text')) $('chat-text').disabled = !me;
+  }
+
   const chatTime = (t) => { const d = new Date(t), now = new Date(); const hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); return d.toDateString() === now.toDateString() ? hm : d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + hm; };
   function paintChat() {
     const box = $('chat-log');
@@ -303,15 +342,16 @@
   async function sendChat(e) {
     if (e) e.preventDefault();
     if (chatBusy) return;
-    const text = $('chat-text').value.trim(), who = ($('chat-name').value.trim() || 'Guest').slice(0, 24);
-    if (!text) { $('chat-text').focus(); return; }
+    const box = $('chat-text'), me = chatProfile();
+    if (!me) { paintMe(); return; }
+    const text = box.value.trim();
+    if (!text) { box.focus(); return; }
     chatBusy = true; $('chat-send').disabled = true; $('chat-state').className = 'dc-chat-note'; $('chat-state').textContent = 'Sending…';
     try {
-      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ n: who, t: text }) });
+      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ n: me.n, t: text, a: me.pic }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Could not send that message');
-      try { localStorage.setItem('jt:chat:name', who); } catch {}
-      $('chat-text').value = '';
+      box.value = '';
       $('chat-state').className = 'dc-chat-note ok'; $('chat-state').textContent = '✅ Sent to Discord';
       if (d.msg && d.msg.id) { if (!chatMsgs.some((m) => m.id === d.msg.id)) chatMsgs.push(d.msg); paintChat(); $('chat-log').scrollTop = $('chat-log').scrollHeight; }
       loadChat();
@@ -322,15 +362,19 @@
   function chatPoll() {
     clearInterval(chatTick);
     chatTick = setInterval(() => {
-      if (document.hidden || document.querySelector('.page.active')?.dataset.page !== 'discord') return;
-      if ($('p-chat') && !$('p-chat').hidden) loadChat();
+      if (document.hidden || document.querySelector('.page.active')?.dataset.page !== 'chat') return;
+      loadChat();
     }, 12000);
+  }
+  function initChat() {
+    paintMe();
+    loadChat();
+    if (!chatStarted) { chatStarted = true; chatPoll(); }
   }
 
   function show(t) {
     document.querySelectorAll('#dc-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
-    ['overview', 'chat', 'vouches', 'boards', 'giveaways'].forEach((k) => { $('p-' + k).hidden = k !== t; });
-    if (t === 'chat') loadChat();
+    ['overview', 'vouches', 'boards', 'giveaways'].forEach((k) => { $('p-' + k).hidden = k !== t; });
   }
   function sub(t) {
     document.querySelectorAll('#dc-subtabs button').forEach((b) => b.classList.toggle('on', b.dataset.s === t));
@@ -348,7 +392,9 @@
   $('pf-link').onclick = () => picked && copy(`${location.origin}/discord?u=${encodeURIComponent(picked)}`, 'Link');
   $('chat-form').onsubmit = sendChat;
   $('chat-refresh').onclick = () => loadChat(true);
-  try { $('chat-name').value = localStorage.getItem('jt:chat:name') || (window.DB && DB.user && (DB.user.displayName || '').split(' ')[0]) || ''; } catch {}
+  $('chat-signin').onclick = () => (window.DB ? DB.signIn() : toast('Still connecting to your account…'));
+  addEventListener('jaltron:user', () => paintMe());
+  paintMe();
 
   let busy = false, loaded = false;
   async function load() {
@@ -362,14 +408,16 @@
       $('sub').textContent = C && C.stats ? (C.updatedAt ? `Live · updated ${ago(C.updatedAt)}` : 'Live from our Discord bot')
         : 'Live data is not available right now. Please try again later.';
       paintOverview(); paintVouchStats(); fillNames(); paintWall(); paintTopList(); paintItems(); paintBoards(); paintGiveaways();
-      loadChat(); chatPoll();
       const u = q0.get('u');
       if (u && U[u]) pick(u, 'any');
     } finally { busy = false; }
   }
   const retry = () => load();
   window.initDiscordPage = () => { if (!loaded) load(); };
+  window.initChatPage = initChat;
   window.reloadDiscordPage = retry;
-  // Open /discord directly: the router already ran before this file loaded, so start it here.
-  if (document.querySelector('.page.active')?.dataset.page === 'discord') load();
+  // Open /discord or /chat directly: the router already ran before this file loaded, so start it here.
+  const opened = document.querySelector('.page.active')?.dataset.page;
+  if (opened === 'discord') load();
+  if (opened === 'chat') initChat();
 })();

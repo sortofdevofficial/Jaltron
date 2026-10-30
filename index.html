@@ -84,6 +84,7 @@
     <button class="side-pet" id="pet-side" hidden aria-label="Your pet, open Home"><span class="pet" id="pet-side-art"></span><span class="sp-t"><b id="pet-side-n">0</b><small>day streak</small></span></button>
     <div class="nav tools">
       <p class="nav-label">🌐 Community</p>
+      <button class="nav-item" data-nav="chat"><i>🗨️</i><span>Chat</span></button>
       <button class="nav-item" data-nav="discord"><i>💬</i><span>Discord</span></button>
       <p class="nav-label">🧰 Tools</p>
       <button class="nav-item" id="nav-add"><i class="fa-solid fa-plus"></i><span>New task</span><kbd>N</kbd></button>
@@ -481,31 +482,41 @@
   </div>
   </div>
 
+  <div class="page" data-page="chat">
+    <main class="dc">
+      <header class="hud dc-hero dc-hero-chat"><div><h1>🗨️ Live chat</h1><p>Talk to the Discord community right here. Your messages land in our <em>#chat</em> channel; Discord replies show up here within seconds. ✨</p></div><div class="dc-live"><i></i><span>Live</span></div></header>
+      <div class="hud dc-chat">
+        <div class="dc-chat-head">
+          <div class="dc-chat-me">
+            <div class="dc-chat-av" id="dc-chat-av"></div>
+            <div class="dc-chat-id"><b id="dc-chat-who">Checking your account…</b><span id="dc-chat-uid" hidden></span></div>
+          </div>
+          <button class="btn dc-chat-refresh" id="dc-chat-refresh" type="button" title="Refresh messages">🔄</button>
+        </div>
+        <div class="dc-chat-log" id="dc-chat-log"><div class="dc-empty">Connecting to Discord…</div></div>
+        <form class="dc-chat-form" id="dc-chat-form">
+          <input id="dc-chat-text" maxlength="500" placeholder="Message the Discord community… (Enter to send)" autocomplete="off" aria-label="Message">
+          <button class="btn primary" id="dc-chat-send" type="submit">Send 🚀</button>
+        </form>
+        <p class="dc-chat-note" id="dc-chat-state" role="status"></p>
+        <div class="dc-chat-lock" id="dc-chat-lock" hidden>
+          <b>🔒 Sign in to chat</b>
+          <p>Chat speaks as your JALTRON account, so your picture, username and ID travel with every message.</p>
+          <button class="btn primary" id="dc-chat-signin" type="button"><i class="fa-brands fa-google"></i> Sign in with Google</button>
+        </div>
+      </div>
+    </main>
+  </div>
   <div class="page" data-page="discord">
     <main class="dc">
       <a class="back" href="/">← Back to JALTRON</a>
       <header class="hud dc-hero"><div><h1>💬 Discord</h1><p id="dc-sub">Loading…</p></div><div class="dc-live"><i></i><span>Live</span></div></header>
       <div class="dc-tabs" id="dc-tabs">
-        <button data-t="overview" class="on">📊 Overview</button><button data-t="chat" class="dc-tab-chat">💬 Chat</button><button data-t="vouches">✅ Vouches</button><button data-t="boards">🏆 Leaderboards</button><button data-t="giveaways">🎉 Giveaways</button>
+        <button data-t="overview" class="on">📊 Overview</button><button data-t="vouches">✅ Vouches</button><button data-t="boards">🏆 Leaderboards</button><button data-t="giveaways">🎉 Giveaways</button>
       </div>
       <section id="dc-p-overview">
         <div class="dc-stats" id="dc-ov"></div>
         <section class="hud dc-chart"><h3>📈 Messages per hour (last 24 hours)</h3><svg id="dc-act-chart" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></section>
-      </section>
-      <section id="dc-p-chat" hidden>
-        <div class="hud dc-chat">
-          <div class="dc-chat-head">
-            <div><b>🌐 Live chat with Discord</b><span>Type here and it lands in our <em>#chat</em> channel. Discord replies show up here within seconds. ✨</span></div>
-            <button class="btn dc-chat-refresh" id="dc-chat-refresh" type="button" title="Refresh messages">🔄</button>
-          </div>
-          <div class="dc-chat-log" id="dc-chat-log"><div class="dc-empty">Connecting to Discord…</div></div>
-          <form class="dc-chat-form" id="dc-chat-form">
-            <input id="dc-chat-name" maxlength="24" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
-            <input id="dc-chat-text" maxlength="500" placeholder="Message the Discord community… (Enter to send)" autocomplete="off" aria-label="Message">
-            <button class="btn primary" id="dc-chat-send" type="submit">Send 🚀</button>
-          </form>
-          <p class="dc-chat-note" id="dc-chat-state" role="status"></p>
-        </div>
       </section>
       <section id="dc-p-vouches" hidden>
         <div class="dc-stats" id="dc-stats"></div>

@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
   if (req.method === 'POST') {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     headers['Content-Type'] = 'application/json';
-    init.body = JSON.stringify({ n: String(body.n || '').slice(0, 24), t: String(body.t || '').slice(0, 500) });
+    init.body = JSON.stringify({ n: String(body.n || '').slice(0, 24), t: String(body.t || '').slice(0, 500), a: String(body.a || '').slice(0, 300) });
   }
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);

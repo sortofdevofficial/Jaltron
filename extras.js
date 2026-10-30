@@ -121,8 +121,8 @@
   setInterval(() => Habit.tickResets(), 20000);
 
   // ---------- Navigation ----------
-  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', calendar: 'Calendar', ai: 'AI Assistant', insights: 'Insights', plans: 'Plans', bank: 'Bank', links: 'Links', board: 'Leaderboard', reviews: 'Reviews', discord: 'Discord', settings: 'Settings' };
-  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', calendar: '📅', ai: '✨', insights: '📊', plans: '⚡', bank: '🐷', links: '🔗', board: '🏆', reviews: '⭐', discord: '💬', settings: '⚙️' };
+  const PAGES = { home: 'Home', tasks: 'Tasks', focus: 'Focus', calendar: 'Calendar', ai: 'AI Assistant', insights: 'Insights', plans: 'Plans', bank: 'Bank', links: 'Links', board: 'Leaderboard', reviews: 'Reviews', chat: 'Chat', discord: 'Discord', settings: 'Settings' };
+  const EMO = { home: '🏠', tasks: '✅', focus: '⏱️', calendar: '📅', ai: '✨', insights: '📊', plans: '⚡', bank: '🐷', links: '🔗', board: '🏆', reviews: '⭐', chat: '🗨️', discord: '💬', settings: '⚙️' };
   // Clean URLs: /tasks, /focus, /calendar, /leaderboard, /discord ... (old #links still work)
   const SLUG = { board: 'leaderboard' }, FROM = { leaderboard: 'board', task: 'tasks' };
   const pathOf = (p) => p === 'home' ? '/' : '/' + (SLUG[p] || p);
@@ -147,6 +147,10 @@
     if (p === 'discord') {
       const start = () => { try { window.initDiscordPage && window.initDiscordPage(); } catch {} };
       window.initDiscordPage ? start() : setTimeout(start, 0);
+    }
+    if (p === 'chat') {
+      const start = () => { try { window.initChatPage && window.initChatPage(); } catch {} };
+      window.initChatPage ? start() : setTimeout(start, 0);
     }
     if (location.pathname !== pathOf(p) || location.hash) history[quiet ? 'replaceState' : 'pushState'](null, '', pathOf(p));
     if (!quiet) scrollTo({ top: 0 });

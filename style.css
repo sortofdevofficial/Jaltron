@@ -1287,15 +1287,24 @@ html.theming *, html.theming *::before, html.theming *::after { transition: back
 .dc-prof .grow{flex:1;min-width:12rem}.dc-prof .acts{display:flex;gap:.4rem;flex-wrap:wrap}
 .dc-gw{padding:.85rem 1rem}.dc-gw+.dc-gw{border-top:1px solid var(--border)}.dc-gw b{font-size:.95rem}.dc-gw div{font-size:.78rem;color:var(--muted);margin-top:.2rem}
 .dc-chip{display:inline-block;margin-left:.4rem;padding:.05rem .5rem;border-radius:99px;font-size:.66rem;font-weight:700;background:#16a34a;color:#fff;vertical-align:middle}.dc-chip.end{background:var(--panel-3);color:var(--muted)}
-/* Live chat with Discord */
-.dc-tabs button.dc-tab-chat{color:#16a34a}
-.dc-tabs button.dc-tab-chat:hover{color:#16a34a;background:color-mix(in srgb,#22c55e 14%,transparent)}
-.dc-tabs button.dc-tab-chat.on{background:linear-gradient(135deg,#5865f2,#22c55e);color:#fff;box-shadow:0 6px 18px -8px #22c55eaa}
+/* Live chat with Discord (its own Community page) */
+.page[data-page="chat"]{padding:0;overflow:auto}
+.page[data-page="chat"] .dc{max-width:56rem}
+.dc-hero-chat{border-color:color-mix(in srgb,#22c55e 30%,var(--border));border-left-color:#22c55e;background:linear-gradient(120deg,color-mix(in srgb,#22c55e 16%,var(--panel-2)),color-mix(in srgb,#06b6d4 10%,var(--panel-2)) 55%,color-mix(in srgb,#5865f2 10%,var(--panel-2)))}
+.dc-hero-chat::after{background:radial-gradient(circle,color-mix(in srgb,#22c55e 30%,transparent),transparent 65%)}
+.dc-hero-chat h1{background:linear-gradient(90deg,#22c55e,#06b6d4 55%,#5865f2);-webkit-background-clip:text;background-clip:text;color:transparent}
 .dc-chat{display:flex;flex-direction:column;overflow:hidden;padding:0;border:1px solid color-mix(in srgb,#5865f2 26%,var(--border));background:linear-gradient(180deg,color-mix(in srgb,#5865f2 7%,var(--panel)),var(--panel) 22%)}
 .dc-chat-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.8rem 1rem;border-bottom:1px solid var(--border);background:linear-gradient(100deg,color-mix(in srgb,#5865f2 14%,transparent),color-mix(in srgb,#22c55e 10%,transparent) 60%,color-mix(in srgb,#06b6d4 10%,transparent))}
-.dc-chat-head b{display:block;font-size:.92rem}
-.dc-chat-head span{display:block;margin-top:.12rem;color:var(--muted);font-size:.76rem}
-.dc-chat-head em{font-style:normal;font-weight:700;color:var(--accent)}
+.dc-chat-me{display:flex;align-items:center;gap:.7rem;min-width:0}
+.dc-chat-av{flex:none;width:2.4rem;height:2.4rem;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:linear-gradient(135deg,#5865f2,#22c55e);color:#fff;font-weight:800;font-size:1rem;box-shadow:0 0 0 2px color-mix(in srgb,#22c55e 35%,transparent)}
+.dc-chat-av img{width:100%;height:100%;object-fit:cover;display:block}
+.dc-chat-id{min-width:0}
+.dc-chat-id b{display:block;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dc-chat-id span{display:inline-block;margin-top:.18rem;padding:.05rem .45rem;border-radius:99px;background:color-mix(in srgb,#5865f2 16%,transparent);color:var(--muted);font:.66rem 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.04em;cursor:pointer}
+.dc-chat-id span:hover{color:#5865f2}
+.dc-chat-lock{display:grid;gap:.5rem;justify-items:start;padding:1.1rem 1rem 1.3rem;border-top:1px solid var(--border);background:color-mix(in srgb,#f59e0b 8%,transparent)}
+.dc-chat-lock b{font-size:.92rem}
+.dc-chat-lock p{margin:0;color:var(--muted);font-size:.8rem;max-width:34rem}
 .dc-chat-refresh{flex:none;padding:.3rem .55rem;font-size:.85rem;line-height:1}
 .dc-chat-refresh:hover{transform:rotate(180deg);transition:transform .35s}
 .dc-chat-log{display:flex;flex-direction:column;gap:.1rem;padding:.55rem .5rem;height:min(62vh,30rem);min-height:16rem;overflow-y:auto;scrollbar-width:thin}
@@ -1319,7 +1328,6 @@ html.theming *, html.theming *::before, html.theming *::after { transition: back
 .dc-chat-form{display:flex;flex-wrap:wrap;gap:.5rem;padding:.7rem .8rem;border-top:1px solid var(--border);background:color-mix(in srgb,var(--panel-2) 75%,transparent)}
 .dc-chat-form input{min-width:0;padding:.55rem .75rem;border-radius:.6rem;border:1px solid var(--border);background:var(--panel);color:var(--text);font:inherit;font-size:.84rem}
 .dc-chat-form input:focus{outline:none;border-color:#5865f2;box-shadow:0 0 0 3px color-mix(in srgb,#5865f2 18%,transparent)}
-#dc-chat-name{width:9rem;flex:none}
 #dc-chat-text{flex:1;min-width:10rem}
 #dc-chat-send{flex:none;border:none;padding:.55rem 1.1rem;border-radius:.6rem;font-weight:700;font-size:.82rem;color:#fff;background:linear-gradient(135deg,#5865f2,#a855f7);transition:filter .15s,transform .1s}
 #dc-chat-send:hover{filter:brightness(1.12)}
@@ -1329,17 +1337,18 @@ html.theming *, html.theming *::before, html.theming *::after { transition: back
 .dc-chat-note{margin:0;padding:0 .9rem .7rem;font-size:.78rem;color:var(--muted);min-height:1rem}
 .dc-chat-note.ok{color:#16a34a}
 .dc-chat-note.bad{color:#ef4444}
-@media(max-width:520px){#dc-chat-name{width:100%}.dc-chat-log{height:58vh}}
+@media(max-width:520px){.dc-chat-log{height:58vh}.dc-chat-id b{max-width:12rem}}
 @media(max-width:36rem){.dc-row .nm{width:6rem}}
 
 /* ---------- Colorful pass: every page, card and control carries a hue ---------- */
-[data-nav="calendar"]{--c:#0ea5e9} [data-nav="ai"],#nav-ai{--c:#d946ef} [data-nav="discord"]{--c:#5865f2}
+[data-nav="calendar"]{--c:#0ea5e9} [data-nav="ai"],#nav-ai{--c:#d946ef} [data-nav="discord"]{--c:#5865f2} [data-nav="chat"]{--c:#22c55e}
 #nav-add{--c:#22c55e} #nav-keys{--c:#8b5cf6}
 
 :root[data-page="home"]{--pc:#3b82f6} :root[data-page="tasks"]{--pc:#10b981} :root[data-page="focus"]{--pc:#f97316}
 :root[data-page="calendar"]{--pc:#0ea5e9} :root[data-page="ai"]{--pc:#d946ef} :root[data-page="insights"]{--pc:#a855f7}
 :root[data-page="plans"]{--pc:#f59e0b} :root[data-page="bank"]{--pc:#ec4899} :root[data-page="links"]{--pc:#14b8a6}
 :root[data-page="board"]{--pc:#eab308} :root[data-page="reviews"]{--pc:#fbbf24} :root[data-page="discord"]{--pc:#5865f2}
+:root[data-page="chat"]{--pc:#22c55e}
 :root[data-page="settings"]{--pc:#06b6d4}
 
 .topbar h2#page-title{background:linear-gradient(100deg,var(--pc,var(--accent)),color-mix(in srgb,var(--pc,var(--accent)) 45%,#a855f7) 62%,color-mix(in srgb,var(--pc,var(--accent)) 55%,#22d3ee));-webkit-background-clip:text;background-clip:text;color:transparent;transition:filter .2s}
