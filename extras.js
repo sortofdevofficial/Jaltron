@@ -135,6 +135,7 @@
     document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.dataset.page === p));
     document.querySelectorAll('[data-nav]').forEach(x => { const on = x.dataset.nav === p; x.classList.toggle('active', on); on ? x.setAttribute('aria-current', 'page') : x.removeAttribute('aria-current'); });
     $('page-title').textContent = EMO[p] ? `${EMO[p]} ${PAGES[p]}` : PAGES[p];
+    document.documentElement.dataset.page = p; // drives the per-page accent colour in style.css
     if ($('chat-fab')) $('chat-fab').hidden = p === 'ai';
     Focus.title(`${PAGES[p]} | JALTRON`); Focus.pageChanged();
     window.Bank && Bank.pageChanged();

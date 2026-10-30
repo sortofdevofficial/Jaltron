@@ -65,7 +65,7 @@
       <button class="icon-btn sm side-close" id="side-close" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="nav">
-      <p class="nav-label">Main</p>
+      <p class="nav-label">🚀 Main</p>
       <button class="nav-item active" data-nav="home"><i class="fa-solid fa-house"></i><span>Home</span></button>
       <button class="nav-item" data-nav="tasks"><i class="fa-solid fa-list-check"></i><span>Tasks</span><b id="nav-tasks-n">0</b></button>
       <button class="nav-item" data-nav="focus"><i class="fa-solid fa-stopwatch"></i><span>Focus</span><b class="live" id="nav-focus-t" hidden>25:00</b></button>
@@ -73,19 +73,19 @@
       <button class="nav-item" data-nav="ai"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Assistant</span></button>
       <button class="nav-item" data-nav="reviews"><i>⭐</i><span>Reviews</span></button>
       <button class="nav-item" data-nav="links"><i>🔗</i><span>Links</span></button>
-      <p class="nav-label">Grow</p>
+      <p class="nav-label">🌱 Grow</p>
       <button class="nav-item" data-nav="insights"><i class="fa-solid fa-chart-pie"></i><span>Insights</span></button>
       <button class="nav-item" data-nav="board"><i class="fa-solid fa-trophy"></i><span>Leaderboard</span></button>
       <button class="nav-item" data-nav="bank"><i class="fa-solid fa-piggy-bank"></i><span>Bank</span></button>
-      <p class="nav-label">Account</p>
+      <p class="nav-label">👤 Account</p>
       <button class="nav-item" data-nav="plans"><i class="fa-solid fa-bolt"></i><span>Plans</span><b id="nav-plan">Free</b></button>
       <button class="nav-item" data-nav="settings"><i class="fa-solid fa-sliders"></i><span>Settings</span></button>
     </div>
     <button class="side-pet" id="pet-side" hidden aria-label="Your pet, open Home"><span class="pet" id="pet-side-art"></span><span class="sp-t"><b id="pet-side-n">0</b><small>day streak</small></span></button>
     <div class="nav tools">
-      <p class="nav-label">Community</p>
+      <p class="nav-label">🌐 Community</p>
       <button class="nav-item" data-nav="discord"><i>💬</i><span>Discord</span></button>
-      <p class="nav-label">Tools</p>
+      <p class="nav-label">🧰 Tools</p>
       <button class="nav-item" id="nav-add"><i class="fa-solid fa-plus"></i><span>New task</span><kbd>N</kbd></button>
       <button class="nav-item" id="nav-keys"><i class="fa-regular fa-keyboard"></i><span>Shortcuts</span><kbd>?</kbd></button>
     </div>
@@ -136,7 +136,7 @@
       <text class="ring-n" id="ring-n" x="80" y="82" text-anchor="middle">0</text>
       <text class="ring-l" id="ring-l" x="80" y="100" text-anchor="middle">done today</text>
     </svg>
-    <div class="next"><h3>Up next</h3><ol id="next-list"></ol></div>
+    <div class="next"><h3>⏭️ Up next</h3><ol id="next-list"></ol></div>
     <div class="pet-strip">
       <button class="pet" id="pet-btn" hidden aria-label="Your pet. Tap to say hi" title="Say hi"><span id="pet-art"></span></button>
       <div class="pet-info">
@@ -171,12 +171,12 @@
   </section>
 
   <div class="hud progress-wrap">
-    <div class="progress-label"><span>Overall progress</span><span id="progress-text">0%</span></div>
+    <div class="progress-label"><span>📊 Overall progress</span><span id="progress-text">0%</span></div>
     <div class="progress"><div id="progress-bar"></div></div>
   </div>
 
   <section class="hud done-box" id="done-box" hidden>
-    <div class="panel-title"><span><i class="fa-solid fa-check-double"></i> Completed today <b id="dt-n">0</b></span><button class="btn" id="dt-all"><i class="fa-solid fa-list-check"></i> Open tasks</button></div>
+    <div class="panel-title"><span><i class="fa-solid fa-check-double"></i> ✅ Completed today <b id="dt-n">0</b></span><button class="btn" id="dt-all"><i class="fa-solid fa-list-check"></i> Open tasks</button></div>
     <ul class="dt-list" id="dt-list"></ul>
   </section>
   </div>
@@ -486,11 +486,26 @@
       <a class="back" href="/">← Back to JALTRON</a>
       <header class="hud dc-hero"><div><h1>💬 Discord</h1><p id="dc-sub">Loading…</p></div><div class="dc-live"><i></i><span>Live</span></div></header>
       <div class="dc-tabs" id="dc-tabs">
-        <button data-t="overview" class="on">Overview</button><button data-t="vouches">Vouches</button><button data-t="boards">Leaderboards</button><button data-t="giveaways">Giveaways</button>
+        <button data-t="overview" class="on">📊 Overview</button><button data-t="chat" class="dc-tab-chat">💬 Chat</button><button data-t="vouches">✅ Vouches</button><button data-t="boards">🏆 Leaderboards</button><button data-t="giveaways">🎉 Giveaways</button>
       </div>
       <section id="dc-p-overview">
         <div class="dc-stats" id="dc-ov"></div>
-        <section class="hud dc-chart"><h3>Messages per hour (last 24 hours)</h3><svg id="dc-act-chart" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></section>
+        <section class="hud dc-chart"><h3>📈 Messages per hour (last 24 hours)</h3><svg id="dc-act-chart" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></section>
+      </section>
+      <section id="dc-p-chat" hidden>
+        <div class="hud dc-chat">
+          <div class="dc-chat-head">
+            <div><b>🌐 Live chat with Discord</b><span>Type here and it lands in our <em>#chat</em> channel. Discord replies show up here within seconds. ✨</span></div>
+            <button class="btn dc-chat-refresh" id="dc-chat-refresh" type="button" title="Refresh messages">🔄</button>
+          </div>
+          <div class="dc-chat-log" id="dc-chat-log"><div class="dc-empty">Connecting to Discord…</div></div>
+          <form class="dc-chat-form" id="dc-chat-form">
+            <input id="dc-chat-name" maxlength="24" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
+            <input id="dc-chat-text" maxlength="500" placeholder="Message the Discord community… (Enter to send)" autocomplete="off" aria-label="Message">
+            <button class="btn primary" id="dc-chat-send" type="submit">Send 🚀</button>
+          </form>
+          <p class="dc-chat-note" id="dc-chat-state" role="status"></p>
+        </div>
       </section>
       <section id="dc-p-vouches" hidden>
         <div class="dc-stats" id="dc-stats"></div>
@@ -554,12 +569,12 @@
         <div class="streak-card"><i class="fa-solid fa-repeat"></i><div><b id="sk-habits">0</b><span>repeating tasks</span></div></div>
       </div>
       <div class="charts">
-        <div class="chart-box"><h3>By category</h3><div id="ch-cat"></div></div>
-        <div class="chart-box"><h3>By priority</h3><div id="ch-prio"></div></div>
-        <div class="chart-box"><h3>Status</h3><div id="ch-status"></div></div>
-        <div class="chart-box"><h3>Completed, last 7 days</h3><div id="ch-week"></div></div>
-        <div class="chart-box wide"><h3>Activity, last 12 weeks</h3><div id="ch-heat"></div><div class="heat-legend">Less <i class="heat h0"></i><i class="heat h1"></i><i class="heat h2"></i><i class="heat h3"></i><i class="heat h4"></i> More</div></div>
-        <div class="chart-box wide"><h3>Habit streaks</h3><div id="habit-list"></div></div>
+        <div class="chart-box"><h3>🗂️ By category</h3><div id="ch-cat"></div></div>
+        <div class="chart-box"><h3>🚩 By priority</h3><div id="ch-prio"></div></div>
+        <div class="chart-box"><h3>📌 Status</h3><div id="ch-status"></div></div>
+        <div class="chart-box"><h3>✅ Completed, last 7 days</h3><div id="ch-week"></div></div>
+        <div class="chart-box wide"><h3>🔥 Activity, last 12 weeks</h3><div id="ch-heat"></div><div class="heat-legend">Less <i class="heat h0"></i><i class="heat h1"></i><i class="heat h2"></i><i class="heat h3"></i><i class="heat h4"></i> More</div></div>
+        <div class="chart-box wide"><h3>⚡ Habit streaks</h3><div id="habit-list"></div></div>
       </div>
     </div>
   </section>

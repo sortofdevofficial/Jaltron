@@ -248,9 +248,89 @@
     group('Active giveaways', gw.active, true); group('Recent giveaways', gw.recent, false);
   }
 
+  // ── Live chat: mirrored from the bot's Discord channel, and posts back into it ──
+  let chatMsgs = [], chatStamp = 0, chatBusy = false, chatTick = null;
+  const chatTime = (t) => { const d = new Date(t), now = new Date(); const hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); return d.toDateString() === now.toDateString() ? hm : d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + hm; };
+  function paintChat() {
+    const box = $('chat-log');
+    if (!box) return;
+    const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    clear(box);
+    if (!chatMsgs.length) { box.appendChild(el('div', 'dc-empty', chatStamp ? 'No messages yet — say hello! 👋' : 'Connecting to Discord…')); return; }
+    chatMsgs.forEach((m) => {
+      const row = el('div', 'dc-cm' + (m.w ? ' web' : '') + (m.b && !m.w ? ' bot' : ''));
+      const fallback = () => { const d = el('div', 'dc-av', String(m.n || '?').slice(0, 1).toUpperCase()); d.style.width = d.style.height = '2.2rem'; return d; };
+      const av = el('img'); av.src = m.a || ''; av.alt = ''; av.loading = 'lazy'; av.referrerPolicy = 'no-referrer';
+      av.onerror = () => { const d = fallback(); if (av.parentNode) av.replaceWith(d); };
+      row.appendChild(av);
+      const body = el('div', 'body'), head = el('div', 'head');
+      head.appendChild(el('b', '', m.n || 'User'));
+      if (m.w) head.appendChild(el('span', 'tag web', '🌐 website'));
+      if (m.b && !m.w) head.appendChild(el('span', 'tag bot', '🤖 bot'));
+      head.appendChild(el('span', 'at', chatTime(m.t)));
+      body.appendChild(head);
+      if (m.x) body.appendChild(el('div', 'text', m.x));
+      (m.f || []).forEach((f) => {
+        if (f.k === 'image' && f.u) { const im = el('img', 'att'); im.src = f.u; im.alt = f.n || ''; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; body.appendChild(im); }
+        else { const a = el('a', 'att-file', '📎 ' + (f.n || 'attachment')); a.href = f.u; a.target = '_blank'; a.rel = 'noopener'; a.download = ''; body.appendChild(a); }
+      });
+      row.appendChild(body);
+      box.appendChild(row);
+    });
+    if (stick) box.scrollTop = box.scrollHeight;
+  }
+  async function loadChat(force) {
+    const box = $('chat-log');
+    if (!box) return;
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 9000);
+    try {
+      const r = await fetch('/api/chat', { cache: 'no-store', signal: ctl.signal });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      if (!d || !Array.isArray(d.msgs)) throw new Error('bad payload');
+      const before = chatMsgs.length ? chatMsgs[chatMsgs.length - 1].id : '';
+      const after = d.msgs.length ? d.msgs[d.msgs.length - 1].id : '';
+      const seen = chatStamp === 0;
+      chatMsgs = d.msgs; chatStamp = d.v || chatStamp || Date.now();
+      if (force || before !== after || seen) paintChat();
+      // Keep the "Sent" confirmation; only clear a stale error.
+      if ($('chat-state').className.indexOf('bad') >= 0) { $('chat-state').className = 'dc-chat-note'; $('chat-state').textContent = ''; }
+    } catch {
+      if (!chatMsgs.length) { clear(box).appendChild(el('div', 'dc-empty', '💤 Chat is offline right now.')); }
+      $('chat-state').textContent = '⚠️ Live chat is unavailable right now — try again shortly.';
+    } finally { clearTimeout(timer); }
+  }
+  async function sendChat(e) {
+    if (e) e.preventDefault();
+    if (chatBusy) return;
+    const text = $('chat-text').value.trim(), who = ($('chat-name').value.trim() || 'Guest').slice(0, 24);
+    if (!text) { $('chat-text').focus(); return; }
+    chatBusy = true; $('chat-send').disabled = true; $('chat-state').className = 'dc-chat-note'; $('chat-state').textContent = 'Sending…';
+    try {
+      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ n: who, t: text }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not send that message');
+      try { localStorage.setItem('jt:chat:name', who); } catch {}
+      $('chat-text').value = '';
+      $('chat-state').className = 'dc-chat-note ok'; $('chat-state').textContent = '✅ Sent to Discord';
+      if (d.msg && d.msg.id) { if (!chatMsgs.some((m) => m.id === d.msg.id)) chatMsgs.push(d.msg); paintChat(); $('chat-log').scrollTop = $('chat-log').scrollHeight; }
+      loadChat();
+    } catch (err) {
+      $('chat-state').className = 'dc-chat-note bad'; $('chat-state').textContent = '⚠️ ' + err.message;
+    } finally { chatBusy = false; $('chat-send').disabled = false; }
+  }
+  function chatPoll() {
+    clearInterval(chatTick);
+    chatTick = setInterval(() => {
+      if (document.hidden || document.querySelector('.page.active')?.dataset.page !== 'discord') return;
+      if ($('p-chat') && !$('p-chat').hidden) loadChat();
+    }, 12000);
+  }
+
   function show(t) {
     document.querySelectorAll('#dc-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
-    ['overview', 'vouches', 'boards', 'giveaways'].forEach((k) => { $('p-' + k).hidden = k !== t; });
+    ['overview', 'chat', 'vouches', 'boards', 'giveaways'].forEach((k) => { $('p-' + k).hidden = k !== t; });
+    if (t === 'chat') loadChat();
   }
   function sub(t) {
     document.querySelectorAll('#dc-subtabs button').forEach((b) => b.classList.toggle('on', b.dataset.s === t));
@@ -266,6 +346,9 @@
   $('csv').onclick = exportCsv;
   $('pf-clear').onclick = clearPick;
   $('pf-link').onclick = () => picked && copy(`${location.origin}/discord?u=${encodeURIComponent(picked)}`, 'Link');
+  $('chat-form').onsubmit = sendChat;
+  $('chat-refresh').onclick = () => loadChat(true);
+  try { $('chat-name').value = localStorage.getItem('jt:chat:name') || (window.DB && DB.user && (DB.user.displayName || '').split(' ')[0]) || ''; } catch {}
 
   let busy = false, loaded = false;
   async function load() {
@@ -279,6 +362,7 @@
       $('sub').textContent = C && C.stats ? (C.updatedAt ? `Live · updated ${ago(C.updatedAt)}` : 'Live from our Discord bot')
         : 'Live data is not available right now. Please try again later.';
       paintOverview(); paintVouchStats(); fillNames(); paintWall(); paintTopList(); paintItems(); paintBoards(); paintGiveaways();
+      loadChat(); chatPoll();
       const u = q0.get('u');
       if (u && U[u]) pick(u, 'any');
     } finally { busy = false; }
